@@ -1,0 +1,4 @@
+* text=auto eol=lf
+spec/vectors/** -text
+*.dseal binary
+*.ots binary

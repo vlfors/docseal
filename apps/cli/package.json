@@ -1,0 +1,23 @@
+{
+  "name": "@docseal/cli",
+  "version": "0.0.0",
+  "description": "DocSeal command-line interface",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "docseal": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --clean --sourcemap",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@docseal/anchor-ots": "workspace:*",
+    "@docseal/core": "workspace:*",
+    "@docseal/sig-ed25519": "workspace:*",
+    "commander": "^15.0.0"
+  }
+}
