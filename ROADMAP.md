@@ -5,15 +5,15 @@ This roadmap describes the current direction of the project. It is not a commitm
 ## v0.1 — Core and CLI
 
 - [ ] Freeze the versioned `.dseal` specification.
-- [ ] Implement a safe fat package with documents inside.
+- [x] Implement a safe fat package with documents inside.
 - [ ] Add `manifest.json`, `statement.json`, and JSON Schemas.
 - [ ] Implement streaming SHA-256 hashing.
 - [ ] Implement the Merkle tree and publish test vectors.
-- [ ] Implement the `SignatureSuite`, `KeyProvider`, and `TrustPolicy` interfaces.
-- [ ] Implement the Ed25519 plugin and a development-only local key file.
-- [ ] Implement `AnchorProvider` and the OpenTimestamps plugin.
-- [ ] Implement the CLI: `keygen`, `seal`, `verify`, `upgrade`.
-- [ ] Return a machine-readable report with separate verification axes.
+- [x] Implement the `SignatureSuite`, `KeyProvider`, and `TrustPolicy` interfaces.
+- [x] Implement the Ed25519 plugin and a development-only local key file.
+- [x] Implement `AnchorProvider` and the OpenTimestamps plugin.
+- [x] Implement the CLI: `keygen`, `seal`, `verify`, `upgrade`.
+- [x] Return a machine-readable report with separate verification axes.
 - [ ] Add mutation tests, property tests, and parser fuzzing.
 - [ ] Set up CI, signed releases, and documentation.
 
@@ -23,7 +23,7 @@ This roadmap describes the current direction of the project. It is not a commitm
 2. **Vertical prototype:** one file → manifest → statement → Ed25519 → `.dseal` → verify; a one-byte change yields `invalid`. No anchoring yet. *Done in the library; in-memory only. Remaining: streaming container I/O for large files, ZIP64.*
 3. **Multiple files and policies:** plugin registry, pinned-keys `TrustPolicy`, `any-valid` signature policy, missing/modified/extra file detection, `unsupported` for unknown suites and critical extensions. *Done.*
 4. **OpenTimestamps:** `.ots` parser and executor, calendar submission, `upgrade`, Bitcoin header check through a configurable `ChainReader`. Tests use recorded proofs, no network in CI. *Done; checked live against public calendars and mempool.space.*
-5. **CLI:** `keygen`, `seal`, `verify --trust --json`, `upgrade`; distinct exit codes; human and JSON reports with the same content.
+5. **CLI:** `keygen`, `seal`, `verify --trust --json`, `upgrade`; distinct exit codes; human and JSON reports with the same content. *Done; also `pubkey`. Demonstrated against the public calendars and mempool.space.*
 6. **Quality and release:** test vectors cross-checked by an independent script, negative tests for every threat-model row, fast-check properties, parser fuzzing, ≥ 90 % core coverage, `CHANGELOG.md`, `CONTRIBUTING.md`, npm provenance, demo `seal → verify → mutate → invalid`.
 
 Explicitly deferred from v0.1: selective disclosure (only the proof-building function and `merkleRoot` in the statement are in place), co-signing and M-of-N, `previous` versions, the package passport, RFC 3161, WebAuthn, any server, standalone binaries.

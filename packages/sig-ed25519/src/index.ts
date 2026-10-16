@@ -3,6 +3,8 @@ import type { KeyProvider, SignatureCheck, SignatureSuite } from "@docseal/core"
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { base58 } from "@scure/base";
 
+export * from "./keyfile.js";
+
 export const SUITE_ID = "ed25519";
 export const PROFILE_ID = "docseal-ed25519-v1";
 

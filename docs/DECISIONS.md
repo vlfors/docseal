@@ -42,6 +42,9 @@ The value of the project lies in an open format, independent verification, a cle
 | OpenTimestamps implementation | Own parser/executor for the `.ots` serialization format (not a cryptographic primitive) instead of the legacy `javascript-opentimestamps`, so it is portable to the browser. |
 | Hash functions in timestamp paths | SHA-256, RIPEMD-160, and Keccak-256 are executed; SHA-1 paths are ignored. RIPEMD-160 is required by real 2015–2016 Bitcoin proofs. |
 | Calendar quorum | A seal must be accepted by at least two calendars when sealing. |
+| Default chain source (CLI) | mempool.space Esplora API, named in every report; `--chain` for a self-hosted Esplora, `--offline` to skip. A Bitcoin Core RPC reader is future work. |
+| CLI exit codes | `0` valid, `1` invalid, `2` indeterminate, `3` error. |
+| Passphrase input | Hidden terminal prompt, or `DOCSEAL_PASSPHRASE` for scripts. Never a command-line argument, which would leak into shell history and process lists. |
 
 See [FORMAT-v0.1-DRAFT.md](FORMAT-v0.1-DRAFT.md) for the normative details.
 
@@ -78,4 +81,3 @@ For a single developer:
 
 - final project name and domain;
 - how to verify Bitcoin in the browser and how to display the level of trust in the data source (v0.2);
-- default `ChainReader` source for the CLI (public Esplora instance vs. requiring a configured node).

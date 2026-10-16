@@ -31,7 +31,7 @@ export async function request(
   try {
     response = await fetchFn(url, { ...init, signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS) });
   } catch (error) {
-    throw new HttpError(`${url}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new HttpError(`${url}: ${describe(error)}`);
   }
   if (!response.ok) {
     throw new HttpError(`${url}: HTTP ${String(response.status)}`, response.status);
@@ -41,4 +41,13 @@ export async function request(
     throw new HttpError(`${url}: response is larger than ${String(init.maxBytes)} bytes`);
   }
   return body;
+}
+
+/** Node's fetch reports "fetch failed" and hides the reason (DNS, TLS, refused) in `cause`. */
+function describe(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+  const cause = error.cause instanceof Error ? error.cause.message : undefined;
+  return cause ? `${error.message} (${cause})` : error.message;
 }

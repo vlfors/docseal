@@ -52,6 +52,8 @@ export interface SignatureResult {
   /** Signer's own clock; not evidence of time. */
   claimedAt?: string;
   trust?: TrustResult["verdict"];
+  /** Explanation from the trust policy, e.g. the label of a pinned key. */
+  trustReason?: string;
 }
 
 export interface AnchorReport {
@@ -291,6 +293,9 @@ async function checkTrust(
     for (const result of validSigners) {
       const outcome = await options.trust.evaluate(result.signer ?? "", { attestedAt });
       result.trust = outcome.verdict;
+      if (outcome.reason !== undefined) {
+        result.trustReason = outcome.reason;
+      }
       verdicts.push(outcome.verdict);
       if (outcome.verdict !== "trusted") {
         report.issues.push({

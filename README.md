@@ -41,6 +41,20 @@ The project is intended as a complete, portfolio-grade open-source project: firs
 5. The OpenTimestamps proof is checked.
 6. A detailed report is returned, with separate results for format, integrity, signature, trust, time, and completeness.
 
+## Command line
+
+```bash
+docseal keygen -o me.key                       # encrypted Ed25519 key (development use)
+docseal pubkey me.key                          # did:key to put in recipients' trusted-keys.json
+docseal seal contract/ -k me.key -o contract.dseal
+docseal verify contract.dseal --trust trusted-keys.json
+docseal upgrade contract.dseal                 # a few hours later: complete the Bitcoin proof
+```
+
+`verify` exits with `0` when every check passed, `1` when the package was modified or a proof is false, `2` when nothing is wrong but not everything could be confirmed (pending time proof, unknown signer), and `3` on usage or I/O errors. `--json` prints the machine-readable report. The passphrase is asked on the terminal or read from `DOCSEAL_PASSPHRASE`.
+
+By default `verify` reads Bitcoin block headers from the mempool.space Esplora API; use `--chain <url>` for your own Esplora instance or `--offline` to skip the time check.
+
 ## Package format
 
 The first version uses a "fat" ZIP container that includes the documents themselves:
