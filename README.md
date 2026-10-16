@@ -112,6 +112,8 @@ Changing a single byte must produce a negative verification result. After that c
 
 See the [roadmap](ROADMAP.md), [architecture](ARCHITECTURE.md), [format draft](docs/FORMAT-v0.1-DRAFT.md), [decisions](docs/DECISIONS.md), [threat model](THREAT_MODEL.md), and [security policy](SECURITY.md).
 
+In-depth guides: [plugin system](docs/PLUGINS.md) and [OpenTimestamps integration](docs/OPENTIMESTAMPS.md).
+
 ## Development
 
 Requires Node.js ≥ 22 and pnpm via Corepack (`corepack enable`).

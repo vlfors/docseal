@@ -106,6 +106,8 @@ The core uses only platform-neutral APIs (`Uint8Array`, Web Streams, WebCrypto) 
 
 ## Plugin interfaces
 
+See [docs/PLUGINS.md](docs/PLUGINS.md) for the full interfaces, the registry rules, and how to write a plugin.
+
 ### SignatureSuite
 
 Verifies a specific cryptographic format. The first implementation is Ed25519. X.509/CMS, WebAuthn, or GOST are possible later.
@@ -133,7 +135,7 @@ Separately from mathematical correctness, decides whether the signing key is acc
 
 ### AnchorProvider
 
-Submits a digest, upgrades a pending proof, and verifies a confirmed timestamp proof. The first implementation is OpenTimestamps.
+Submits a digest, upgrades a pending proof, and verifies a confirmed timestamp proof. The first implementation is OpenTimestamps. See [docs/OPENTIMESTAMPS.md](docs/OPENTIMESTAMPS.md).
 
 ### ChainReader
 
