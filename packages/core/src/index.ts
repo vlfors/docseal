@@ -12,5 +12,6 @@ export * from "./paths.js";
 export * from "./plugins.js";
 export * from "./seal.js";
 export * from "./trust.js";
+export * from "./upgrade.js";
 export * from "./verdict.js";
 export * from "./verify.js";

@@ -2,3 +2,4 @@
 spec/vectors/** -text
 *.dseal binary
 *.ots binary
+packages/anchor-ots/fixtures/** -text

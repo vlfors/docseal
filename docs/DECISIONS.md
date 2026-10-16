@@ -40,6 +40,8 @@ The value of the project lies in an open format, independent verification, a cle
 | Bitcoin confirmations | 6 by default for `confirmed`, configurable. |
 | Minimum runtime | Node.js ≥ 22 LTS. The core avoids `fs`/`Buffer` so it can run in browsers in v0.2. |
 | OpenTimestamps implementation | Own parser/executor for the `.ots` serialization format (not a cryptographic primitive) instead of the legacy `javascript-opentimestamps`, so it is portable to the browser. |
+| Hash functions in timestamp paths | SHA-256, RIPEMD-160, and Keccak-256 are executed; SHA-1 paths are ignored. RIPEMD-160 is required by real 2015–2016 Bitcoin proofs. |
+| Calendar quorum | A seal must be accepted by at least two calendars when sealing. |
 
 See [FORMAT-v0.1-DRAFT.md](FORMAT-v0.1-DRAFT.md) for the normative details.
 

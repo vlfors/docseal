@@ -1,12 +1,20 @@
 import { hash } from "./bytes.js";
 import { DEFAULT_LIMITS, readContainer, type ContainerLimits, type PackageContents } from "./container.js";
-import { jsonHash, signaturesSetHash, signedBytes } from "./digests.js";
+import { jsonHash, sealDigest, signaturesSetHash, signedBytes } from "./digests.js";
 import { EncodingError, fromBase64url, toHex } from "./encoding.js";
 import { FormatError } from "./errors.js";
 import { parseJson } from "./json.js";
 import { leafHash, merkleRoot } from "./merkle.js";
-import { parseEnvelope, parseManifest, parseStatement, type Manifest, type Statement } from "./model.js";
-import type { SignatureCheck, SignatureSuite, TrustPolicy, TrustResult } from "./plugins.js";
+import { parseAnchorFile, parseEnvelope, parseManifest, parseStatement, type Manifest, type Statement } from "./model.js";
+import type {
+  AnchorProvider,
+  AnchorResult,
+  ChainReader,
+  SignatureCheck,
+  SignatureSuite,
+  TrustPolicy,
+  TrustResult,
+} from "./plugins.js";
 import { overallVerdict, type AxisVerdicts, type OverallVerdict } from "./verdict.js";
 
 export interface VerifyOptions {
@@ -14,6 +22,10 @@ export interface VerifyOptions {
   suites: readonly SignatureSuite[];
   /** Without a policy, `trust` is `not-evaluated` and the overall verdict cannot be `valid`. */
   trust?: TrustPolicy;
+  /** Anchor providers able to verify receipts. Receipts of other providers are `unsupported`. */
+  anchors?: readonly AnchorProvider[];
+  /** Source of public-chain data. Without one, confirmed proofs cannot be checked. */
+  chain?: ChainReader;
   limits?: Partial<ContainerLimits>;
 }
 
@@ -42,14 +54,32 @@ export interface SignatureResult {
   trust?: TrustResult["verdict"];
 }
 
+export interface AnchorReport {
+  entry: string;
+  provider: string;
+  network: string;
+  verdict: AnchorResult["verdict"];
+  /** Proven time, RFC 3339. */
+  attestedAt?: string;
+  confirmations?: number;
+  /** Data source the proof was checked against. */
+  source?: string;
+  reason?: string;
+}
+
 export interface VerificationReport {
   overall: OverallVerdict;
   axes: AxisVerdicts;
   packageId?: string;
   merkleRoot?: string;
   statementHash?: string;
+  /** Seal digest recomputed from the statement and envelopes, lowercase hex. */
+  seal?: string;
+  /** Earliest confirmed anchor time: the signed state existed no later than this. */
+  attestedAt?: string;
   files: FileResult[];
   signatures: SignatureResult[];
+  anchors: AnchorReport[];
   issues: Issue[];
 }
 
@@ -65,6 +95,7 @@ export async function verifyPackage(zip: Uint8Array, options: VerifyOptions): Pr
     },
     files: [],
     signatures: [],
+    anchors: [],
     issues: [],
   };
   const finish = (): VerificationReport => ({ overall: overallVerdict(report.axes), ...report });
@@ -90,15 +121,12 @@ export async function verifyPackage(zip: Uint8Array, options: VerifyOptions): Pr
   report.statementHash = toHex(statementHash);
 
   const filesComplete = checkIntegrity(contents, manifest, statement, report);
-  const signaturesComplete = await checkSignatures(contents, statementHash, options, report);
+  const signatures = await checkSignatures(contents, statementHash, options, report);
+  // Time first: trust decisions may depend on the proven time, never on a claimed one.
+  const time = await checkAnchors(contents, statementHash, signatures.digests, options, report);
+  await checkTrust(signatures.valid, time.attestedAt, options, report);
 
-  if (contents.anchors.size > 0) {
-    report.axes.time = "unsupported";
-    report.issues.push({ axis: "time", code: "not-implemented", message: "Anchor verification is not implemented yet" });
-  }
-
-  report.axes.completeness =
-    filesComplete && signaturesComplete && report.axes.time !== "unsupported" ? "full" : "incomplete";
+  report.axes.completeness = filesComplete && signatures.complete && time.complete ? "full" : "incomplete";
   return finish();
 }
 
@@ -151,13 +179,20 @@ function checkIntegrity(
   return complete;
 }
 
-/** Returns whether every signature could be evaluated. */
+interface SignatureOutcome {
+  /** Every signature could be evaluated. */
+  complete: boolean;
+  valid: SignatureResult[];
+  /** Digests of all parseable envelopes, for the seal. */
+  digests: Uint8Array[];
+}
+
 async function checkSignatures(
   contents: PackageContents,
   statementHash: Uint8Array,
   options: VerifyOptions,
   report: Omit<VerificationReport, "overall">,
-): Promise<boolean> {
+): Promise<SignatureOutcome> {
   const fail = (code: string, message: string, subject: string) => {
     report.issues.push({ axis: "signature", code, message, subject });
   };
@@ -242,10 +277,19 @@ async function checkSignatures(
     fail("no-signatures", "The package has no signatures", "signatures/");
   }
 
+  return { complete: !checks.includes("unsupported"), valid: validSigners, digests };
+}
+
+async function checkTrust(
+  validSigners: readonly SignatureResult[],
+  attestedAt: Date | null,
+  options: VerifyOptions,
+  report: Omit<VerificationReport, "overall">,
+): Promise<void> {
   if (options.trust && report.axes.signature === "valid") {
     const verdicts: TrustResult["verdict"][] = [];
     for (const result of validSigners) {
-      const outcome = await options.trust.evaluate(result.signer ?? "", { attestedAt: null });
+      const outcome = await options.trust.evaluate(result.signer ?? "", { attestedAt });
       result.trust = outcome.verdict;
       verdicts.push(outcome.verdict);
       if (outcome.verdict !== "trusted") {
@@ -264,5 +308,109 @@ async function checkSignatures(
         : "unknown";
   }
 
-  return !checks.includes("unsupported");
+}
+
+interface TimeOutcome {
+  complete: boolean;
+  attestedAt: Date | null;
+}
+
+async function checkAnchors(
+  contents: PackageContents,
+  statementHash: Uint8Array,
+  envelopeDigests: readonly Uint8Array[],
+  options: VerifyOptions,
+  report: Omit<VerificationReport, "overall">,
+): Promise<TimeOutcome> {
+  const fail = (code: string, message: string, subject: string) => {
+    report.issues.push({ axis: "time", code, message, subject });
+  };
+  let seal: Uint8Array | undefined;
+  try {
+    seal = sealDigest(statementHash, signaturesSetHash(envelopeDigests));
+    report.seal = toHex(seal);
+  } catch (error) {
+    if (!(error instanceof FormatError)) {
+      throw error;
+    }
+  }
+  if (contents.anchors.size === 0) {
+    report.axes.time = "missing";
+    return { complete: true, attestedAt: null };
+  }
+  if (contents.anchors.size > 1) {
+    report.axes.time = "invalid";
+    fail("anchors", "v0.1 packages have at most one anchor file", "anchors/");
+    return { complete: true, attestedAt: null };
+  }
+
+  const verdicts: AnchorResult["verdict"][] = [];
+  let earliest: Date | null = null;
+  for (const [entry, bytes] of contents.anchors) {
+    let anchor;
+    try {
+      anchor = parseAnchorFile(parseJson(bytes));
+    } catch (error) {
+      if (!(error instanceof FormatError)) {
+        throw error;
+      }
+      verdicts.push(error.verdict);
+      fail(error.code, error.message, entry);
+      continue;
+    }
+    const expectedEnvelopes = envelopeDigests.map(toHex).sort();
+    if (
+      seal === undefined ||
+      anchor.seal !== toHex(seal) ||
+      anchor.statementHash !== toHex(statementHash) ||
+      anchor.envelopes.join() !== expectedEnvelopes.join()
+    ) {
+      verdicts.push("invalid");
+      fail("seal", "Anchor does not cover this statement and these signatures", entry);
+      continue;
+    }
+
+    for (const receipt of anchor.receipts) {
+      const provider = options.anchors?.find((p) => p.id === receipt.provider);
+      let result: AnchorResult;
+      if (receipt.digest !== anchor.seal) {
+        result = { verdict: "invalid", reason: "Receipt is for a different digest" };
+      } else if (!provider) {
+        result = { verdict: "unsupported", reason: `No registered anchor provider ${receipt.provider}` };
+      } else if (!options.chain) {
+        result = { verdict: "unsupported", reason: "No chain source configured" };
+      } else {
+        result = await provider.verify(receipt, seal, options.chain);
+      }
+      verdicts.push(result.verdict);
+      report.anchors.push({
+        entry,
+        provider: receipt.provider,
+        network: receipt.network,
+        verdict: result.verdict,
+        ...(result.attestedAt ? { attestedAt: result.attestedAt.toISOString() } : {}),
+        ...(result.confirmations === undefined ? {} : { confirmations: result.confirmations }),
+        ...(result.source === undefined ? {} : { source: result.source }),
+        ...(result.reason === undefined ? {} : { reason: result.reason }),
+      });
+      if (result.verdict !== "confirmed") {
+        fail(result.verdict, result.reason ?? `Anchor is ${result.verdict}`, entry);
+      } else if (result.attestedAt && (!earliest || result.attestedAt < earliest)) {
+        earliest = result.attestedAt;
+      }
+    }
+  }
+
+  // One forged receipt makes the whole time claim untrustworthy.
+  report.axes.time = verdicts.includes("invalid")
+    ? "invalid"
+    : earliest
+      ? "confirmed"
+      : verdicts.includes("pending")
+        ? "pending"
+        : "unsupported";
+  if (earliest) {
+    report.attestedAt = earliest.toISOString();
+  }
+  return { complete: !verdicts.includes("unsupported"), attestedAt: earliest };
 }

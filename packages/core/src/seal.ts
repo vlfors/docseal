@@ -7,6 +7,7 @@ import { leafHash, merkleRoot } from "./merkle.js";
 import {
   HASH_ALGORITHM,
   MERKLE_SCHEME,
+  type AnchorFile,
   type FileEntry,
   type Manifest,
   type ProtectedHeader,
@@ -14,7 +15,7 @@ import {
   type Statement,
 } from "./model.js";
 import { checkPathCollisions, comparePaths, normalizePath } from "./paths.js";
-import type { KeyProvider } from "./plugins.js";
+import type { AnchorProvider, KeyProvider } from "./plugins.js";
 
 const SALT_LENGTH = 16;
 
@@ -31,6 +32,8 @@ export interface SealOptions {
   attributes?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   generator?: string;
+  /** Providers the seal is submitted to. Without any, the package has no time proof yet. */
+  anchors?: readonly AnchorProvider[];
   /** Clock and randomness are injectable for reproducible tests. */
   now?: () => Date;
   randomBytes?: (length: number) => Uint8Array;
@@ -41,6 +44,7 @@ export interface SealResult {
   manifest: Manifest;
   statement: Statement;
   envelope: SignatureEnvelope;
+  anchor?: AnchorFile;
   /** Digest to submit to anchor providers, lowercase hex. */
   seal: string;
 }
@@ -108,19 +112,32 @@ export async function sealPackage(options: SealOptions): Promise<SealResult> {
     value: toBase64url(await options.signer.sign(signedBytes(protectedHeader))),
   };
 
+  const envelopeDigest = jsonHash(envelope);
+  const seal = sealDigest(statementHash, signaturesSetHash([envelopeDigest]));
+  let anchor: AnchorFile | undefined;
+  if (options.anchors && options.anchors.length > 0) {
+    anchor = {
+      type: "docseal-anchor",
+      version: 1,
+      seal: toHex(seal),
+      statementHash: toHex(statementHash),
+      envelopes: [toHex(envelopeDigest)],
+      receipts: await Promise.all(options.anchors.map((provider) => provider.submit(seal))),
+    };
+  }
+
   const container = writeContainer({
     manifest: prettyJson(manifest),
     statement: prettyJson(statement),
     files: new Map(files.map((file) => [file.path, file.data])),
     signatures: new Map([["signatures/0001.json", prettyJson(envelope)]]),
-    anchors: new Map(),
+    anchors: new Map<string, Uint8Array>(anchor ? [["anchors/seal-1.json", prettyJson(anchor)]] : []),
   });
-  const seal = sealDigest(statementHash, signaturesSetHash([jsonHash(envelope)]));
-  return { container, manifest, statement, envelope, seal: toHex(seal) };
+  return { container, manifest, statement, envelope, ...(anchor ? { anchor } : {}), seal: toHex(seal) };
 }
 
 /** Stored JSON is human-readable; hashes never depend on formatting because they use JCS. */
-function prettyJson(value: unknown): Uint8Array {
+export function prettyJson(value: unknown): Uint8Array {
   return utf8(`${JSON.stringify(value, null, 2)}\n`);
 }
 

@@ -166,6 +166,9 @@ importers:
 
   .:
     devDependencies:
+      '@docseal/anchor-ots':
+        specifier: workspace:*
+        version: link:packages/anchor-ots
       '@docseal/core':
         specifier: workspace:*
         version: link:packages/core
@@ -220,6 +223,9 @@ importers:
       '@docseal/core':
         specifier: workspace:*
         version: link:../core
+      '@noble/hashes':
+        specifier: ^2.4.0
+        version: 2.4.0
 
   packages/core:
     dependencies:

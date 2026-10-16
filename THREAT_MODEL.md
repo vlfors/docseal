@@ -26,7 +26,11 @@ DocSeal does not prove that a document is true, the signer's identity without an
 | Algorithm substitution | Suite identifier and version are covered by the signature |
 | Malicious plugin shipped in a package | Plugins are only registered explicitly by the application |
 | Unknown algorithm or critical extension | `unsupported`, not a crash or a false success |
-| Spoofed block explorer | The `ChainReader` source is shown in the report; an own node is preferred |
+| Spoofed block explorer | The `ChainReader` source is shown in the report; an own node is preferred; a header must hash to the block the source named |
+| Forged OpenTimestamps proof | The path is executed locally and must end in the merkle root of the attested block; one mismatching attestation makes the receipt `invalid` |
+| Anchor copied from another package | The anchor file names the statement and envelope digests; the seal is recomputed from the package |
+| Package-supplied calendar URL used to reach internal services (SSRF) | `upgrade` only contacts allow-listed calendar hosts over HTTPS, without ports or paths |
+| Weak hash in a timestamp path | Attestations reached through SHA-1 are ignored |
 | ZIP Slip | Absolute paths, `..`, symlinks, and ambiguous names are rejected |
 | ZIP bomb | Limits on entry count, sizes, and compression ratio |
 | Unicode/path collision | NFC, `/` separator, duplicates rejected after normalization and case folding |

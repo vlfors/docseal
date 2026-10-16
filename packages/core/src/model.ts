@@ -6,6 +6,7 @@
  */
 import { FormatError } from "./errors.js";
 import { checkPathCollisions, comparePaths, validatePath } from "./paths.js";
+import type { AnchorReceipt } from "./plugins.js";
 
 export const HASH_ALGORITHM = "sha-256";
 export const MERKLE_SCHEME = "docseal-v1";
@@ -141,6 +142,47 @@ export function parseEnvelope(value: unknown): SignatureEnvelope {
   }
   stringArray(p.critical, "envelope.protected.critical");
   return e as unknown as SignatureEnvelope;
+}
+
+export interface AnchorFile {
+  type: "docseal-anchor";
+  version: 1;
+  /** Anchored digest, lowercase hex. */
+  seal: string;
+  statementHash: string;
+  /** Digests of the envelopes covered by the seal, sorted, lowercase hex. */
+  envelopes: string[];
+  receipts: AnchorReceipt[];
+}
+
+export function parseAnchorFile(value: unknown): AnchorFile {
+  const a = record(value, "anchor");
+  checkHeader(a, "anchor", "docseal-anchor");
+  hex(a.seal, 32, "anchor.seal");
+  hex(a.statementHash, 32, "anchor.statementHash");
+  const envelopes = stringArray(a.envelopes, "anchor.envelopes");
+  envelopes.forEach((digest, i) => {
+    hex(digest, 32, `anchor.envelopes[${String(i)}]`);
+  });
+  const receipts = array(a.receipts, "anchor.receipts");
+  if (receipts.length === 0) {
+    throw invalid("anchor.receipts", "must contain at least one receipt");
+  }
+  receipts.forEach((item, i) => {
+    const where = `anchor.receipts[${String(i)}]`;
+    const r = record(item, where);
+    string(r.provider, `${where}.provider`);
+    string(r.network, `${where}.network`);
+    if (r.digestAlgorithm !== HASH_ALGORITHM) {
+      throw unsupported(`${where}.digestAlgorithm`, `only '${HASH_ALGORITHM}' is supported`);
+    }
+    hex(r.digest, 32, `${where}.digest`);
+    string(r.proof, `${where}.proof`);
+    if (r.cached !== undefined) {
+      record(r.cached, `${where}.cached`);
+    }
+  });
+  return a as unknown as AnchorFile;
 }
 
 function checkHeader(o: Record<string, unknown>, where: string, type: string): void {

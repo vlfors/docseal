@@ -16,6 +16,7 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
+    "@docseal/anchor-ots": "workspace:*",
     "@docseal/core": "workspace:*",
     "@docseal/sig-ed25519": "workspace:*",
     "@eslint/js": "^10.0.1",

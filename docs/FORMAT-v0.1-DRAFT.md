@@ -254,6 +254,11 @@ seal              = H(UTF8("DocSeal/v1/anchor\0") ‖ statementHash ‖ signatur
 - A Bitcoin attestation is accepted as `confirmed` when its block has at least **6 confirmations** by default (configurable). Fewer confirmations, or only calendar (pending) attestations, yield `time: pending`.
 - The attested time is the block header `time` of the attested block. It is accurate only to within about two hours.
 - The report records which `ChainReader` source was used (own node, explorer URL, or several).
+- Supported operations: `append`, `prepend`, `sha256`, `ripemd160`, `keccak256`, `reverse`, `hexlify`. RIPEMD-160 is accepted because early Bitcoin proofs (2015–2016) use it and it has no known practical attacks. Attestations reached through `sha1` are ignored, since SHA-1 has practical collisions.
+- Parser limits follow the reference implementation: messages and operation arguments up to 4096 bytes, attestation payloads up to 8192 bytes, nesting up to 256, calendar URIs up to 1000 characters from `[A-Za-z0-9-._/:]`.
+- A Bitcoin attestation whose message differs from the block's merkle root makes the receipt `invalid`, even if another attestation in it is genuine.
+- When sealing, the seal is submitted to several calendars; at least two (or all, if fewer are configured) must accept it. Their answers are merged into one proof.
+- `upgrade` contacts only calendars matching an allow-list (by default `https://*.calendar.opentimestamps.org`, `https://*.calendar.eternitywall.com`, `https://*.calendar.catallaxy.com`), because the calendar URL comes from the package.
 
 ## Verdicts
 
