@@ -20,7 +20,7 @@ This roadmap describes the current direction of the project. It is not a commitm
 ### Implementation order
 
 1. **Scaffold:** pnpm monorepo (`spec/`, `packages/core`, `packages/sig-ed25519`, `packages/anchor-ots`, `apps/cli`), strict TypeScript, tsup, Vitest, ESLint, CI.
-2. **Vertical prototype:** one file → manifest → statement → Ed25519 → `.dseal` → verify; a one-byte change yields `invalid`. No anchoring yet.
+2. **Vertical prototype:** one file → manifest → statement → Ed25519 → `.dseal` → verify; a one-byte change yields `invalid`. No anchoring yet. *Done in the library; in-memory only. Remaining: streaming container I/O for large files, ZIP64.*
 3. **Multiple files and policies:** plugin registry, pinned-keys `TrustPolicy`, `any-valid` signature policy, missing/modified/extra file detection, `unsupported` for unknown suites and critical extensions.
 4. **OpenTimestamps:** `.ots` parser and executor, calendar submission, `upgrade`, Bitcoin header check through a configurable `ChainReader`. Tests use recorded proofs, no network in CI. This is the main schedule risk.
 5. **CLI:** `keygen`, `seal`, `verify --trust --json`, `upgrade`; distinct exit codes; human and JSON reports with the same content.

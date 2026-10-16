@@ -76,7 +76,7 @@ A manifest `path`:
 - contains no NUL, C0 control characters, or `\`;
 - is at most 1024 UTF-8 bytes.
 
-After normalization, paths MUST be unique, and also unique when compared after `toLowerCase()` (locale-independent Unicode lowercase) to prevent collisions on case-insensitive file systems. Paths are sorted by their UTF-8 bytes.
+After normalization, paths MUST be unique, and also unique when compared after `toLowerCase()` (locale-independent Unicode lowercase) to prevent collisions on case-insensitive file systems. A path MUST NOT also be used as a directory of another path (`a` and `a/b`), under the same comparison. Paths are sorted by their UTF-8 bytes.
 
 A manifest whose `path` values are not already in normalized form is invalid; normalization happens when sealing, not when verifying.
 

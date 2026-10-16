@@ -16,10 +16,13 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
+    "@docseal/core": "workspace:*",
+    "@docseal/sig-ed25519": "workspace:*",
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.5",
     "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.12.0",
+    "fast-check": "^4.10.2",
     "tsup": "^9.0.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.2",
