@@ -276,6 +276,26 @@ overall:      valid | invalid | indeterminate
 
 For integrity, the report distinguishes missing, modified, and extra files per path.
 
+## Trusted keys file
+
+Verifier configuration, not part of a package. Used by the pinned-keys `TrustPolicy` (`docseal verify --trust trusted-keys.json`):
+
+```json
+{
+  "type": "docseal-trusted-keys",
+  "version": 1,
+  "keys": [
+    { "id": "did:key:z6Mk...", "label": "Alice (legal department)" }
+  ]
+}
+```
+
+- `id` is compared byte for byte with `protected.signer`. No normalization is applied.
+- `label` is shown in reports. DocSeal does not verify it: the person who writes this file vouches for it.
+- Duplicate `id` values make the file invalid.
+- A signer is `trusted` only if its signature is valid and its `id` is listed; otherwise `untrusted`.
+- Validity periods and revocation are out of scope for v0.1.
+
 ## Local key file (development only)
 
 ```json

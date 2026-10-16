@@ -3,11 +3,12 @@
  * plus one test per relevant row of THREAT_MODEL.md.
  */
 import {
+  DocSeal,
   hash,
   jsonHash,
   parseJson,
+  pinnedKeys,
   readContainer,
-  sealPackage,
   signedBytes,
   toBase64url,
   toHex,
@@ -15,8 +16,6 @@ import {
   verifyPackage,
   writeContainer,
   type PackageContents,
-  type TrustPolicy,
-  type VerifyOptions,
 } from "@docseal/core";
 import { ed25519Suite, generateSecretKey, memoryKeyProvider } from "@docseal/sig-ed25519";
 import fc from "fast-check";
@@ -25,19 +24,15 @@ import { beforeAll, describe, expect, it } from "vitest";
 const author = memoryKeyProvider(generateSecretKey());
 const attacker = memoryKeyProvider(generateSecretKey());
 
-function pinnedKeys(trusted: string[]): TrustPolicy {
-  return {
-    id: "test-pinned-keys",
-    evaluate: (signer) => Promise.resolve({ verdict: trusted.includes(signer) ? "trusted" : "untrusted" }),
-  };
-}
-
-let options: VerifyOptions;
+let docseal: DocSeal;
 let sealed: Uint8Array;
 
 beforeAll(async () => {
-  options = { suites: [ed25519Suite()], trust: pinnedKeys([await author.getSigner()]) };
-  const result = await sealPackage({
+  docseal = new DocSeal({
+    signatures: [ed25519Suite()],
+    trust: pinnedKeys([{ id: await author.getSigner(), label: "Author" }]),
+  });
+  const result = await docseal.seal({
     files: [
       { path: "contract.pdf", data: utf8("%PDF-1.7 contract body"), mediaType: "application/pdf" },
       { path: "annex/annex-1.txt", data: utf8("Annex 1") },
@@ -66,7 +61,7 @@ function pretty(value: unknown): Uint8Array {
 
 describe("prototype", () => {
   it("verifies an untouched package on every axis except time", async () => {
-    const report = await verifyPackage(sealed, options);
+    const report = await docseal.verify(sealed);
     expect(report.axes).toEqual({
       format: "valid",
       integrity: "valid",
@@ -99,7 +94,7 @@ describe("prototype", () => {
           copy[i] = (copy[i] ?? 0) ^ xor;
           c.files.set(path, copy);
         });
-        const report = await verifyPackage(zip, options);
+        const report = await docseal.verify(zip);
         expect(report.overall).toBe("invalid");
         expect(report.axes.integrity).toBe("invalid");
         expect(report.files.find((f) => f.path === path)?.status).toBe("modified");
@@ -109,12 +104,12 @@ describe("prototype", () => {
   });
 
   it("detects a missing file and an extra file", async () => {
-    const missing = await verifyPackage(await mutate((c) => void c.files.delete("contract.pdf")), options);
+    const missing = await docseal.verify(await mutate((c) => void c.files.delete("contract.pdf")));
     expect(missing.overall).toBe("invalid");
     expect(missing.axes.completeness).toBe("incomplete");
     expect(missing.files.find((f) => f.path === "contract.pdf")?.status).toBe("missing");
 
-    const extra = await verifyPackage(await mutate((c) => void c.files.set("malware.exe", utf8("MZ"))), options);
+    const extra = await docseal.verify(await mutate((c) => void c.files.set("malware.exe", utf8("MZ"))));
     expect(extra.overall).toBe("invalid");
     expect(extra.files.find((f) => f.path === "malware.exe")?.status).toBe("extra");
   });
@@ -130,7 +125,7 @@ describe("prototype", () => {
       entry.hash = toHex(hash(forged));
       c.manifest = pretty(manifest);
     });
-    const report = await verifyPackage(zip, options);
+    const report = await docseal.verify(zip);
     expect(report.overall).toBe("invalid");
     expect(report.issues.map((i) => i.code)).toContain("manifest-hash");
   });
@@ -147,7 +142,7 @@ describe("prototype", () => {
       entry.path = "contract-old.pdf";
       c.manifest = pretty(manifest);
     });
-    const report = await verifyPackage(zip, options);
+    const report = await docseal.verify(zip);
     expect(report.axes.integrity).toBe("invalid");
     expect(report.overall).toBe("invalid");
   });
@@ -161,7 +156,7 @@ describe("prototype", () => {
       statement.manifestHash = toHex(jsonHash(manifest));
       c.statement = pretty(statement);
     });
-    const report = await verifyPackage(zip, options);
+    const report = await docseal.verify(zip);
     expect(report.axes.integrity).toBe("valid");
     expect(report.axes.signature).toBe("invalid");
     expect(report.issues.map((i) => i.code)).toContain("statement-hash");
@@ -174,7 +169,7 @@ describe("prototype", () => {
       envelope.protected.role = "witness";
       c.signatures.set("signatures/0001.json", pretty(envelope));
     });
-    const report = await verifyPackage(zip, options);
+    const report = await docseal.verify(zip);
     expect(report.axes.signature).toBe("invalid");
     expect(report.overall).toBe("invalid");
   });
@@ -186,7 +181,7 @@ describe("prototype", () => {
       envelope.value = toBase64url(await attacker.sign(signedBytes(envelope.protected)));
       c.signatures.set("signatures/0001.json", pretty(envelope));
     });
-    const report = await verifyPackage(zip, options);
+    const report = await docseal.verify(zip);
     expect(report.axes.signature).toBe("valid");
     expect(report.axes.trust).toBe("untrusted");
     expect(report.overall).toBe("indeterminate");
@@ -199,7 +194,7 @@ describe("prototype", () => {
         Object.assign(envelope.protected, change);
         c.signatures.set("signatures/0001.json", pretty(envelope));
       });
-      const report = await verifyPackage(zip, options);
+      const report = await docseal.verify(zip);
       expect(report.axes.signature).toBe("unsupported");
       expect(report.axes.completeness).toBe("incomplete");
       expect(report.overall).toBe("indeterminate");
@@ -207,9 +202,9 @@ describe("prototype", () => {
   });
 
   it("reports a package without signatures as missing a signature", async () => {
-    const report = await verifyPackage(await mutate((c) => {
+    const report = await docseal.verify(await mutate((c) => {
       c.signatures.clear();
-    }), options);
+    }));
     expect(report.axes.signature).toBe("missing");
     expect(report.overall).toBe("indeterminate");
   });
@@ -220,12 +215,12 @@ describe("prototype", () => {
       if (!envelope) throw new Error("missing");
       c.signatures.set("signatures/0002.json", envelope);
     });
-    const report = await verifyPackage(zip, options);
+    const report = await docseal.verify(zip);
     expect(report.axes.signature).toBe("invalid");
   });
 
   it("does not evaluate trust without a policy", async () => {
-    const report = await verifyPackage(sealed, { suites: options.suites });
+    const report = await verifyPackage(sealed, { suites: docseal.signatures });
     expect(report.axes.trust).toBe("not-evaluated");
     expect(report.overall).toBe("indeterminate");
   });
@@ -236,7 +231,7 @@ describe("prototype", () => {
       statement.version = 2;
       c.statement = pretty(statement);
     });
-    expect((await verifyPackage(future, options)).axes.format).toBe("unsupported");
-    expect((await verifyPackage(utf8("not a zip"), options)).axes.format).toBe("invalid");
+    expect((await docseal.verify(future)).axes.format).toBe("unsupported");
+    expect((await docseal.verify(utf8("not a zip"))).axes.format).toBe("invalid");
   });
 });

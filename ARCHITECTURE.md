@@ -78,7 +78,9 @@ flowchart TB
     ANCHOR -.-> TSA
 ```
 
-Only `sig-ed25519`, `trust-pinned-keys`, and `anchor-opentimestamps` are planned for v0.1. The others illustrate extension points.
+Only `sig-ed25519`, `trust-pinned-keys`, and `anchor-opentimestamps` are planned for v0.1. The others illustrate extension points. The pinned-keys policy has no dependencies and ships inside `@docseal/core` as `pinnedKeys()`; it is still passed in explicitly like any other policy.
+
+Applications assemble the registry with `new DocSeal({ signatures, anchors, trust, limits })`. `seal()` refuses keys whose suite is not registered and verifies its own signature before returning, so a faulty `KeyProvider` fails at the signer rather than at the recipient.
 
 ## Core boundary
 
