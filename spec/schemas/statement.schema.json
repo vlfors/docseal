@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docseal.dev/schema/v1/statement.schema.json",
+  "title": "DocSeal package statement",
+  "description": "statement.json: the signed statement (FORMAT-v0.1 §statement.json). Unknown properties are allowed and covered by the document hash.",
+  "type": "object",
+  "required": [
+    "type",
+    "version",
+    "packageId",
+    "hashAlgorithm",
+    "merkleScheme",
+    "merkleRoot",
+    "manifestHash",
+    "createdAt",
+    "previous",
+    "signaturePolicy",
+    "critical"
+  ],
+  "properties": {
+    "type": {
+      "const": "docseal-package-statement"
+    },
+    "version": {
+      "const": 1
+    },
+    "packageId": {
+      "type": "string",
+      "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "hashAlgorithm": {
+      "const": "sha-256"
+    },
+    "merkleScheme": {
+      "const": "docseal-v1"
+    },
+    "merkleRoot": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "manifestHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "previous": {
+      "type": "null"
+    },
+    "signaturePolicy": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "any-valid"
+        }
+      }
+    },
+    "critical": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Critical extensions. A v0.1 verifier returns 'unsupported' for any non-empty list."
+    }
+  }
+}

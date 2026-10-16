@@ -6,9 +6,9 @@ This roadmap describes the current direction of the project. It is not a commitm
 
 - [ ] Freeze the versioned `.dseal` specification.
 - [x] Implement a safe fat package with documents inside.
-- [ ] Add `manifest.json`, `statement.json`, and JSON Schemas.
+- [x] Add `manifest.json`, `statement.json`, and JSON Schemas.
 - [ ] Implement streaming SHA-256 hashing.
-- [ ] Implement the Merkle tree and publish test vectors.
+- [x] Implement the Merkle tree and publish test vectors.
 - [x] Implement the `SignatureSuite`, `KeyProvider`, and `TrustPolicy` interfaces.
 - [x] Implement the Ed25519 plugin and a development-only local key file.
 - [x] Implement `AnchorProvider` and the OpenTimestamps plugin.

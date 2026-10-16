@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docseal.dev/schema/v1/key.schema.json",
+  "title": "DocSeal development key file",
+  "description": "Ed25519 seed encrypted with scrypt and XChaCha20-Poly1305 (FORMAT-v0.1 §Local key file). For development only. Unknown properties are allowed and covered by the document hash.",
+  "type": "object",
+  "required": [
+    "type",
+    "version",
+    "suite",
+    "publicKey",
+    "kdf",
+    "cipher",
+    "ciphertext"
+  ],
+  "properties": {
+    "type": {
+      "const": "docseal-key"
+    },
+    "version": {
+      "const": 1
+    },
+    "suite": {
+      "const": "ed25519"
+    },
+    "publicKey": {
+      "type": "string"
+    },
+    "kdf": {
+      "type": "object",
+      "required": [
+        "name",
+        "N",
+        "r",
+        "p",
+        "salt"
+      ],
+      "properties": {
+        "name": {
+          "const": "scrypt"
+        },
+        "N": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 1048576
+        },
+        "r": {
+          "const": 8
+        },
+        "p": {
+          "const": 1
+        },
+        "salt": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        }
+      }
+    },
+    "cipher": {
+      "type": "object",
+      "required": [
+        "name",
+        "nonce"
+      ],
+      "properties": {
+        "name": {
+          "const": "xchacha20-poly1305"
+        },
+        "nonce": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{48}$"
+        }
+      }
+    },
+    "ciphertext": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]*$"
+    }
+  }
+}

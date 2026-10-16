@@ -44,23 +44,32 @@ export function comparePaths(a: string, b: string): number {
 /**
  * Rejects duplicates and paths that collide on case-insensitive file systems,
  * including a file that is also used as a directory (`a` and `a/b`).
+ *
+ * Paths are compared both lowercased and uppercased: neither mapping alone matches what
+ * file systems do (`ΟΔΟΣ` lowercases to a final `ς`, `ß` only uppercases to `SS`).
+ * Treating either match as a collision may reject a harmless pair, never miss a real one.
  */
 export function checkPathCollisions(paths: Iterable<string>): void {
-  const files = new Set<string>();
-  const directories = new Set<string>();
+  const folds = [(p: string) => p.toLowerCase(), (p: string) => p.toUpperCase()];
+  const files = folds.map(() => new Set<string>());
+  const directories = folds.map(() => new Set<string>());
   for (const path of paths) {
-    const folded = path.toLowerCase();
-    if (files.has(folded) || directories.has(folded)) {
-      throw new FormatError("path-collision", `Path ${JSON.stringify(path)} collides with another path`);
-    }
-    files.add(folded);
-    const segments = folded.split("/");
-    for (let i = 1; i < segments.length; i++) {
-      const directory = segments.slice(0, i).join("/");
-      if (files.has(directory)) {
-        throw new FormatError("path-collision", `Path ${JSON.stringify(path)} uses a file as a directory`);
+    folds.forEach((fold, i) => {
+      const folded = fold(path);
+      const fileSet = files[i] ?? new Set<string>();
+      const directorySet = directories[i] ?? new Set<string>();
+      if (fileSet.has(folded) || directorySet.has(folded)) {
+        throw new FormatError("path-collision", `Path ${JSON.stringify(path)} collides with another path`);
       }
-      directories.add(directory);
-    }
+      fileSet.add(folded);
+      const segments = folded.split("/");
+      for (let j = 1; j < segments.length; j++) {
+        const directory = segments.slice(0, j).join("/");
+        if (fileSet.has(directory)) {
+          throw new FormatError("path-collision", `Path ${JSON.stringify(path)} uses a file as a directory`);
+        }
+        directorySet.add(directory);
+      }
+    });
   }
 }

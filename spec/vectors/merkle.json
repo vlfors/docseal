@@ -1,0 +1,300 @@
+{
+  "description": "Merkle tree docseal-v1: leaf = SHA-256(0x00 || JCS({path,size,hash,salt})), node = SHA-256(0x01 || left || right), split as RFC 6962 §2.1. Files are already in manifest order.",
+  "cases": [
+    {
+      "name": "1 leaves",
+      "files": [
+        {
+          "path": "file-0.txt",
+          "size": 9,
+          "hash": "75e0d458fc2da40b5b8b8b614d0192e9da7fffc2d6042f33300fdb0e8a83dfb4",
+          "salt": "eddee7c5d1fe0b8b6da73051a3e1530e"
+        }
+      ],
+      "leafHashes": [
+        "69accb4a1a1a4fca05adf618f5c77c6acdf3d8a09d234d3b73c5a5333728b716"
+      ],
+      "root": "69accb4a1a1a4fca05adf618f5c77c6acdf3d8a09d234d3b73c5a5333728b716"
+    },
+    {
+      "name": "2 leaves",
+      "files": [
+        {
+          "path": "file-0.txt",
+          "size": 9,
+          "hash": "75e0d458fc2da40b5b8b8b614d0192e9da7fffc2d6042f33300fdb0e8a83dfb4",
+          "salt": "3d989a684283f4958bc683127b881e61"
+        },
+        {
+          "path": "file-1.txt",
+          "size": 9,
+          "hash": "d1988cd3019824f075f61677e1a6f54b16035868488e4051757dde53adeef80f",
+          "salt": "82fa718f41c8cd6f041c52152ab64a53"
+        }
+      ],
+      "leafHashes": [
+        "79adc1eab757d7c417d9169485ff4eee69f0ba50882c4aaebb8d3ff09b55cb1f",
+        "fc7dfcc0d46e6432dbae44bcd64120781aece8e040a52895cd2274e0d8493455"
+      ],
+      "root": "09208a7ae73e29386a61fd1c3a37594b3676dd3248e4defbc9aa12c6094b86ba"
+    },
+    {
+      "name": "3 leaves",
+      "files": [
+        {
+          "path": "file-0.txt",
+          "size": 9,
+          "hash": "75e0d458fc2da40b5b8b8b614d0192e9da7fffc2d6042f33300fdb0e8a83dfb4",
+          "salt": "9fc25ea24958592ef86b94f5784116c3"
+        },
+        {
+          "path": "file-1.txt",
+          "size": 9,
+          "hash": "d1988cd3019824f075f61677e1a6f54b16035868488e4051757dde53adeef80f",
+          "salt": "d5be54040fdb31b34d19d071ee44389f"
+        },
+        {
+          "path": "file-2.txt",
+          "size": 9,
+          "hash": "9597d898814f165b7ed6118722c24271fec8c1254d46e437ad6ab24050763e2d",
+          "salt": "b0139e392c8033700b9f8261895781ea"
+        }
+      ],
+      "leafHashes": [
+        "7791759c2b5e70e67713a2c97d529e61205a283582bdad83d7c0de8e0ad293c8",
+        "59789b0490ebf7e35a5f6c67968e75f6dbe9c0f8ce6b7f88124bc78724d0806c",
+        "33f5a4c0401898193823f28924d1cf47fe4aba12c467f2e3a7c420ba85bbd052"
+      ],
+      "root": "c9b747ffdbcbe7ead902fd6a91881900d6d17b055031847e9a668743ad632699"
+    },
+    {
+      "name": "4 leaves",
+      "files": [
+        {
+          "path": "file-0.txt",
+          "size": 9,
+          "hash": "75e0d458fc2da40b5b8b8b614d0192e9da7fffc2d6042f33300fdb0e8a83dfb4",
+          "salt": "bb74df61a81c91fa488eebdd9e054f6e"
+        },
+        {
+          "path": "file-1.txt",
+          "size": 9,
+          "hash": "d1988cd3019824f075f61677e1a6f54b16035868488e4051757dde53adeef80f",
+          "salt": "41b47334c196a267a2fc83fc64e2583d"
+        },
+        {
+          "path": "file-2.txt",
+          "size": 9,
+          "hash": "9597d898814f165b7ed6118722c24271fec8c1254d46e437ad6ab24050763e2d",
+          "salt": "88b44a33fa844ae45eed6e7bc9ce45b9"
+        },
+        {
+          "path": "file-3.txt",
+          "size": 9,
+          "hash": "b910ce7ef3d90e013867bae074fcccaed29ee9262a006ef5af04c06d9b6bc1eb",
+          "salt": "67b02a30b68cd5ce35e80dab9d57195e"
+        }
+      ],
+      "leafHashes": [
+        "6202314993d4153c27144db763278c818da9fc38f0f23e794f1828da065ae476",
+        "7a3179ed1bac70748fda42a7b7f8dd23bec1c226f1d5d94d6d70cd73de172b0b",
+        "d79ceacaff548386ee5e471b1b67cc42582949822cee4db131bdfd8dfcabd51b",
+        "c41fd748ab02f7939a67b8eea6832c0d589cc1ba2e2a1fc116df950ef693de40"
+      ],
+      "root": "c93d7bd5819efa142a0b3160d03fb4c99636be4d0917f6153b7e7ba71aedcae1"
+    },
+    {
+      "name": "5 leaves",
+      "files": [
+        {
+          "path": "file-0.txt",
+          "size": 9,
+          "hash": "75e0d458fc2da40b5b8b8b614d0192e9da7fffc2d6042f33300fdb0e8a83dfb4",
+          "salt": "1fee944da39c157a787f7419324fa5d1"
+        },
+        {
+          "path": "file-1.txt",
+          "size": 9,
+          "hash": "d1988cd3019824f075f61677e1a6f54b16035868488e4051757dde53adeef80f",
+          "salt": "1d243eebdf9f674a91e2c37e6c0e5d14"
+        },
+        {
+          "path": "file-2.txt",
+          "size": 9,
+          "hash": "9597d898814f165b7ed6118722c24271fec8c1254d46e437ad6ab24050763e2d",
+          "salt": "004d0334dbb492df15d2386d4e359e63"
+        },
+        {
+          "path": "file-3.txt",
+          "size": 9,
+          "hash": "b910ce7ef3d90e013867bae074fcccaed29ee9262a006ef5af04c06d9b6bc1eb",
+          "salt": "5b01763360f20cb2a9e48f044c7ace2d"
+        },
+        {
+          "path": "file-4.txt",
+          "size": 9,
+          "hash": "cabb866ab5c902410cac8f414d84700d943bfb0ee900c8f72fe150cc7e70ad65",
+          "salt": "7c363b76f1dd40bf82ac0633a1ce6bf1"
+        }
+      ],
+      "leafHashes": [
+        "b7cc5f4faeb41c6132e74e2a90833431a6231120ff2ca93ab72f26d9e0f12df0",
+        "3e9e7c4d05fb9a37fc9102d8dc155145a4b59d1a75da452955274e2421ae9803",
+        "ce850d8567bdc95944c1a845bbb7bfee3e1d9631fc28917684ea40a882cc3091",
+        "80dac0daa6ec6707b3391e4d60c64839efb5c09d339fa4011c60f3c134599eb2",
+        "ffeab021aecf24c6acccbef462d9768f0ab532164d27a0780e04268a505610e5"
+      ],
+      "root": "a6e45f4785b9476d39a60b75ea7e125d2724e1709e68052d7d6070fd82613ebb"
+    },
+    {
+      "name": "7 leaves",
+      "files": [
+        {
+          "path": "file-0.txt",
+          "size": 9,
+          "hash": "75e0d458fc2da40b5b8b8b614d0192e9da7fffc2d6042f33300fdb0e8a83dfb4",
+          "salt": "590db3fcc479c98929584fba1840712e"
+        },
+        {
+          "path": "file-1.txt",
+          "size": 9,
+          "hash": "d1988cd3019824f075f61677e1a6f54b16035868488e4051757dde53adeef80f",
+          "salt": "009ce798ea922f09f2612025a5316428"
+        },
+        {
+          "path": "file-2.txt",
+          "size": 9,
+          "hash": "9597d898814f165b7ed6118722c24271fec8c1254d46e437ad6ab24050763e2d",
+          "salt": "f18c0f6dc4089c1f277b8b60ae296ca4"
+        },
+        {
+          "path": "file-3.txt",
+          "size": 9,
+          "hash": "b910ce7ef3d90e013867bae074fcccaed29ee9262a006ef5af04c06d9b6bc1eb",
+          "salt": "94932bfdad411d63acb1efc97fe2673d"
+        },
+        {
+          "path": "file-4.txt",
+          "size": 9,
+          "hash": "cabb866ab5c902410cac8f414d84700d943bfb0ee900c8f72fe150cc7e70ad65",
+          "salt": "00614d52f2e75bbd766062b682902f80"
+        },
+        {
+          "path": "file-5.txt",
+          "size": 9,
+          "hash": "5c4d07d51cc27f5f1eef4bd79e2e2db88beec0df0796ee134b31178538d0ccb3",
+          "salt": "88b3967e90bc3c170e90a0045132fa6c"
+        },
+        {
+          "path": "file-6.txt",
+          "size": 9,
+          "hash": "c5ef0ec65b935acdb265ab60683b0d4a136cca763bdaa8f1fc3f41abe4ccbacb",
+          "salt": "32fbac8dbfec32b6f90dbaca81b70ce1"
+        }
+      ],
+      "leafHashes": [
+        "a9e1326955384845a73afe060bddd0c74c78eb8ac07275f9e971c17637b188f0",
+        "021f3425163cb54f49855f0529742f1a06e8bd56133396741c82ef77d90400e3",
+        "6ca17e4fbfe2c793381f9ab1cc9324415eadeb589eaaa2b35a1cb0e4b1d4b15e",
+        "f0b76f1f01de9fe995ac062a3462168c2a2dabde593b045ed34230fb549b0a40",
+        "2fe818406608b820a2a562206656a503bc764393d0ff794bdc093587fd6c22b9",
+        "e03261d05d2d2745171054343ddf8176902f694709667ac476e34a0ec10d51f5",
+        "eda977451047b507d2004309165307d045b9dcd15b81aaa2c13dbbd2f40f35af"
+      ],
+      "root": "c75aef952ce50f2bc3d3576b31347b1094d1d76dd1f5dac00592c77006a452ea"
+    },
+    {
+      "name": "8 leaves",
+      "files": [
+        {
+          "path": "file-0.txt",
+          "size": 9,
+          "hash": "75e0d458fc2da40b5b8b8b614d0192e9da7fffc2d6042f33300fdb0e8a83dfb4",
+          "salt": "f2a1a15a61351610d055e74001a74591"
+        },
+        {
+          "path": "file-1.txt",
+          "size": 9,
+          "hash": "d1988cd3019824f075f61677e1a6f54b16035868488e4051757dde53adeef80f",
+          "salt": "72039bede3b044392ea97e95a962f241"
+        },
+        {
+          "path": "file-2.txt",
+          "size": 9,
+          "hash": "9597d898814f165b7ed6118722c24271fec8c1254d46e437ad6ab24050763e2d",
+          "salt": "548ab61730679b17febad06026d0536d"
+        },
+        {
+          "path": "file-3.txt",
+          "size": 9,
+          "hash": "b910ce7ef3d90e013867bae074fcccaed29ee9262a006ef5af04c06d9b6bc1eb",
+          "salt": "d890e05fc3a4a38c60e4c5dd7b711bb1"
+        },
+        {
+          "path": "file-4.txt",
+          "size": 9,
+          "hash": "cabb866ab5c902410cac8f414d84700d943bfb0ee900c8f72fe150cc7e70ad65",
+          "salt": "26e147e3bca96bdec36febbed938ce57"
+        },
+        {
+          "path": "file-5.txt",
+          "size": 9,
+          "hash": "5c4d07d51cc27f5f1eef4bd79e2e2db88beec0df0796ee134b31178538d0ccb3",
+          "salt": "86f10803b421a886afcfa3a3f35788e1"
+        },
+        {
+          "path": "file-6.txt",
+          "size": 9,
+          "hash": "c5ef0ec65b935acdb265ab60683b0d4a136cca763bdaa8f1fc3f41abe4ccbacb",
+          "salt": "c79e351236d12dfc87d7b9d659e98fe3"
+        },
+        {
+          "path": "file-7.txt",
+          "size": 9,
+          "hash": "943940738bfc7815a2510342f4d7ad4a079daa3580faab159b4d807ffd55f9ad",
+          "salt": "d2f6e7be06f92dbaafa3f8057d414745"
+        }
+      ],
+      "leafHashes": [
+        "5bc0451434e8585abfc3db98db0521ac8b0c6a6890068efa4491236584d12b5d",
+        "1c2b890f522f64e672020bef662aac1531d90e99e63e19db529ac0ee45428c5b",
+        "4d41e52dfe1dd913fd3996934cf13a3e435349427de3fa6575ae7cbe9aa96b8e",
+        "9e7c0b5026fbe974ca1616eb13ae9a93c366dd412e1d44367bfe2d8e34ab4682",
+        "af739211614262f359c5bb5bdd92daa6107e69fb1825c420cd2e98cb0dbd4831",
+        "7bff75d5856826b9e7856f612455f55749a88760e044af27e37d4ebcbfb45605",
+        "59e65954962070a041b54879f5d35bcd8de4fa62b1c8b84a6f9d7ee48de4d1e5",
+        "100ba9be1b83afab8379625d101832ab2c5a7f73aa82038074aba45a1cf92ba6"
+      ],
+      "root": "5e183c3d7bd3740955744cfc9fede7069a6cf518bc948a38856a10e76e48f6d1"
+    },
+    {
+      "name": "unicode paths and an empty file",
+      "files": [
+        {
+          "path": "annex/приложение.txt",
+          "size": 20,
+          "hash": "2919f56a79121af2bfd76b68aad3c18dd41f77a92e41b4c6955865aadf282d0f",
+          "salt": "ffc2fb244026966e453fc4b3e02a7315"
+        },
+        {
+          "path": "empty",
+          "size": 0,
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "salt": "a43c6db3a77279be959293eb2010d55f"
+        },
+        {
+          "path": "Договор.txt",
+          "size": 10,
+          "hash": "ab15d5ab166623795265154b6c5aea0d7385b6c1c77fe8e5a0b27b7c46bf943e",
+          "salt": "6564fc33743c9e9497278b799d934f89"
+        }
+      ],
+      "leafHashes": [
+        "f687bde52ca716e1191a288c792813189b8ad6563dd4bb2ccdd4bb09ab8f3d2e",
+        "78fe260385031047f2afd25b1e45d0ba5f09bd12222ba34b0e5f7e6bdac50e17",
+        "2292157f9a82b848a214f4c60c58d2d6c4df061fbab30118bc1625a4384b8d87"
+      ],
+      "root": "a5c220026930329602e122195b5c9f46047ab7f9d33c5e4d1dd3298ed93be3d3"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docseal.dev/schema/v1/manifest.schema.json",
+  "title": "DocSeal manifest",
+  "description": "manifest.json: package composition and metadata (FORMAT-v0.1 §manifest.json). Path normalization, UTF-8 sort order, and collision rules are not expressible in JSON Schema and are checked by verifiers. Unknown properties are allowed and covered by the document hash.",
+  "type": "object",
+  "required": [
+    "type",
+    "version",
+    "packageId",
+    "hashAlgorithm",
+    "merkleScheme",
+    "files"
+  ],
+  "properties": {
+    "type": {
+      "const": "docseal-manifest"
+    },
+    "version": {
+      "const": 1
+    },
+    "packageId": {
+      "type": "string",
+      "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "hashAlgorithm": {
+      "const": "sha-256"
+    },
+    "merkleScheme": {
+      "const": "docseal-v1"
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "size",
+          "hash",
+          "salt"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "salt": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "generator": {
+      "type": "string"
+    }
+  }
+}

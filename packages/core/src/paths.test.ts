@@ -49,6 +49,8 @@ describe("checkPathCollisions", () => {
     [["Readme.md", "README.md"]],
     [["a", "a/b"]],
     [["a/b", "A"]],
+    [["ΟΔΟΣ.txt", "οδος.txt"]], // final sigma: equal only when uppercased
+    [["straße.txt", "STRASSE.txt"]],
   ])("rejects %j", (paths) => {
     expect(() => {
       checkPathCollisions(paths);

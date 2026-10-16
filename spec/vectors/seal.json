@@ -1,0 +1,70 @@
+{
+  "description": "Seal (FORMAT-v0.1 §Seal). envelopeDigest = SHA-256(JCS(envelope)); signaturesSetHash = SHA-256(\"DocSeal/v1/signature-set\\0\" || sorted digests); seal = SHA-256(\"DocSeal/v1/anchor\\0\" || statementHash || signaturesSetHash).",
+  "manifest": {
+    "type": "docseal-manifest",
+    "version": 1,
+    "packageId": "urn:uuid:cc57ffdf-d125-46ef-b38c-fc1e545ebcff",
+    "hashAlgorithm": "sha-256",
+    "merkleScheme": "docseal-v1",
+    "files": [
+      {
+        "path": "a.txt",
+        "size": 1,
+        "hash": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+        "salt": "2006acacaecce4d653bc40e1c651f0e3"
+      }
+    ]
+  },
+  "manifestHash": "8e697a4c59210812cda849c2b37a568ef230cdcb913325e2d2bdf2baf8f4303f",
+  "statement": {
+    "type": "docseal-package-statement",
+    "version": 1,
+    "packageId": "urn:uuid:cc57ffdf-d125-46ef-b38c-fc1e545ebcff",
+    "hashAlgorithm": "sha-256",
+    "merkleScheme": "docseal-v1",
+    "merkleRoot": "9f64bc4b525463d6f4ceb07ec652d874d44c1d21a31dff9a50801d586757510f",
+    "manifestHash": "8e697a4c59210812cda849c2b37a568ef230cdcb913325e2d2bdf2baf8f4303f",
+    "createdAt": "2026-10-16T12:00:00Z",
+    "previous": null,
+    "signaturePolicy": {
+      "type": "any-valid"
+    },
+    "critical": []
+  },
+  "statementHash": "e7db1303340e94024e352ff8800a84d8eaefb84b7c4d89cf9e3779bfccd4cbfc",
+  "envelopes": [
+    {
+      "protected": {
+        "type": "docseal-signature",
+        "version": 1,
+        "suite": "ed25519",
+        "profile": "docseal-ed25519-v1",
+        "signer": "did:key:z6MkgeyqXxQR5xgWC9jvbuDDdBvCgCF2X1DxDo9p6aWfExSb",
+        "claimedAt": "2026-10-16T12:00:00Z",
+        "statementHash": "e7db1303340e94024e352ff8800a84d8eaefb84b7c4d89cf9e3779bfccd4cbfc",
+        "critical": [],
+        "role": "witness"
+      },
+      "value": "0v0uk9_Bn-U4juo4TDHeHc2X3m3P2R7JKU075SFYAnSwWHbiar8Z5LrZq3gjJ1MyCJXouikpAqDem2uHGzMwBw"
+    },
+    {
+      "protected": {
+        "type": "docseal-signature",
+        "version": 1,
+        "suite": "ed25519",
+        "profile": "docseal-ed25519-v1",
+        "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+        "claimedAt": "2026-10-16T12:00:00Z",
+        "statementHash": "e7db1303340e94024e352ff8800a84d8eaefb84b7c4d89cf9e3779bfccd4cbfc",
+        "critical": []
+      },
+      "value": "sP7G6LuetlYSLAdqbV95lpg3b0wu9mGm0BR00m6TglnELEolkOU36iwacaLR4MtVNs73D8bZ9CplzSpPRnebBw"
+    }
+  ],
+  "envelopeDigests": [
+    "e5afacb9b6e4ee6d6cb7826f68bda2a0a421ce8b6878fae70262ee3b0630f951",
+    "d2259070d991ff9527f8538b44f5e1ab1a26ebea925aa072bf6226540adfaacb"
+  ],
+  "signaturesSetHash": "17b2caf817c687c77ac88b8df8332d5792642254db3c6d118addfe5e45bda2d9",
+  "seal": "b94bac0bb0a2c7ff00a0f0bc25700923c49faea385ba676a070508fac017dbaa"
+}

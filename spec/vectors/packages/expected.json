@@ -1,0 +1,380 @@
+{
+  "description": "Golden packages. Verify each offline with no trust policy and only the ed25519 suite and the opentimestamps provider registered; the result must equal 'expected'. Without a chain source a bound anchor is 'unsupported'; an unbound one is 'invalid'.",
+  "packages": [
+    {
+      "file": "valid-basic.dseal",
+      "description": "Three files (nested Unicode path, empty file), one signature, no anchor.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "indeterminate"
+      }
+    },
+    {
+      "file": "valid-single-file.dseal",
+      "description": "One file, the smallest possible package.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "indeterminate"
+      }
+    },
+    {
+      "file": "valid-pending-anchor.dseal",
+      "description": "Pending OpenTimestamps anchor bound to the package. Offline, the anchor cannot be confirmed: time is unsupported.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "unsupported",
+          "completeness": "incomplete"
+        },
+        "overall": "indeterminate"
+      }
+    },
+    {
+      "file": "tampered-content.dseal",
+      "description": "One byte of contract.pdf changed after sealing.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "invalid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "forged-manifest.dseal",
+      "description": "contract.pdf replaced and its manifest entry recomputed; the statement still names the old manifest.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "invalid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "forged-statement.dseal",
+      "description": "Manifest title changed and statement.manifestHash recomputed; the signature no longer covers the statement.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "invalid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "extra-file.dseal",
+      "description": "A file not listed in the manifest was added.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "invalid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "missing-file.dseal",
+      "description": "A listed file was removed.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "invalid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "renamed-file.dseal",
+      "description": "contract.pdf renamed in both the container and the manifest; the leaf includes the path.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "invalid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "signed-field-changed.dseal",
+      "description": "The signer role was edited inside the protected header.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "invalid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "duplicate-envelope.dseal",
+      "description": "The same signature envelope included twice.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "invalid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "unknown-suite.dseal",
+      "description": "The signature names a suite this verifier does not implement.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "unsupported",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "indeterminate"
+      }
+    },
+    {
+      "file": "critical-signature-extension.dseal",
+      "description": "The protected header lists an unknown critical extension.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "unsupported",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "indeterminate"
+      }
+    },
+    {
+      "file": "critical-statement-extension.dseal",
+      "description": "The statement lists an unknown critical extension.",
+      "expected": {
+        "axes": {
+          "format": "unsupported",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "indeterminate"
+      }
+    },
+    {
+      "file": "future-version.dseal",
+      "description": "statement.version is 2.",
+      "expected": {
+        "axes": {
+          "format": "unsupported",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "indeterminate"
+      }
+    },
+    {
+      "file": "json-duplicate-key.dseal",
+      "description": "manifest.json repeats a key. JSON.parse and Python's json module accept this silently; DocSeal must not.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "path-not-nfc.dseal",
+      "description": "A file stored under a non-NFC (decomposed) path.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "case-collision.dseal",
+      "description": "Two files whose paths differ only in case.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "path-traversal.dseal",
+      "description": "A container entry named files/../evil.sh.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "duplicate-entry.dseal",
+      "description": "Two container entries with the same name.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "symlink-entry.dseal",
+      "description": "A container entry marked as a Unix symbolic link.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "compressed-mimetype.dseal",
+      "description": "mimetype is the first entry but compressed.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "unexpected-entry.dseal",
+      "description": "An entry outside the defined layout (META-INF/).",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "anchor-from-other-package.dseal",
+      "description": "The anchor file of a different package was copied in.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "invalid",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "anchor-seal-edited.dseal",
+      "description": "anchor.seal and every receipt digest replaced consistently with a value that is not this package's seal.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "invalid",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    }
+  ]
+}

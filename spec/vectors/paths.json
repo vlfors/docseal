@@ -1,0 +1,161 @@
+{
+  "description": "Path rules (FORMAT-v0.1 §Paths). 'valid'/'invalid' are stored paths as verifiers see them; 'sort' is UTF-8 byte order; 'collisions' says whether a set of paths must be rejected.",
+  "valid": [
+    "a.txt",
+    "dir/sub/file.txt",
+    "Договор №17.pdf",
+    "emoji 😀.txt",
+    ".hidden",
+    "a..b",
+    "é.txt",
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  ],
+  "invalid": [
+    {
+      "path": "",
+      "reason": "empty"
+    },
+    {
+      "path": "/abs",
+      "reason": "leading slash"
+    },
+    {
+      "path": "trailing/",
+      "reason": "trailing slash"
+    },
+    {
+      "path": "a//b",
+      "reason": "empty segment"
+    },
+    {
+      "path": "../escape",
+      "reason": "dot-dot segment"
+    },
+    {
+      "path": "a/../b",
+      "reason": "dot-dot segment"
+    },
+    {
+      "path": "./a",
+      "reason": "dot segment"
+    },
+    {
+      "path": "a\\b",
+      "reason": "backslash"
+    },
+    {
+      "path": "nul\u0000",
+      "reason": "NUL"
+    },
+    {
+      "path": "tab\t",
+      "reason": "control character"
+    },
+    {
+      "path": "del",
+      "reason": "DEL"
+    },
+    {
+      "path": "é.txt",
+      "reason": "not NFC"
+    },
+    {
+      "path": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "reason": "longer than 1024 UTF-8 bytes"
+    },
+    {
+      "path": "яяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяя",
+      "reason": "longer than 1024 UTF-8 bytes"
+    }
+  ],
+  "sort": {
+    "input": [
+      "😀",
+      "｡",
+      "b",
+      "a/z",
+      "a",
+      "B",
+      "é",
+      "a-b",
+      "a/b"
+    ],
+    "expected": [
+      "B",
+      "a",
+      "a-b",
+      "a/b",
+      "a/z",
+      "b",
+      "é",
+      "｡",
+      "😀"
+    ]
+  },
+  "collisions": [
+    {
+      "paths": [
+        "a.txt",
+        "a.txt"
+      ],
+      "collides": true
+    },
+    {
+      "paths": [
+        "Readme.md",
+        "README.md"
+      ],
+      "collides": true
+    },
+    {
+      "paths": [
+        "a",
+        "a/b"
+      ],
+      "collides": true
+    },
+    {
+      "paths": [
+        "a/b",
+        "A"
+      ],
+      "collides": true
+    },
+    {
+      "paths": [
+        "ΟΔΟΣ.txt",
+        "οδος.txt"
+      ],
+      "collides": true
+    },
+    {
+      "paths": [
+        "straße.txt",
+        "STRASSE.txt"
+      ],
+      "collides": true
+    },
+    {
+      "paths": [
+        "Äpfel.txt",
+        "äpfel.txt"
+      ],
+      "collides": true
+    },
+    {
+      "paths": [
+        "a/b",
+        "a/c",
+        "ab"
+      ],
+      "collides": false
+    },
+    {
+      "paths": [
+        "a.txt",
+        "a.txt.bak"
+      ],
+      "collides": false
+    }
+  ]
+}

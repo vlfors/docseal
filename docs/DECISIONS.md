@@ -43,6 +43,8 @@ The value of the project lies in an open format, independent verification, a cle
 | Hash functions in timestamp paths | SHA-256, RIPEMD-160, and Keccak-256 are executed; SHA-1 paths are ignored. RIPEMD-160 is required by real 2015–2016 Bitcoin proofs. |
 | Calendar quorum | A seal must be accepted by at least two calendars when sealing. |
 | Default chain source (CLI) | mempool.space Esplora API, named in every report; `--chain` for a self-hosted Esplora, `--offline` to skip. A Bitcoin Core RPC reader is future work. |
+| Independent verifier | Python, in `verifiers/python/`, written from the specification and checked in CI against the shared vectors. |
+| Path case collisions | Compared both lowercased and uppercased; either match is a collision (found while writing the vectors: lowercasing alone misses `ΟΔΟΣ`/`οδος`). |
 | CLI exit codes | `0` valid, `1` invalid, `2` indeterminate, `3` error. |
 | Passphrase input | Hidden terminal prompt, or `DOCSEAL_PASSPHRASE` for scripts. Never a command-line argument, which would leak into shell history and process lists. |
 

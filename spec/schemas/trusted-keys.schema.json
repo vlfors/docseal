@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docseal.dev/schema/v1/trusted-keys.schema.json",
+  "title": "DocSeal trusted keys file",
+  "description": "Verifier configuration for the pinned-keys trust policy (FORMAT-v0.1 §Trusted keys file). Key ids must be unique. Unknown properties are allowed and covered by the document hash.",
+  "type": "object",
+  "required": [
+    "type",
+    "version",
+    "keys"
+  ],
+  "properties": {
+    "type": {
+      "const": "docseal-trusted-keys"
+    },
+    "version": {
+      "const": 1
+    },
+    "keys": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

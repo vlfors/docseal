@@ -76,7 +76,7 @@ A manifest `path`:
 - contains no NUL, C0 control characters, or `\`;
 - is at most 1024 UTF-8 bytes.
 
-After normalization, paths MUST be unique, and also unique when compared after `toLowerCase()` (locale-independent Unicode lowercase) to prevent collisions on case-insensitive file systems. A path MUST NOT also be used as a directory of another path (`a` and `a/b`), under the same comparison. Paths are sorted by their UTF-8 bytes.
+After normalization, paths MUST be unique, and also unique when compared after locale-independent Unicode lowercasing **and** after locale-independent Unicode uppercasing (full mappings, as ECMAScript `toLowerCase()`/`toUpperCase()` and Python `str.lower()`/`str.upper()`), to prevent collisions on case-insensitive file systems. Two paths that are equal under either mapping collide: neither mapping alone matches file systems (`ΟΔΟΣ` lowercases with a final `ς`; `ß` only uppercases to `SS`). A path MUST NOT also be used as a directory of another path (`a` and `a/b`), under the same comparisons. Paths are sorted by their UTF-8 bytes.
 
 A manifest whose `path` values are not already in normalized form is invalid; normalization happens when sealing, not when verifying.
 
@@ -323,10 +323,8 @@ v0.1 is effectively fixed to SHA-256 and the `docseal-ed25519-v1` profile. Algor
 
 ## Test vectors
 
-Published in `spec/vectors/` before the format is declared stable:
+Published in [`spec/vectors/`](../spec/vectors/): JCS, paths, Merkle trees, signatures, seals, and 25 golden packages with required verdicts. JSON Schemas for every document are in [`spec/schemas/`](../spec/schemas/). Two independent implementations (TypeScript and [Python](../verifiers/python/)) reproduce all vectors.
 
-- Merkle roots for 1, 2, 3, 4, 5, and 7 leaves;
-- Unicode paths (NFC/NFD, case collisions) with expected accept/reject results;
-- signed bytes and signatures for a fixed Ed25519 seed;
-- `signaturesSetHash` and `seal` for one and two envelopes;
-- negative vectors for every rule marked MUST above.
+### Ed25519 implementation note
+
+Verifiers MUST reject public keys of small order (the eight points of order dividing 8, in any encoding), before or in addition to calling an Ed25519 library. With such a key, one signature verifies every message. Some widely used libraries (OpenSSL through Python `cryptography`, as of 2026) accept these keys; `signature.json` contains the cases.

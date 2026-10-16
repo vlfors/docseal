@@ -23,6 +23,8 @@ DocSeal does not prove that a document is true, the signer's identity without an
 | A file name or size is changed | Path and size are part of the tree leaf |
 | A leaf is substituted for a node | Domain separation with `0x00` and `0x01` |
 | Role or time in the signature envelope is changed | All meaningful fields are inside the signed `protected` payload |
+| Small-order Ed25519 public key (one signature verifies every message) | Explicit rejection of all small-order encodings in every implementation; covered by shared vectors |
+| Implementation-specific parsing (duplicate JSON keys, ZIP quirks) | Strict parsers in both implementations; golden packages for each case |
 | Algorithm substitution | Suite identifier and version are covered by the signature |
 | Malicious plugin shipped in a package | Plugins are only registered explicitly by the application |
 | Unknown algorithm or critical extension | `unsupported`, not a crash or a false success |

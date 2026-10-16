@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docseal.dev/schema/v1/anchor.schema.json",
+  "title": "DocSeal anchor file",
+  "description": "anchors/seal-N.json: the seal and its timestamp receipts (FORMAT-v0.1 §Seal and anchor receipt). Everything under 'cached' is an untrusted hint. Unknown properties are allowed and covered by the document hash.",
+  "type": "object",
+  "required": [
+    "type",
+    "version",
+    "seal",
+    "statementHash",
+    "envelopes",
+    "receipts"
+  ],
+  "properties": {
+    "type": {
+      "const": "docseal-anchor"
+    },
+    "version": {
+      "const": 1
+    },
+    "seal": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "statementHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "envelopes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "receipts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "provider",
+          "network",
+          "digestAlgorithm",
+          "digest",
+          "proof"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "network": {
+            "type": "string"
+          },
+          "digestAlgorithm": {
+            "const": "sha-256"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "proof": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]*$"
+          },
+          "cached": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}
