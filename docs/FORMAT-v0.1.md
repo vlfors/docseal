@@ -80,6 +80,7 @@ Each file listed in the manifest is stored at `files/<path>`. Signature envelope
 - Directory entries MUST be empty.
 - Extra fields MUST be well formed: a sequence of blocks, none truncated and no block ID repeated. Unknown blocks (timestamps, Unix IDs) are ignored. The Info-ZIP Unicode Path block (`0x7075`) MUST be rejected, because some tools extract the entry under the name it carries instead of the header name.
 - Contents are never executed and never loaded as plugins.
+- Entries are stored (method 0) or deflated (method 8); any other method is invalid in v0.1. Deflated data MUST be exactly one complete raw deflate stream (RFC 1951): a stream that never reaches its final block, and bytes after the end of the stream, are both invalid. (Some libraries accept either silently.)
 - Encrypted entries and multi-disk archives are rejected: every disk number is 0, and the starting disk of every entry is 0.
 
 ### ZIP64
@@ -109,7 +110,7 @@ A manifest `path`:
 - contains no C0 control characters (including NUL), no DEL (`0x7F`), and no `\`;
 - is at most 1024 UTF-8 bytes.
 
-After normalization, paths MUST be unique, and also unique when compared after locale-independent Unicode lowercasing **and** after locale-independent Unicode uppercasing (full mappings, as ECMAScript `toLowerCase()`/`toUpperCase()` and Python `str.lower()`/`str.upper()`), to prevent collisions on case-insensitive file systems. Two paths that are equal under either mapping collide: neither mapping alone matches file systems (`ΟΔΟΣ` lowercases with a final `ς`; `ß` only uppercases to `SS`). A path MUST NOT also be used as a directory of another path (`a` and `a/b`), under the same comparisons. Paths are sorted by their UTF-8 bytes.
+After normalization, paths MUST be unique, and also unique when compared after locale-independent Unicode lowercasing **and** after locale-independent Unicode uppercasing (full mappings, as ECMAScript `toLowerCase()`/`toUpperCase()` and Python `str.lower()`/`str.upper()`), each followed by NFC normalization, to prevent collisions on case-insensitive file systems. The second NFC matters: `ß́` (`ß` with a combining acute) uppercases to `S` `S` `◌́`, which composes to `SŚ`, the uppercase of a path spelled `SŚ`. Two paths that are equal under either mapping collide: neither mapping alone matches file systems (`ΟΔΟΣ` lowercases with a final `ς`; `ß` only uppercases to `SS`). A path MUST NOT also be used as a directory of another path (`a` and `a/b`), under the same comparisons. Paths are sorted by their UTF-8 bytes.
 
 A manifest whose `path` values are not already in normalized form is invalid; normalization happens when sealing, not when verifying.
 
@@ -316,6 +317,7 @@ completeness: full | partial | incomplete
 overall:      valid | invalid | indeterminate
 ```
 
+- `format` is `invalid` if any check of the container (its structure and every entry's data), of `manifest.json`, or of `statement.json` fails as invalid, and `unsupported` only if none is invalid and at least one is unsupported. The order in which a verifier runs its checks must not change the verdict: a package with an unsupported manifest version and a damaged document is `invalid`.
 - If `format` is not `valid`, nothing else is evaluated: `integrity: not-checked`, `signature: missing`, `trust: not-evaluated`, `time: missing`, `completeness: incomplete`.
 - `integrity` is `invalid` if `manifestHash`, `packageId`, or `merkleRoot` of the statement does not match the manifest, or if any file is missing, modified (different size or hash), or extra (in the container but not in the manifest); otherwise `valid`.
 - Each envelope is checked on its own: `invalid` if it is malformed, signs a different `statementHash`, or does not verify; `unsupported` if its version, suite, or profile is unknown or its `critical` is not empty; otherwise `valid`. The `signature` axis is `invalid` if any envelope is invalid or two envelopes have the same digest; else `valid` if at least one envelope is valid (`any-valid`); else `unsupported` if any is unsupported; else `missing`.
@@ -371,7 +373,7 @@ v0.1 is effectively fixed to SHA-256 and the `docseal-ed25519-v1` profile. Algor
 
 ## Test vectors
 
-Published in [`spec/vectors/`](../spec/vectors/): JCS, paths, Merkle trees, signatures, seals, and 34 golden packages with required verdicts. JSON Schemas for every document are in [`spec/schemas/`](../spec/schemas/). Two independent implementations (TypeScript and [Python](../verifiers/python/)) reproduce all vectors.
+Published in [`spec/vectors/`](../spec/vectors/): JCS, paths, Merkle trees, signatures, seals, and 44 golden packages with required verdicts. JSON Schemas for every document are in [`spec/schemas/`](../spec/schemas/). Two independent implementations (TypeScript and [Python](../verifiers/python/)) reproduce all vectors.
 
 ### Ed25519 implementation note
 

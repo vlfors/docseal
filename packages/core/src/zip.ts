@@ -6,9 +6,9 @@
  * (symlinks), overlapping entries, and declared sizes before anything is inflated.
  * Local headers must agree with the central directory and entries must be contiguous,
  * so that a streaming unzip tool, which reads local headers, sees exactly the bytes
- * DocSeal verified. fflate is only used to inflate the data of individual entries.
+ * DocSeal verified. Deflate data is inflated with the platform's DecompressionStream, which,
+ * unlike some libraries, rejects both an unfinished stream and bytes after its end.
  */
-import { Inflate } from "fflate";
 import { equalBytes } from "./bytes.js";
 import { FormatError } from "./errors.js";
 import { READ_CHUNK_SIZE, readChunks, type ByteSource } from "./io.js";
@@ -39,7 +39,7 @@ const ZIP64_END_LENGTH = 56;
 const ZIP64_LOCATOR_LENGTH = 20;
 /** Bounds what is read into memory before any entry is looked at. */
 export const MAX_CENTRAL_DIRECTORY_SIZE = 64 * 1024 * 1024;
-/** Input per inflate step. Deflate expands at most ~1032:1, so one step yields at most ~66 MiB. */
+/** Input per inflate step: bounds how far the decompressor can run ahead of the size checks. */
 const INFLATE_CHUNK_SIZE = 64 * 1024;
 
 export interface ZipEntry {
@@ -230,7 +230,7 @@ function parseCentralDirectory(directory: Uint8Array, count: number, limits: Zip
       throw invalid("zip", `Entry ${where} uses a data descriptor; sizes must be in the local header`);
     }
     if (method !== METHOD_STORED && method !== METHOD_DEFLATE) {
-      throw new FormatError("zip", `Entry ${where} uses compression method ${String(method)}`, "unsupported");
+      throw invalid("zip", `Entry ${where} uses compression method ${String(method)}; v0.1 allows stored and deflate only`);
     }
     if (madeBy >> 8 === HOST_UNIX) {
       const type = (externalAttributes >>> 16) & UNIX_TYPE_MASK;
@@ -404,23 +404,10 @@ export async function* entryChunks(source: ByteSource, entry: ZipEntry): AsyncGe
       yield chunk;
     }
   } else {
-    const output: Uint8Array[] = [];
-    const inflater = new Inflate((chunk) => {
-      output.push(chunk);
-    });
-    const push = (chunk: Uint8Array, final: boolean) => {
-      try {
-        inflater.push(chunk, final);
-      } catch {
-        throw invalid("zip", `Entry ${where} is not valid deflate data`);
-      }
-    };
-    for await (const chunk of rawChunks(source, entry, INFLATE_CHUNK_SIZE)) {
-      push(chunk, false);
-      yield* drain(output, check);
+    for await (const chunk of inflate(rawChunks(source, entry, INFLATE_CHUNK_SIZE), where)) {
+      check(chunk);
+      yield chunk;
     }
-    push(new Uint8Array(), true);
-    yield* drain(output, check);
   }
   if (size !== entry.size) {
     throw invalid("zip", `Entry ${where} does not match its declared size`);
@@ -430,12 +417,69 @@ export async function* entryChunks(source: ByteSource, entry: ZipEntry): AsyncGe
   }
 }
 
-function* drain(output: Uint8Array[], check: (chunk: Uint8Array) => void): Generator<Uint8Array> {
-  for (const chunk of output.splice(0)) {
-    if (chunk.length > 0) {
-      check(chunk);
-      yield chunk;
+/**
+ * Inflates exactly one complete raw deflate stream (RFC 1951). An unfinished stream and bytes
+ * after its end are both FormatErrors. Reading the source and inflating run side by side, so
+ * a consumer that stops early (an entry over its declared size) stops both.
+ */
+async function* inflate(input: AsyncIterable<Uint8Array>, where: string): AsyncGenerator<Uint8Array> {
+  const stream = new DecompressionStream("deflate-raw");
+  const writer = stream.writable.getWriter();
+  const reader = stream.readable.getReader();
+  // Set if reading the source failed; that error is reported as it is, not as bad deflate data.
+  let sourceFailure: { error: unknown } | undefined;
+  // An object, so the closure below sees the update made in `finally`.
+  const consumer = { stopped: false };
+  const feeding = (async () => {
+    const chunks = input[Symbol.asyncIterator]();
+    for (;;) {
+      let next: IteratorResult<Uint8Array>;
+      try {
+        next = await chunks.next();
+      } catch (error) {
+        if (!consumer.stopped) {
+          sourceFailure = { error };
+        }
+        await writer.abort(error).catch(() => undefined);
+        return;
+      }
+      // Errors on the writing side are the decompressor's; the reader reports them.
+      try {
+        if (next.done) {
+          await writer.close();
+          return;
+        }
+        await writer.write(next.value as Uint8Array<ArrayBuffer>);
+      } catch {
+        await chunks.return?.().catch(() => undefined);
+        return;
+      }
     }
+  })();
+  try {
+    for (;;) {
+      let result: ReadableStreamReadResult<Uint8Array>;
+      try {
+        result = await reader.read();
+      } catch {
+        await feeding;
+        if (sourceFailure) {
+          throw sourceFailure.error;
+        }
+        throw invalid("zip", `Entry ${where} is not one complete deflate stream`);
+      }
+      if (result.done) {
+        return;
+      }
+      if (result.value.length > 0) {
+        yield result.value;
+      }
+    }
+  } finally {
+    // The consumer stopped early (an entry over its declared size) or failed: stop the source too.
+    consumer.stopped = true;
+    await reader.cancel().catch(() => undefined);
+    await feeding;
   }
 }
 

@@ -40,8 +40,18 @@ describe("base64url", () => {
     expect(toBase64url(bytes(0xfb, 0xff))).toBe("-_8");
   });
 
-  it.each(["Zg==", "+/8", "Z", "Zh", "Zm9 v", "Zm9v\n"])("rejects %j", (text) => {
-    expect(() => fromBase64url(text)).toThrow(EncodingError);
+  it.each(["Zg==", "+/8", "Z", "AAAAA", "Zm9 v", "Zm9v\n"])("rejects %j", (text) => {
+    expect(() => fromBase64url(text)).toThrow(new EncodingError("Expected unpadded base64url"));
+  });
+
+  it("rejects nonzero trailing bits", () => {
+    expect(() => fromBase64url("Zh")).toThrow(new EncodingError("Non-canonical base64url: trailing bits must be zero"));
+  });
+
+  it("checks the decoded length when asked to", () => {
+    expect(fromBase64url("AAA", 2)).toEqual(new Uint8Array(2));
+    expect(() => fromBase64url("AAA", 3)).toThrow(new EncodingError("Expected 3 bytes, got 2"));
+    expect(new EncodingError("x").name).toBe("EncodingError");
   });
 
   it("round-trips every byte value", () => {

@@ -14,7 +14,7 @@ This roadmap describes the current direction of the project. It is not a commitm
 - [x] Implement `AnchorProvider` and the OpenTimestamps plugin.
 - [x] Implement the CLI: `keygen`, `seal`, `verify`, `upgrade`.
 - [x] Return a machine-readable report with separate verification axes.
-- [ ] Add mutation tests, property tests, and parser fuzzing.
+- [x] Add mutation tests, property tests, and parser fuzzing. *See [TESTING.md](docs/TESTING.md).*
 - [ ] Set up CI, signed releases, and documentation.
 
 ### Implementation order

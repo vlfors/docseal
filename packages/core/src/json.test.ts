@@ -40,6 +40,19 @@ describe("parseJson", () => {
     expect(() => parse(text)).toThrow(FormatError);
   });
 
+  it.each([
+    ["arrays", (levels: number) => `${"[".repeat(levels)}1${"]".repeat(levels)}`],
+    ["objects", (levels: number) => `${'{"a":'.repeat(levels)}1${"}".repeat(levels)}`],
+    ["both", (levels: number) => `${'[{"a":'.repeat(levels / 2)}1${"}]".repeat(levels / 2)}`],
+  ])("accepts values nested 64 levels deep in %s, and rejects 66", (_, nested) => {
+    expect(() => parse(nested(64))).not.toThrow();
+    expect(() => parse(nested(66))).toThrow("nesting is too deep");
+  });
+
+  it("allows whitespace around every token", () => {
+    expect(parse(' \t\n\r{ "a" : [ 1 , { } , [ ] ] , "b" : "c" } \n')).toEqual({ a: [1, {}, []], b: "c" });
+  });
+
   it("rejects a byte-order mark and invalid UTF-8", () => {
     expect(() => parseJson(Uint8Array.of(0xef, 0xbb, 0xbf, 0x31))).toThrow(FormatError);
     expect(() => parseJson(Uint8Array.of(0x22, 0xff, 0x22))).toThrow(FormatError);

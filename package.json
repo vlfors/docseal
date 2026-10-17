@@ -15,7 +15,10 @@
     "coverage": "vitest run --coverage",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "vectors:update": "UPDATE_VECTORS=1 vitest run tests/vectors.test.ts",
-    "vectors:python": "verifiers/python/.venv/bin/python -I verifiers/python/docseal_verify.py vectors spec/vectors"
+    "vectors:python": "verifiers/python/.venv/bin/python -I verifiers/python/docseal_verify.py vectors spec/vectors",
+    "fuzz": "FUZZ_RUNS=5000 vitest run tests/fuzz.test.ts tests/properties.test.ts",
+    "fuzz:differential": "FUZZ_RUNS=3000 vitest run tests/differential.test.ts",
+    "mutation": "stryker run"
   },
   "devDependencies": {
     "@docseal/anchor-ots": "workspace:*",
@@ -24,6 +27,7 @@
     "@eslint/js": "^10.0.1",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
+    "@stryker-mutator/core": "^10.0.0",
     "@types/node": "^22.20.5",
     "@vitest/coverage-v8": "^5.0.5",
     "ajv": "^8.20.0",

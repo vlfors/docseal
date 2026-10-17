@@ -271,8 +271,10 @@ def path_key(path: str) -> bytes:
 
 
 def check_path_collisions(paths: list[str]) -> None:
-    """Equal under lowercasing or under uppercasing collides; so does a file used as a directory."""
-    for fold in (str.lower, str.upper):
+    """Equal under lowercasing or under uppercasing, each followed by NFC, collides; so does a
+    file used as a directory."""
+    for case in (str.lower, str.upper):
+        fold = lambda path, case=case: unicodedata.normalize("NFC", case(path))  # noqa: E731
         files: set[str] = set()
         directories: set[str] = set()
         for path in paths:
@@ -729,7 +731,7 @@ def read_container(data: bytes) -> dict[str, Any]:
         if flags & 0x0008:
             raise FormatError("zip", f"entry {name!r} uses a data descriptor")
         if method not in (0, 8):
-            raise FormatError("zip", f"entry {name!r} uses compression method {method}", "unsupported")
+            raise FormatError("zip", f"entry {name!r} uses compression method {method}; v0.1 allows stored and deflate only")
         if made_by >> 8 == 3:  # Unix: the high 16 bits of the external attributes are st_mode
             file_type = (external >> 16) & 0o170000
             allowed = 0o040000 if name.endswith("/") else 0o100000
@@ -854,9 +856,14 @@ def extract(data: bytes, entry: dict[str, Any]) -> bytes:
 def inflate(raw: bytes, entry: dict[str, Any]) -> bytes:
     try:
         # One spare byte shows an entry longer than declared, without inflating all of it.
-        content = zlib.decompressobj(-15).decompress(raw, entry["size"] + 1)
+        inflater = zlib.decompressobj(-15)
+        content = inflater.decompress(raw, entry["size"] + 1)
     except zlib.error:
         raise FormatError("zip", f"entry {entry['name']!r} is not valid deflate data") from None
+    if len(content) <= entry["size"] and (not inflater.eof or inflater.unused_data or inflater.unconsumed_tail):
+        # Exactly one complete stream: zlib would otherwise accept an unfinished stream or
+        # silently ignore bytes after its end.
+        raise FormatError("zip", f"entry {entry['name']!r} is not one complete deflate stream")
     if len(content) != entry["size"]:
         raise FormatError("zip", f"entry {entry['name']!r} does not match its declared size")
     return content
@@ -880,14 +887,28 @@ def verify_package(data: bytes, trusted: dict[str, str] | None = None) -> dict[s
     def issue(axis: str, code: str, message: str, subject: str | None = None) -> None:
         report["issues"].append({"axis": axis, "code": code, "message": message, **({"subject": subject} if subject else {})})
 
+    # The container, including every entry's data, is checked whole before anything in it is
+    # interpreted. Then both documents are checked: any invalid result makes the format
+    # invalid; it is unsupported only if nothing is invalid.
     try:
         contents = read_container(data)
-        manifest = parse_manifest(parse_json(contents["manifest"]))
-        statement = parse_statement(parse_json(contents["statement"]))
     except FormatError as error:
         axes["format"] = error.verdict
         issue("format", error.code, str(error))
         return finish(report)
+    problems: list[FormatError] = []
+    parsed: dict[str, Any] = {}
+    for name, parse in (("manifest", parse_manifest), ("statement", parse_statement)):
+        try:
+            parsed[name] = parse(parse_json(contents[name]))
+        except FormatError as error:
+            problems.append(error)
+    if problems:
+        axes["format"] = "invalid" if any(p.verdict == "invalid" for p in problems) else "unsupported"
+        for problem in problems:
+            issue("format", problem.code, str(problem))
+        return finish(report)
+    manifest, statement = parsed["manifest"], parsed["statement"]
 
     statement_hash = json_hash(statement)
     report["packageId"] = statement["packageId"]
@@ -1123,6 +1144,19 @@ def run_vectors(directory: Path) -> int:
     return 0 if not failures else 1
 
 
+def run_batch(directory: Path) -> int:
+    """For differential testing: one process for many packages, verdicts keyed by file name."""
+    results: dict[str, Any] = {}
+    for path in sorted(directory.glob("*.dseal")):
+        try:
+            report = verify_package(path.read_bytes())
+            results[path.name] = {"axes": report["axes"], "overall": report["overall"]}
+        except Exception as error:  # a crash is a finding, not a verdict
+            results[path.name] = {"error": f"{type(error).__name__}: {error}"}
+    print(json.dumps(results, indent=1, ensure_ascii=True))
+    return 0
+
+
 # ---------------------------------------------------------------------------
 
 
@@ -1143,7 +1177,12 @@ def main(argv: list[str]) -> int:
     verify.add_argument("--json", action="store_true", help="print the report as JSON")
     vectors = commands.add_parser("vectors", help="check the shared test vectors")
     vectors.add_argument("directory", type=Path)
+    batch = commands.add_parser("batch", help="verify every .dseal in a directory offline; print verdicts as JSON")
+    batch.add_argument("directory", type=Path)
     args = parser.parse_args(argv)
+
+    if args.command == "batch":
+        return run_batch(args.directory)
 
     try:
         if args.command == "vectors":

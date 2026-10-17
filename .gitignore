@@ -10,3 +10,5 @@ coverage/
 # Python verifier virtualenv
 verifiers/python/.venv/
 __pycache__/
+reports/
+.stryker-tmp/

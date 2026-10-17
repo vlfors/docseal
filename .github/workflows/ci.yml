@@ -35,3 +35,24 @@ jobs:
           python-version: "3.12"
       - run: pip install -r verifiers/python/requirements.txt
       - run: python -I verifiers/python/docseal_verify.py vectors spec/vectors
+
+  # The TypeScript and Python verifiers must agree on every mutated package. A new seed on
+  # every run widens coverage over time; a failure prints the seed to reproduce it locally.
+  differential-fuzzing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: python -m venv verifiers/python/.venv
+      - run: verifiers/python/.venv/bin/pip install -r verifiers/python/requirements.txt
+      - run: pnpm vitest run tests/differential.test.ts tests/fuzz.test.ts
+        env:
+          FUZZ_RUNS: "2000"
+          FUZZ_SEED: ${{ github.run_id }}

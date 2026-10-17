@@ -2,7 +2,8 @@ import { zipSync, type Zippable } from "fflate";
 import { describe, expect, it } from "vitest";
 import { utf8 } from "./bytes.js";
 import { MEDIA_TYPE } from "./constants.js";
-import { DEFAULT_LIMITS, crc32, readContainer, writeContainer, type PackageContents } from "./container.js";
+import { DEFAULT_LIMITS, crc32, openContainer, readContainer, rewriteAnchors, writeContainer, type PackageContents } from "./container.js";
+import { bytesSource, memorySink } from "./io.js";
 import { FormatError } from "./errors.js";
 
 const contents = (): PackageContents => ({
@@ -181,6 +182,37 @@ describe("container", () => {
     const zip = await writeContainer(contents());
     await expectRejected(new Uint8Array([0, ...zip]));
     await expectRejected(new Uint8Array([...zip, 0]));
+  });
+
+  it("accepts empty directory entries for the defined folders and ignores them", async () => {
+    const empty = new Uint8Array();
+    const read = await readContainer(
+      zipWith({ "files/": empty, "files/annex/": empty, "files/annex/a.txt": utf8("a"), "signatures/": empty, "anchors/": empty, "signatures/0001.json": utf8("{}"), "anchors/seal-1.json": utf8("{}") }),
+    );
+    expect([...read.files.keys()]).toEqual(["annex/a.txt"]);
+    expect([...read.signatures.keys()]).toEqual(["signatures/0001.json"]);
+    expect([...read.anchors.keys()]).toEqual(["anchors/seal-1.json"]);
+  });
+
+  it("rejects directory entries with contents, outside the defined folders, or with invalid paths", async () => {
+    await expectRejected(zipWith({ "files/annex/": utf8("x") }), "entry");
+    await expectRejected(zipWith({ "signatures/": utf8("x") }), "entry");
+    await expectRejected(zipWith({ "META-INF/": new Uint8Array() }), "unexpected-entry");
+    await expectRejected(zipWith({ "/files/": new Uint8Array() }), "unexpected-entry");
+    await expectRejected(zipWith({ "files/../": new Uint8Array() }), "path");
+    await expectRejected(zipWith({ "files/a//": new Uint8Array() }), "path");
+  });
+
+  it.each(["signatures/001.json", "signatures/0001.json.bak", "signatures/0001.jsonx", "x/signatures/0001.json", "anchors/seal-0.json", "anchors/seal-01.json", "anchors/seal-1a.json", "anchors/seal-1.json.bak", "x/anchors/seal-1.json", "anchors/seal-.json"])(
+    "rejects the entry name %s",
+    async (name) => {
+      await expectRejected(zipWith({ [name]: utf8("{}") }), "unexpected-entry");
+    },
+  );
+
+  it("rewrites anchors only of a container it opened itself", async () => {
+    const copy = { ...(await openContainer(bytesSource(await writeContainer(contents())))) };
+    await expect(rewriteAnchors(copy, new Map(), memorySink())).rejects.toThrow("Container was not opened with openContainer");
   });
 
   it("rejects a high compression ratio (ZIP bomb)", async () => {

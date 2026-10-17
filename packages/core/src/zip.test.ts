@@ -1,9 +1,10 @@
+import { deflateSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { utf8 } from "./bytes.js";
 import { MEDIA_TYPE } from "./constants.js";
-import { openContainer, readContainer, writeContainer, type PackageContents } from "./container.js";
+import { DEFAULT_LIMITS, openContainer, readContainer, writeContainer, type PackageContents } from "./container.js";
 import { FormatError } from "./errors.js";
-import type { ByteSink, ByteSource } from "./io.js";
+import { memorySink, type ByteSink, type ByteSource } from "./io.js";
 import { MARKER_16, MARKER_32, crc32 } from "./zip.js";
 import { ZipWriter } from "./zip-writer.js";
 
@@ -139,6 +140,44 @@ describe("ZIP64", () => {
   });
 });
 
+describe("ZIP64 at the boundary", () => {
+  it("uses ZIP64 for a size of exactly 0xFFFFFFFF, which is the marker value", async () => {
+    const file = new SparseFile();
+    const zip = new ZipWriter(file);
+    await zip.add("mimetype", utf8(MEDIA_TYPE), { compress: false });
+    await zip.add("manifest.json", utf8("{}"), { compress: true });
+    await zip.add("statement.json", utf8("{}"), { compress: true });
+    await zip.addRaw("files/edge.bin", { method: 0, crc: 0, size: MARKER_32, compressedSize: MARKER_32 }, zeros(MARKER_32));
+    await zip.add("signatures/0001.json", utf8("{}"), { compress: false });
+    await zip.finish();
+    const container = await openContainer(file);
+    expect(container.files.get("edge.bin")?.size).toBe(MARKER_32);
+    expect(new TextDecoder().decode(container.signatures.get("signatures/0001.json"))).toBe("{}");
+  });
+});
+
+describe("headers written", () => {
+  it("carry the version needed, UTF-8 flag, and a fixed 1980-01-01 timestamp", async () => {
+    for (const [forceZip64, version] of [
+      [false, 20],
+      [true, 45],
+    ] as const) {
+      const zip = await writeContainer(contents(), { forceZip64 });
+      const v = view(zip);
+      // The first local header is at 0; find the first central header.
+      expect([v.getUint16(4, true), v.getUint16(6, true), v.getUint16(10, true), v.getUint16(12, true)]).toEqual([version, 0x0800, 0, 0x21]);
+      let pos = 0;
+      for (let i = 0; i + 4 <= zip.length; i++) {
+        if (v.getUint32(i, true) === 0x02014b50) {
+          pos = i;
+          break;
+        }
+      }
+      expect([v.getUint16(pos + 4, true), v.getUint16(pos + 6, true), v.getUint16(pos + 8, true), v.getUint16(pos + 12, true), v.getUint16(pos + 14, true)]).toEqual([version, version, 0x0800, 0, 0x21]);
+    }
+  });
+});
+
 describe("extra fields", () => {
   /** Rewrites the container with `extra` added to the central and local headers of files/a.txt. */
   async function withExtra(extra: Uint8Array): Promise<Uint8Array> {
@@ -258,5 +297,88 @@ describe("crc32", () => {
     }
     expect(crc32(data.subarray(100), crc32(data.subarray(0, 100)))).toBe(bytewise(data));
     expect(crc32(utf8("123456789"))).toBe(0xcbf43926);
+  });
+});
+
+describe("deflate data", () => {
+  /** A container whose files/a.txt holds `raw` as its deflate data, declared as `size` bytes of `content`. */
+  async function withDeflate(raw: Uint8Array, content: Uint8Array): Promise<Uint8Array> {
+    const sink = memorySink();
+    const zip = new ZipWriter(sink);
+    await zip.add("mimetype", utf8(MEDIA_TYPE), { compress: false });
+    await zip.add("manifest.json", utf8("{}"), { compress: false });
+    await zip.add("statement.json", utf8("{}"), { compress: false });
+    await zip.addRaw("files/a.txt", { method: 8, crc: crc32(content), size: content.length, compressedSize: raw.length }, [raw]);
+    await zip.finish();
+    return sink.bytes();
+  }
+  const content = utf8("hello hello hello hello");
+  const stream = deflateSync(content);
+
+  it("accepts one complete stream", async () => {
+    expect((await readContainer(await withDeflate(stream, content))).files.get("a.txt")).toEqual(content);
+  });
+
+  it("rejects bytes after the end of the stream", async () => {
+    await expectRejected(await withDeflate(new Uint8Array([...stream, 0, 1, 2]), content), /one complete deflate stream/);
+  });
+
+  it("rejects a stream that never reaches its final block", async () => {
+    await expectRejected(await withDeflate(new Uint8Array([0x02, 0x00]), new Uint8Array()), /one complete deflate stream/);
+    await expectRejected(await withDeflate(stream.subarray(0, stream.length - 1), content));
+  });
+});
+
+describe("end of central directory", () => {
+  /** The archive with `comment` as its archive comment. */
+  function withComment(zip: Uint8Array, comment: Uint8Array): Uint8Array {
+    const out = new Uint8Array(zip.length + comment.length);
+    out.set(zip);
+    out.set(comment, zip.length);
+    new DataView(out.buffer).setUint16(zip.length - 22 + 20, comment.length, true);
+    return out;
+  }
+
+  it("finds the end record behind an archive comment of the maximum length", async () => {
+    for (const forceZip64 of [false, true]) {
+      const zip = withComment(await writeContainer(contents(), { forceZip64 }), new Uint8Array(0xffff).fill(0x41));
+      expect([...(await readContainer(zip)).files.keys()]).toEqual(["a.txt", "b.bin"]);
+    }
+  });
+
+  it("is not fooled by an end record signature inside the comment", async () => {
+    // A fake record whose comment length does not reach the end of the archive.
+    const fake = new Uint8Array(30);
+    new DataView(fake.buffer).setUint32(4, 0x06054b50, true);
+    const zip = withComment(await writeContainer(contents()), fake);
+    expect([...(await readContainer(zip)).files.keys()]).toEqual(["a.txt", "b.bin"]);
+  });
+
+  it("rejects a central directory larger than 64 MiB before reading it", async () => {
+    // A source that is all zeros but for an end record naming a huge central directory.
+    const huge = (directorySize: number): ByteSource => {
+      const size = directorySize + 22;
+      const end = new Uint8Array(22);
+      const view = new DataView(end.buffer);
+      view.setUint32(0, 0x06054b50, true);
+      view.setUint16(8, 1, true);
+      view.setUint16(10, 1, true);
+      view.setUint32(12, directorySize, true);
+      return {
+        size,
+        read: (offset, length) => {
+          const out = new Uint8Array(length);
+          for (let i = Math.max(offset, size - 22); i < offset + length; i++) out[i - offset] = end[i - (size - 22)] ?? 0;
+          return Promise.resolve(out);
+        },
+      };
+    };
+    const error = (directorySize: number) => openContainer(huge(directorySize)).then(() => undefined, (e: unknown) => e as FormatError);
+    expect(await error(64 * 1024 * 1024 + 1)).toEqual(new FormatError("limit", "Central directory is too large"));
+    expect((await error(64 * 1024 * 1024))?.message).not.toBe("Central directory is too large");
+  });
+
+  it("names the entry limit it enforces", async () => {
+    await expect(readContainer(await writeContainer(contents()), { ...DEFAULT_LIMITS, maxEntries: 3 })).rejects.toThrow(new FormatError("limit", "More than 3 entries"));
   });
 });

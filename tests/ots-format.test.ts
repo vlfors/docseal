@@ -1,13 +1,15 @@
 /** The OpenTimestamps proof format against the reference client's example proofs. */
-import { hash, toHex } from "@docseal/core";
+import { hash, toHex, utf8 } from "@docseal/core";
 import {
   HEADER_MAGIC,
   OtsError,
+  applyOp,
   attestations,
   mergeTimestamps,
   parseDetached,
   parseTimestamp,
   serializeDetached,
+  serializeTimestamp,
   type Timestamp,
 } from "@docseal/anchor-ots";
 import { describe, expect, it } from "vitest";
@@ -22,6 +24,62 @@ const EXAMPLES = [
   "two-calendars",
   "unknown-notary",
 ];
+
+const UNKNOWN_TAG = [1, 2, 3, 4, 5, 6, 7, 8];
+
+function varuint(value: number): number[] {
+  const out: number[] = [];
+  let rest = value;
+  while (rest >= 0x80) {
+    out.push((rest & 0x7f) | 0x80);
+    rest = Math.floor(rest / 128);
+  }
+  out.push(rest);
+  return out;
+}
+
+describe("OtsError", () => {
+  it("is named", () => {
+    expect(new OtsError("x").name).toBe("OtsError");
+  });
+});
+
+describe("applyOp", () => {
+  it("hexlifies to lowercase ASCII hex", () => {
+    expect(applyOp({ kind: "hexlify" }, Uint8Array.of(0xab, 0x01))).toEqual(utf8("ab01"));
+  });
+});
+
+describe("serializeTimestamp", () => {
+  const msg = new Uint8Array(32);
+  const leaf = (): Timestamp => ({ msg: new Uint8Array(), attestations: [{ kind: "pending", uri: "https://a" }], ops: [] });
+
+  it("writes operations and attestations in canonical order, whatever their order in memory", () => {
+    const ops: Timestamp["ops"] = [
+      { op: { kind: "append", arg: Uint8Array.of(2) }, next: leaf() },
+      { op: { kind: "sha256" }, next: leaf() },
+      { op: { kind: "append", arg: Uint8Array.of(1) }, next: leaf() },
+      { op: { kind: "prepend", arg: Uint8Array.of(1) }, next: leaf() },
+    ];
+    const atts: Timestamp["attestations"] = [
+      { kind: "unknown", tag: Uint8Array.from(UNKNOWN_TAG), payload: Uint8Array.of(2) },
+      { kind: "bitcoin", height: 2 },
+      { kind: "unknown", tag: Uint8Array.from(UNKNOWN_TAG), payload: Uint8Array.of(1) },
+      { kind: "bitcoin", height: 1 },
+      { kind: "pending", uri: "https://b" },
+      { kind: "pending", uri: "https://a" },
+    ];
+    const forward = serializeTimestamp({ msg, attestations: atts, ops });
+    expect(serializeTimestamp({ msg, attestations: [...atts].reverse(), ops: [...ops].reverse() })).toEqual(forward);
+    const parsed = parseTimestamp(forward, msg);
+    expect(parsed.ops.map(({ op }) => ("arg" in op ? `${op.kind}:${String(op.arg[0])}` : op.kind))).toEqual(["sha256", "append:1", "append:2", "prepend:1"]);
+    expect(parsed.attestations.map((a) => (a.kind === "bitcoin" ? a.height : a.kind === "pending" ? a.uri : String(a.payload[0])))).toEqual(["1", "2", 1, 2, "https://a", "https://b"]);
+  });
+
+  it("refuses an empty timestamp", () => {
+    expect(() => serializeTimestamp({ msg, attestations: [], ops: [] })).toThrow("An empty timestamp cannot be serialized");
+  });
+});
 
 describe("parseDetached", () => {
   it.each(EXAMPLES)("parses and re-serializes %s byte for byte", (name) => {
@@ -63,13 +121,64 @@ describe("parseDetached", () => {
       expect(() => parseDetached(bytes)).toThrow(OtsError);
     });
 
+    it("rejects a file digest other than SHA-256, even when 32 bytes follow", () => {
+      const rest = valid.subarray(HEADER_MAGIC.length + 2);
+      expect(() => parseDetached(Uint8Array.from([...HEADER_MAGIC, 1, 0x08, ...rest]))).not.toThrow();
+      expect(() => parseDetached(Uint8Array.from([...HEADER_MAGIC, 1, 0x67, ...rest]))).toThrow("Only SHA-256 file digests are supported");
+    });
+
+    it("rejects an empty append argument, and accepts one of exactly 4096 bytes", () => {
+      const attestation = [0x00, ...UNKNOWN_TAG, 0x00];
+      expect(() => parseTimestamp(Uint8Array.from([0xf0, 0x00, ...attestation]), new Uint8Array())).toThrow("Byte string length out of range");
+      expect(() => parseTimestamp(Uint8Array.from([0xf0, 0x80, 0x20, ...new Uint8Array(4096), ...attestation]), new Uint8Array())).not.toThrow();
+    });
+
+    it("limits an operation's result to 4096 bytes", () => {
+      const attestation = [0x00, ...UNKNOWN_TAG, 0x00];
+      const append = (length: number) => Uint8Array.from([0xf0, ...varuint(length), ...new Uint8Array(length), ...attestation]);
+      expect(() => parseTimestamp(append(4064), new Uint8Array(32))).not.toThrow();
+      expect(() => parseTimestamp(append(4065), new Uint8Array(32))).toThrow("Operation result is too long");
+    });
+
+    it("accepts nesting of exactly 256 operations", () => {
+      const nested = (depth: number) => Uint8Array.from([...new Array<number>(depth).fill(0x08), 0x00, ...UNKNOWN_TAG, 0x00]);
+      expect(() => parseTimestamp(nested(256), new Uint8Array(32))).not.toThrow();
+      expect(() => parseTimestamp(nested(257), new Uint8Array(32))).toThrow("Proof is nested too deeply");
+    });
+
+    it("accepts exactly 10 000 nodes", () => {
+      // The root plus one `reverse` node per branch, each ending in an unknown attestation.
+      const branches = (count: number) => {
+        const branch = [0xf2, 0x00, ...UNKNOWN_TAG, 0x00];
+        const body: number[] = [];
+        for (let i = 1; i < count; i++) body.push(0xff, ...branch);
+        body.push(...branch);
+        return Uint8Array.from(body);
+      };
+      expect(() => parseTimestamp(branches(9_999), new Uint8Array(32))).not.toThrow();
+      expect(() => parseTimestamp(branches(10_000), new Uint8Array(32))).toThrow("Proof is too large");
+    });
+
+    it("limits the total size of all messages to 4 MiB", () => {
+      // Grow the message to 4096 bytes, then branch into `reverse` nodes of 4096 bytes each.
+      const grown = (count: number) => {
+        const body: number[] = [0xf0, ...varuint(4064), ...new Uint8Array(4064)];
+        const branch = [0xf2, 0x00, ...UNKNOWN_TAG, 0x00];
+        for (let i = 1; i < count; i++) body.push(0xff, ...branch);
+        body.push(...branch);
+        return Uint8Array.from(body);
+      };
+      expect(() => parseTimestamp(grown(1000), new Uint8Array(32))).not.toThrow();
+      expect(() => parseTimestamp(grown(1100), new Uint8Array(32))).toThrow("Proof is too large");
+    });
+
     it("rejects an unknown operation", () => {
       expect(() => parseTimestamp(Uint8Array.of(0xaa), new Uint8Array(32))).toThrow(/Unknown operation/);
     });
 
     it("rejects an append argument longer than 4096 bytes", () => {
       const body = Uint8Array.from([0xf0, 0x81, 0x20, ...new Uint8Array(4097)]);
-      expect(() => parseTimestamp(body, new Uint8Array(32))).toThrow(OtsError);
+      expect(() => parseTimestamp(body, new Uint8Array(32))).toThrow("Byte string length out of range");
     });
 
     it("rejects nesting deeper than 256 operations", () => {
@@ -127,6 +236,16 @@ describe("mergeTimestamps", () => {
     };
     mergeTimestamps(a, b);
     expect(a.attestations).toHaveLength(2);
+  });
+
+  it("merges branches with the same operation recursively", () => {
+    const msg = new Uint8Array(32);
+    const next = hash(msg);
+    const a: Timestamp = { msg, attestations: [], ops: [{ op: { kind: "sha256" }, next: { msg: next, attestations: [{ kind: "pending", uri: "https://a" }], ops: [] } }] };
+    const b: Timestamp = { msg, attestations: [], ops: [{ op: { kind: "sha256" }, next: { msg: next, attestations: [{ kind: "bitcoin", height: 1 }], ops: [] } }] };
+    mergeTimestamps(a, b);
+    expect(a.ops).toHaveLength(1);
+    expect(a.ops[0]?.next.attestations).toEqual([{ kind: "pending", uri: "https://a" }, { kind: "bitcoin", height: 1 }]);
   });
 
   it("refuses timestamps for different messages", () => {

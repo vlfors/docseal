@@ -126,7 +126,7 @@ Changing a single byte must produce a negative verification result. After that c
 
 See the [roadmap](ROADMAP.md), [architecture](ARCHITECTURE.md), [format specification](docs/FORMAT-v0.1.md), [decisions](docs/DECISIONS.md), [threat model](THREAT_MODEL.md), and [security policy](SECURITY.md).
 
-In-depth guides: [plugin system](docs/PLUGINS.md) and [OpenTimestamps integration](docs/OPENTIMESTAMPS.md).
+In-depth guides: [plugin system](docs/PLUGINS.md), [OpenTimestamps integration](docs/OPENTIMESTAMPS.md), and [testing](docs/TESTING.md).
 
 ## Development
 

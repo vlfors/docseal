@@ -109,25 +109,50 @@ export async function verifyPackage(input: Uint8Array | ByteSource, options: Ver
   };
   const finish = (): VerificationReport => ({ overall: overallVerdict(report.axes), ...report });
 
-  let contents: Container;
-  let manifest: Manifest;
-  let statement: Statement;
-  let documents: DocumentDigests;
-  try {
-    contents = await openContainer(input instanceof Uint8Array ? bytesSource(input) : input, { ...DEFAULT_LIMITS, ...options.limits });
-    manifest = parseManifest(parseJson(contents.manifest));
-    statement = parseStatement(parseJson(contents.statement));
-    // Every document is read to the end, which also checks its size and CRC-32: a damaged
-    // container is a format failure, whatever the manifest says.
-    documents = await hashDocuments(contents, options.sha256);
-  } catch (error) {
-    if (!(error instanceof FormatError)) {
+  // Format is invalid if any check of the container or of the two documents fails as invalid,
+  // and unsupported only if nothing is invalid: every implementation must reach the same
+  // verdict whatever order it checks in.
+  const formatFailure = (problems: readonly FormatError[]): VerificationReport => {
+    report.axes.format = problems.some((p) => p.verdict === "invalid") ? "invalid" : "unsupported";
+    for (const problem of problems) {
+      report.issues.push({ axis: "format", code: problem.code, message: problem.message });
+    }
+    return finish();
+  };
+  const formatErrors = async <T>(f: () => T | Promise<T>): Promise<{ value: T } | { error: FormatError }> => {
+    try {
+      return { value: await f() };
+    } catch (error) {
+      if (error instanceof FormatError) {
+        return { error };
+      }
       throw error;
     }
-    report.axes.format = error.verdict;
-    report.issues.push({ axis: "format", code: error.code, message: error.message });
-    return finish();
+  };
+
+  const opened = await formatErrors(() => openContainer(input instanceof Uint8Array ? bytesSource(input) : input, { ...DEFAULT_LIMITS, ...options.limits }));
+  if ("error" in opened) {
+    return formatFailure([opened.error]);
   }
+  const contents = opened.value;
+  const parsedManifest = await formatErrors(() => parseManifest(parseJson(contents.manifest)));
+  const parsedStatement = await formatErrors(() => parseStatement(parseJson(contents.statement)));
+  const problems = [parsedManifest, parsedStatement].flatMap((r) => ("error" in r ? [r.error] : []));
+  if (problems.some((p) => p.verdict === "invalid")) {
+    return formatFailure(problems);
+  }
+  // Every document is read to the end, which also checks its size and CRC-32: a damaged
+  // container is a format failure, and outranks an unsupported manifest or statement.
+  const hashed = await formatErrors(() => hashDocuments(contents, options.sha256));
+  if ("error" in hashed) {
+    return formatFailure([hashed.error]);
+  }
+  if ("error" in parsedManifest || "error" in parsedStatement) {
+    return formatFailure(problems);
+  }
+  const manifest = parsedManifest.value;
+  const statement = parsedStatement.value;
+  const documents = hashed.value;
   const statementHash = jsonHash(statement);
   report.packageId = statement.packageId;
   report.merkleRoot = statement.merkleRoot;

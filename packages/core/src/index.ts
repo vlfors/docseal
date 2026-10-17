@@ -16,3 +16,4 @@ export * from "./trust.js";
 export * from "./upgrade.js";
 export * from "./verdict.js";
 export * from "./verify.js";
+export { ZipWriter, type EntryHeader, type ZipWriterOptions } from "./zip-writer.js";

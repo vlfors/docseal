@@ -156,6 +156,13 @@
         "a.txt.bak"
       ],
       "collides": false
+    },
+    {
+      "paths": [
+        "ß́a",
+        "SŚA"
+      ],
+      "collides": true
     }
   ]
 }

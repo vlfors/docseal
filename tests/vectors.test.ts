@@ -32,6 +32,8 @@ import {
   validatePath,
   verifyPackage,
   writeContainer,
+  ZipWriter,
+  memorySink,
   type AnchorProvider,
   type AxisVerdicts,
   type OverallVerdict,
@@ -44,7 +46,7 @@ import { PROFILE_ID, ed25519Suite, memoryKeyProvider, publicKeyToDid } from "@do
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { sha512 } from "@noble/hashes/sha2.js";
 import { Ajv2020 } from "ajv/dist/2020.js";
-import { zipSync } from "fflate";
+import { deflateSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 
 const VECTORS = new URL("../spec/vectors/", import.meta.url);
@@ -54,6 +56,8 @@ const ADD_MISSING = UPDATE || process.env.UPDATE_VECTORS === "missing";
 
 // RFC 8032 §7.1 TEST 1 secret key, so signatures can be cross-checked against the RFC.
 const SEED = fromHex("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+/** RFC 8032 test 2: the second signer. */
+const SEED2 = fromHex("4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb");
 const SECOND_SEED = hash(utf8("docseal test vectors: second signer"));
 const NOW = new Date("2026-10-16T12:00:00Z");
 
@@ -124,6 +128,7 @@ const COLLISIONS: string[][] = [
   ["Äpfel.txt", "äpfel.txt"],
   ["a/b", "a/c", "ab"],
   ["a.txt", "a.txt.bak"],
+  ["ß\u0301a", "S\u015aA"],
 ];
 
 function pathVectors() {
@@ -429,6 +434,31 @@ async function mutate(change: (c: PackageContents) => void, options: { anchor?: 
   return await writeContainer(contents);
 }
 
+/**
+ * Writes `contents` like writeContainer, except that the named documents get exactly the given
+ * method and stored bytes: for packages whose deflate data no writer would produce.
+ */
+async function zipWithRawData(contents: PackageContents, raw: Record<string, { method: number; data: Uint8Array }>): Promise<Uint8Array> {
+  const sink = memorySink();
+  const zip = new ZipWriter(sink);
+  await zip.add("mimetype", utf8("application/vnd.docseal+zip"), { compress: false });
+  await zip.add("manifest.json", contents.manifest, { compress: true });
+  await zip.add("statement.json", contents.statement, { compress: true });
+  for (const [path, data] of contents.files) {
+    const special = raw[path];
+    if (special) {
+      await zip.addRaw(`files/${path}`, { method: special.method, crc: crc32(data), size: data.length, compressedSize: special.data.length }, [special.data]);
+    } else {
+      await zip.add(`files/${path}`, data, { compress: true });
+    }
+  }
+  for (const [name, data] of [...contents.signatures, ...contents.anchors]) {
+    await zip.add(name, data, { compress: true });
+  }
+  await zip.finish();
+  return sink.bytes();
+}
+
 /** Offset of the first local (0x04034b50) or central (0x02014b50) header for `name`. */
 function headerOf(zip: Uint8Array, signature: number, name: string): number {
   const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
@@ -450,6 +480,44 @@ function patch(zip: Uint8Array, from: string, to: string): Uint8Array {
     if (needle.every((byte, j) => out[i + j] === byte)) out.set(utf8(to), i);
   }
   return out;
+}
+
+/** Edits the statement and signs it again with the same key: a signer who signed something inconsistent. */
+function resigned(change: (statement: Record<string, unknown>) => void): Promise<Uint8Array> {
+  return mutate((c) => {
+    const statement = json(c.statement);
+    change(statement);
+    c.statement = pretty(statement);
+    const envelope = json(c.signatures.get("signatures/0001.json")) as unknown as SignatureEnvelope;
+    envelope.protected.statementHash = toHex(jsonHash(statement));
+    envelope.value = toBase64url(ed25519.sign(signedBytes(envelope.protected), SEED));
+    c.signatures.set("signatures/0001.json", pretty(envelope));
+  });
+}
+
+/** A second signer (an approver) on the base package, and a pending anchor over both envelopes. */
+async function twoSignersAnchored(): Promise<Uint8Array> {
+  const c = await readContainer(await base({ label: "two signers" }));
+  const statementHash = jsonHash(json(c.statement));
+  const author = json(c.signatures.get("signatures/0001.json")) as unknown as SignatureEnvelope;
+  const header: ProtectedHeader = { ...author.protected, signer: publicKeyToDid(ed25519.getPublicKey(SEED2)), role: "approver" };
+  const approver: SignatureEnvelope = { protected: header, value: toBase64url(ed25519.sign(signedBytes(header), SEED2)) };
+  const envelopes = [author, approver];
+  // Store them so that file order is not sorted order: the anchor lists envelope digests sorted.
+  if (toHex(jsonHash(author)) < toHex(jsonHash(approver))) envelopes.reverse();
+  c.signatures = new Map(envelopes.map((e, i) => [`signatures/000${String(i + 1)}.json`, pretty(e)]));
+  const digests = envelopes.map((e) => jsonHash(e));
+  const seal = sealDigest(statementHash, signaturesSetHash(digests));
+  const anchor = {
+    type: "docseal-anchor",
+    version: 1,
+    seal: toHex(seal),
+    statementHash: toHex(statementHash),
+    envelopes: digests.map(toHex).sort(),
+    receipts: [await pendingAnchor.submit(seal)],
+  };
+  c.anchors = new Map([["anchors/seal-1.json", pretty(anchor)]]);
+  return writeContainer(c);
 }
 
 const GOLDEN: Golden[] = [
@@ -779,6 +847,42 @@ const GOLDEN: Golden[] = [
     },
   },
   {
+    file: "deflate-trailing-data.dseal",
+    description: "files/contract.pdf is a complete deflate stream followed by three more bytes inside the entry's compressed data.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: async () => {
+      const c = await readContainer(await base());
+      const data = c.files.get("contract.pdf") ?? new Uint8Array();
+      return zipWithRawData(c, { "contract.pdf": { method: 8, data: new Uint8Array([...deflateSync(data), 0, 0, 0]) } });
+    },
+  },
+  {
+    file: "deflate-unfinished.dseal",
+    description: "files/empty.txt is deflated as one block that is not marked final: the stream never ends.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: async () => zipWithRawData(await readContainer(await base()), { "empty.txt": { method: 8, data: new Uint8Array([0x02, 0x00]) } }),
+  },
+  {
+    file: "unknown-compression-method.dseal",
+    description: "files/contract.pdf declares compression method 12 (bzip2) in both headers.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: async () => {
+      const c = await readContainer(await base());
+      return zipWithRawData(c, { "contract.pdf": { method: 12, data: c.files.get("contract.pdf") ?? new Uint8Array() } });
+    },
+  },
+  {
+    file: "unsupported-and-damaged.dseal",
+    description: "manifest.version is 2 (unsupported) and files/contract.pdf fails its CRC-32 check (invalid). Invalid outranks unsupported, whatever the order of checks.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: async () => {
+      const zip = await mutate((c) => {
+        c.manifest = pretty({ ...json(c.manifest), version: 2 });
+      });
+      return patch(zip, "%PDF-1.7 supply", "%PDF-1.7 SUPPLY");
+    },
+  },
+  {
     file: "long-signer.dseal",
     description: "protected.signer is a did:key with 100000 base58 digits. Must be rejected quickly, not decoded.",
     expected: { axes: { ...OK, signature: "invalid" }, overall: "invalid" },
@@ -813,6 +917,67 @@ const GOLDEN: Golden[] = [
         { anchor: true },
       ),
   },
+  {
+    file: "package-id-mismatch.dseal",
+    description: "statement.packageId differs from manifest.packageId, and the statement is signed as it is: the signature is valid, the package is not.",
+    expected: { axes: { ...OK, integrity: "invalid" }, overall: "invalid" },
+    build: () =>
+      resigned((s) => {
+        s.packageId = "urn:uuid:00000000-0000-4000-8000-000000000000";
+      }),
+  },
+  {
+    file: "merkle-root-mismatch.dseal",
+    description: "statement.merkleRoot is not the root of the manifest's leaves, and the statement is signed as it is.",
+    expected: { axes: { ...OK, integrity: "invalid" }, overall: "invalid" },
+    build: () =>
+      resigned((s) => {
+        s.merkleRoot = "22".repeat(32);
+      }),
+  },
+  {
+    file: "signature-noncanonical-base64url.dseal",
+    description: "The signature value's last base64url character has nonzero unused bits: it decodes to the right bytes, but is not the canonical encoding.",
+    expected: { axes: { ...OK, signature: "invalid" }, overall: "invalid" },
+    build: () =>
+      mutate((c) => {
+        const envelope = json(c.signatures.get("signatures/0001.json")) as { value: string };
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+        // 64 bytes take 86 characters; the last carries 2 data bits and 4 unused ones.
+        envelope.value = envelope.value.slice(0, -1) + (alphabet[alphabet.indexOf(envelope.value.slice(-1)) | 1] ?? "");
+        c.signatures.set("signatures/0001.json", pretty(envelope));
+      }),
+  },
+  {
+    file: "anchor-malformed.dseal",
+    description: "The anchor file has no receipts.",
+    expected: { axes: { ...OK, time: "invalid" }, overall: "invalid" },
+    build: () =>
+      mutate(
+        (c) => {
+          c.anchors.set("anchors/seal-1.json", pretty({ ...json(c.anchors.get("anchors/seal-1.json")), receipts: [] }));
+        },
+        { anchor: true },
+      ),
+  },
+  {
+    file: "two-anchor-files.dseal",
+    description: "The same anchor file is stored twice, as seal-1 and seal-2. v0.1 packages have at most one.",
+    expected: { axes: { ...OK, time: "invalid" }, overall: "invalid" },
+    build: () =>
+      mutate(
+        (c) => {
+          c.anchors.set("anchors/seal-2.json", c.anchors.get("anchors/seal-1.json") ?? new Uint8Array());
+        },
+        { anchor: true },
+      ),
+  },
+  {
+    file: "valid-two-signers-pending-anchor.dseal",
+    description: "An author and an approver sign; a pending anchor covers both envelopes, listed in sorted order, which is not the order of the signature files.",
+    expected: { axes: { ...OK, time: "unsupported", completeness: "incomplete" }, overall: "indeterminate" },
+    build: twoSignersAnchored,
+  },
 ];
 
 /** The configuration every verifier uses for golden packages: offline, no trust policy. */
@@ -835,7 +1000,7 @@ describe("test vectors", () => {
     writeOrCompare("merkle.json", merkleVectors());
   });
 
-  it("signature.json", async () => {
+  it("signature.json", { timeout: 60_000 }, async () => {
     writeOrCompare("signature.json", await signatureVectors());
   });
 
@@ -857,7 +1022,7 @@ describe("test vectors", () => {
     writeOrCompare("seal.json", await sealVectors());
   });
 
-  it("golden packages verify as expected", async () => {
+  it("golden packages rebuild byte for byte and verify as expected", { timeout: 120_000 }, async () => {
     const index = [];
     for (const golden of GOLDEN) {
       const file = new URL(`packages/${golden.file}`, VECTORS);
@@ -865,7 +1030,10 @@ describe("test vectors", () => {
         mkdirSync(new URL("packages/", VECTORS), { recursive: true });
         writeFileSync(file, await golden.build());
       }
-      const report = await verifyOffline(new Uint8Array(readFileSync(file)));
+      const stored = new Uint8Array(readFileSync(file));
+      // Sealing is reproducible: the same inputs, clock, and randomness give the same bytes.
+      expect(toHex(hash(await golden.build())), `${golden.file} rebuilds byte for byte`).toBe(toHex(hash(stored)));
+      const report = await verifyOffline(stored);
       expect({ axes: report.axes, overall: report.overall }, golden.file).toEqual(golden.expected);
       index.push({ file: golden.file, description: golden.description, expected: golden.expected });
     }

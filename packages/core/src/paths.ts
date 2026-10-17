@@ -48,9 +48,11 @@ export function comparePaths(a: string, b: string): number {
  * Paths are compared both lowercased and uppercased: neither mapping alone matches what
  * file systems do (`ΟΔΟΣ` lowercases to a final `ς`, `ß` only uppercases to `SS`).
  * Treating either match as a collision may reject a harmless pair, never miss a real one.
+ * The mapped path is normalized to NFC again: `ß́` uppercases to `S` `S` `◌́`, which
+ * composes to `SŚ` and must meet a path spelled `SŚ`.
  */
 export function checkPathCollisions(paths: Iterable<string>): void {
-  const folds = [(p: string) => p.toLowerCase(), (p: string) => p.toUpperCase()];
+  const folds = [(p: string) => p.toLowerCase().normalize("NFC"), (p: string) => p.toUpperCase().normalize("NFC")];
   const files = folds.map(() => new Set<string>());
   const directories = folds.map(() => new Set<string>());
   for (const path of paths) {

@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "npx vitest run --config vitest.stryker.config.ts --bail 1"
+  },
+  "mutate": [
+    "packages/core/src/**/*.ts",
+    "packages/sig-ed25519/src/**/*.ts",
+    "packages/anchor-ots/src/ots.ts",
+    "!**/*.test.ts",
+    "!packages/core/src/index.ts",
+    "!packages/core/src/plugins.ts",
+    "!packages/core/src/constants.ts"
+  ],
+  "ignorePatterns": [
+    "verifiers/python/.venv",
+    "reports",
+    "coverage",
+    "docs",
+    "**/dist"
+  ],
+  "coverageAnalysis": "off",
+  "incremental": true,
+  "incrementalFile": "reports/stryker-incremental.json",
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html",
+    "json"
+  ],
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": null
+  },
+  "timeoutMS": 30000,
+  "concurrency": 6
+}

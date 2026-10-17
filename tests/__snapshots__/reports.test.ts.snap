@@ -1,0 +1,1714 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`verification reports of the golden packages > anchor-from-other-package.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "valid",
+    "time": "invalid",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "time",
+      "code": "seal",
+      "message": "Anchor does not cover this statement and these signatures",
+      "subject": "anchors/seal-1.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > anchor-malformed.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "valid",
+    "time": "invalid",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "time",
+      "code": "schema",
+      "message": "anchor.receipts: must contain at least one receipt",
+      "subject": "anchors/seal-1.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > anchor-seal-edited.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "valid",
+    "time": "invalid",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "time",
+      "code": "seal",
+      "message": "Anchor does not cover this statement and these signatures",
+      "subject": "anchors/seal-1.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > case-collision.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "path-collision",
+      "message": "Path "CONTRACT.PDF" collides with another path",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > compressed-mimetype.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "mimetype",
+      "message": "'mimetype' must be the first entry, stored without compression",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > crc-mismatch.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "zip",
+      "message": "Entry "files/contract.pdf" fails its CRC-32 check",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > critical-signature-extension.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "unsupported",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "signature",
+      "code": "critical",
+      "message": "Unknown critical extensions: x-future",
+      "subject": "signatures/0001.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "indeterminate",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "e37462fe25620fcb2600883e0095079c4170f6e1c851b1e322ef0120affb52af",
+  "signatures": [
+    {
+      "check": "unsupported",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > critical-statement-extension.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "unsupported",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "unsupported",
+      "message": "statement.critical: unknown critical extensions: x-future",
+    },
+  ],
+  "overall": "indeterminate",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > deflate-trailing-data.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "zip",
+      "message": "Entry "files/contract.pdf" is not one complete deflate stream",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > deflate-unfinished.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "zip",
+      "message": "Entry "files/empty.txt" is not one complete deflate stream",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > duplicate-entry.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "duplicate-entry",
+      "message": "Duplicate entry "files/empty.txt"",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > duplicate-envelope.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "invalid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "signature",
+      "code": "duplicate-signature",
+      "message": "The package contains the same signature envelope twice",
+      "subject": "signatures/",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0002.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > extra-file.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "invalid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+    {
+      "path": "readme.txt",
+      "status": "extra",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "integrity",
+      "code": "extra-file",
+      "message": "File is not listed in the manifest",
+      "subject": "readme.txt",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > forged-manifest.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "invalid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "integrity",
+      "code": "manifest-hash",
+      "message": "manifest.json does not match statement.manifestHash",
+    },
+    {
+      "axis": "integrity",
+      "code": "merkle-root",
+      "message": "Merkle root of the manifest does not match statement.merkleRoot",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > forged-statement.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "invalid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "signature",
+      "code": "statement-hash",
+      "message": "Signature is for a different statement",
+      "subject": "signatures/0001.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "40de48644a7c67f62a0ae3e49bcd49c4845bd0a2973d0e838052b2fa076c64c5",
+  "signatures": [
+    {
+      "check": "invalid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "bc7e216dfe8dad40013b8734a3ff56dc1eaec2e24c3f95b6517b09f2ecd12468",
+}
+`;
+
+exports[`verification reports of the golden packages > future-version.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "unsupported",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "unsupported",
+      "message": "statement.version: unsupported version",
+    },
+  ],
+  "overall": "indeterminate",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > gap-before-directory.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "zip",
+      "message": "Unaccounted data before the central directory",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > huge-number.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "json",
+      "message": "Invalid JSON: number out of range at offset 839",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > impossible-date.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "schema",
+      "message": "statement.createdAt: expected an RFC 3339 UTC timestamp with a valid date, ending in 'Z'",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > json-duplicate-key.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "json",
+      "message": "Invalid JSON: duplicate key "generator" at offset 925",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > local-header-mismatch.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "zip",
+      "message": "Local header of "files/contract.pdf" disagrees with the central directory",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > long-signer.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "invalid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "signature",
+      "code": "bad-signature",
+      "message": "Signature does not verify",
+      "subject": "signatures/0001.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "b64302b32f5505732275cf409e03e84683dc46fa572e44ab40f92782647a73e5",
+  "signatures": [
+    {
+      "check": "invalid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z222222222222222222222222222222222222222222222222222…(100009 characters)",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > merkle-root-mismatch.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "invalid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "integrity",
+      "code": "merkle-root",
+      "message": "Merkle root of the manifest does not match statement.merkleRoot",
+    },
+  ],
+  "merkleRoot": "2222222222222222222222222222222222222222222222222222222222222222",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "a22eb84305985aaf9db3ffa5b1c598f4bf8b3d0c5496a2b4365a76313551deb9",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "0e1495d2a8745cfdd620c66ffaf7cca6a88fb37604e0b100df10a9dbff42cf1a",
+}
+`;
+
+exports[`verification reports of the golden packages > missing-file.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "valid",
+    "integrity": "invalid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "missing",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "integrity",
+      "code": "missing-file",
+      "message": "File listed in the manifest is missing",
+      "subject": "empty.txt",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > package-id-mismatch.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "invalid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "integrity",
+      "code": "package-id",
+      "message": "manifest and statement have different packageId",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:00000000-0000-4000-8000-000000000000",
+  "seal": "d3211793ab8eb328aa467dcaf146fc0e1a68c8448a04dcd418795a6712a3fc7f",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "0371451e1d2d3d2ec12d9300b068b9a835233cb0b6c935014fd6f6ce07496be6",
+}
+`;
+
+exports[`verification reports of the golden packages > path-not-nfc.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "path",
+      "message": "Invalid path "café.txt": not in Unicode NFC",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > path-traversal.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "path",
+      "message": "Invalid path "../evil.sh": empty, '.', or '..' segment, or a leading or trailing '/'",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > renamed-file.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "invalid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract-v2.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "integrity",
+      "code": "manifest-hash",
+      "message": "manifest.json does not match statement.manifestHash",
+    },
+    {
+      "axis": "integrity",
+      "code": "merkle-root",
+      "message": "Merkle root of the manifest does not match statement.merkleRoot",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > signature-noncanonical-base64url.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "invalid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "signature",
+      "code": "encoding",
+      "message": "Signature value is not valid base64url",
+      "subject": "signatures/0001.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "65028fa13b3f3f96674f8af308e832f975fb5d4102851b94f05cf18ce1399095",
+  "signatures": [
+    {
+      "check": "invalid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > signed-field-changed.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "invalid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "signature",
+      "code": "bad-signature",
+      "message": "Signature does not verify",
+      "subject": "signatures/0001.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "2c481a3fe1a9fae5fa1459c891d037810f6c390b1ac1555b032f8d4705bbcc57",
+  "signatures": [
+    {
+      "check": "invalid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "witness",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > symlink-entry.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "entry-type",
+      "message": "Entry "files/link" is a symlink or special file",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > tampered-content.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "invalid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "modified",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "integrity",
+      "code": "modified-file",
+      "message": "File contents do not match the manifest",
+      "subject": "contract.pdf",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > two-anchor-files.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "valid",
+    "time": "invalid",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "time",
+      "code": "anchors",
+      "message": "v0.1 packages have at most one anchor file",
+      "subject": "anchors/",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "invalid",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > unexpected-entry.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "unexpected-entry",
+      "message": "Unexpected entry "META-INF/manifest.xml"",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > unicode-path-extra.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "zip",
+      "message": "Entry "files/contract.pdf" carries a second name in a Unicode Path extra field",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > unknown-compression-method.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "zip",
+      "message": "Entry "files/contract.pdf" uses compression method 12; v0.1 allows stored and deflate only",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > unknown-suite.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "unsupported",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "signature",
+      "code": "unsupported-suite",
+      "message": "No registered suite for gost-2012-256/docseal-ed25519-v1",
+      "subject": "signatures/0001.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "indeterminate",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "0dced5412be557869c38711e76c896614b3c55b49fc7981be1f20180a5382427",
+  "signatures": [
+    {
+      "check": "unsupported",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "gost-2012-256",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > unsupported-and-damaged.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "zip",
+      "message": "Entry "files/contract.pdf" fails its CRC-32 check",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;
+
+exports[`verification reports of the golden packages > valid-basic.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "indeterminate",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > valid-pending-anchor.dseal 1`] = `
+{
+  "anchors": [
+    {
+      "entry": "anchors/seal-1.json",
+      "network": "bip122:000000000019d6689c085ae165831e93",
+      "provider": "opentimestamps",
+      "reason": "No chain source configured",
+      "verdict": "unsupported",
+    },
+  ],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "valid",
+    "time": "unsupported",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "time",
+      "code": "unsupported",
+      "message": "No chain source configured",
+      "subject": "anchors/seal-1.json",
+    },
+  ],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "indeterminate",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > valid-single-file.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "a.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [],
+  "merkleRoot": "fe778f02ec220201c8743ac7ebcb163101bdaba051cdef9dad078ebe6aab3550",
+  "overall": "indeterminate",
+  "packageId": "urn:uuid:059c3614-aa1f-410d-ba16-080afd5212d4",
+  "seal": "21a333e3a90ab7bfd0898a321594d8365387db6c6290e22a102ac9229fdf45a3",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "81d8d1e2231d6da5cf2e39659f1c1971a35a817b222d8c4a4268476cfa4d46d8",
+}
+`;
+
+exports[`verification reports of the golden packages > valid-two-signers-pending-anchor.dseal 1`] = `
+{
+  "anchors": [
+    {
+      "entry": "anchors/seal-1.json",
+      "network": "bip122:000000000019d6689c085ae165831e93",
+      "provider": "opentimestamps",
+      "reason": "No chain source configured",
+      "verdict": "unsupported",
+    },
+  ],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "valid",
+    "time": "unsupported",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [
+    {
+      "axis": "time",
+      "code": "unsupported",
+      "message": "No chain source configured",
+      "subject": "anchors/seal-1.json",
+    },
+  ],
+  "merkleRoot": "7b9426d7c6c6e7d5ccc93ce0756767ab36bbb74af08eaeecce56a8ed1fd4b996",
+  "overall": "indeterminate",
+  "packageId": "urn:uuid:8b766a75-b0d0-438b-a52a-184a5b269568",
+  "seal": "0081d44abc23438adfad93b6368a1d0291c1545bda1206131bf0bbd83dd407e8",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0002.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "approver",
+      "signer": "did:key:z6MkiaMbhXHNA4eJVCCj8dbzKzTgYDKf6crKgHVHid1F1WCT",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "96ffed098d79041fb13f0ba264b3c25e7cbf887c7202f5a187a5eaccd41f3849",
+}
+`;
+
+exports[`verification reports of the golden packages > valid-zip64.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "full",
+    "format": "valid",
+    "integrity": "valid",
+    "signature": "valid",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [
+    {
+      "path": "annex/приложение 1.txt",
+      "status": "valid",
+    },
+    {
+      "path": "contract.pdf",
+      "status": "valid",
+    },
+    {
+      "path": "empty.txt",
+      "status": "valid",
+    },
+  ],
+  "issues": [],
+  "merkleRoot": "634efa42bb2697b70b27f4857b432c43a05fa632422db99d1aa192cc0d60284a",
+  "overall": "indeterminate",
+  "packageId": "urn:uuid:125c0dc0-f41a-41c7-8bcb-2fce80343d64",
+  "seal": "912aec0f6f2f2fa862b9ad842968dba0abd0997e14454b6384749d3147d12024",
+  "signatures": [
+    {
+      "check": "valid",
+      "claimedAt": "2026-10-16T12:00:00Z",
+      "entry": "signatures/0001.json",
+      "profile": "docseal-ed25519-v1",
+      "role": "author",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "suite": "ed25519",
+    },
+  ],
+  "statementHash": "1126fa7f6536866bbec2dbffe06082e8fc965c28c5c4d25bf1cafe12d03a5c37",
+}
+`;
+
+exports[`verification reports of the golden packages > zip64-end-mismatch.dseal 1`] = `
+{
+  "anchors": [],
+  "axes": {
+    "completeness": "incomplete",
+    "format": "invalid",
+    "integrity": "not-checked",
+    "signature": "missing",
+    "time": "missing",
+    "trust": "not-evaluated",
+  },
+  "files": [],
+  "issues": [
+    {
+      "axis": "format",
+      "code": "zip",
+      "message": "End of central directory disagrees with the ZIP64 record",
+    },
+  ],
+  "overall": "invalid",
+  "signatures": [],
+}
+`;

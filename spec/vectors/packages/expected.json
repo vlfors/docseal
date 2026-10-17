@@ -467,6 +467,66 @@
       }
     },
     {
+      "file": "deflate-trailing-data.dseal",
+      "description": "files/contract.pdf is a complete deflate stream followed by three more bytes inside the entry's compressed data.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "deflate-unfinished.dseal",
+      "description": "files/empty.txt is deflated as one block that is not marked final: the stream never ends.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "unknown-compression-method.dseal",
+      "description": "files/contract.pdf declares compression method 12 (bzip2) in both headers.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "unsupported-and-damaged.dseal",
+      "description": "manifest.version is 2 (unsupported) and files/contract.pdf fails its CRC-32 check (invalid). Invalid outranks unsupported, whatever the order of checks.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
       "file": "long-signer.dseal",
       "description": "protected.signer is a did:key with 100000 base58 digits. Must be rejected quickly, not decoded.",
       "expected": {
@@ -509,6 +569,96 @@
           "completeness": "full"
         },
         "overall": "invalid"
+      }
+    },
+    {
+      "file": "package-id-mismatch.dseal",
+      "description": "statement.packageId differs from manifest.packageId, and the statement is signed as it is: the signature is valid, the package is not.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "invalid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "merkle-root-mismatch.dseal",
+      "description": "statement.merkleRoot is not the root of the manifest's leaves, and the statement is signed as it is.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "invalid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "signature-noncanonical-base64url.dseal",
+      "description": "The signature value's last base64url character has nonzero unused bits: it decodes to the right bytes, but is not the canonical encoding.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "invalid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "anchor-malformed.dseal",
+      "description": "The anchor file has no receipts.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "invalid",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "two-anchor-files.dseal",
+      "description": "The same anchor file is stored twice, as seal-1 and seal-2. v0.1 packages have at most one.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "invalid",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "valid-two-signers-pending-anchor.dseal",
+      "description": "An author and an approver sign; a pending anchor covers both envelopes, listed in sorted order, which is not the order of the signature files.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "unsupported",
+          "completeness": "incomplete"
+        },
+        "overall": "indeterminate"
       }
     }
   ]
