@@ -26,6 +26,7 @@ DocSeal does not prove that a document is true, the signer's identity without an
 | Small-order Ed25519 public key (one signature verifies every message) | Explicit rejection of all small-order encodings in every implementation; covered by shared vectors |
 | Implementation-specific parsing (duplicate JSON keys, ZIP quirks) | Strict parsers in both implementations; golden packages for each case |
 | Algorithm substitution | Suite identifier and version are covered by the signature |
+| An unknown co-signer added next to a trusted signer | `trust: trusted` requires every valid signer to be trusted; one untrusted signer makes the package `untrusted` |
 | Malicious plugin shipped in a package | Plugins are only registered explicitly by the application |
 | Unknown algorithm or critical extension | `unsupported`, not a crash or a false success |
 | Spoofed block explorer | The `ChainReader` source is shown in the report; an own node is preferred; a header must hash to the block the source named |
@@ -33,10 +34,16 @@ DocSeal does not prove that a document is true, the signer's identity without an
 | Anchor copied from another package | The anchor file names the statement and envelope digests; the seal is recomputed from the package |
 | Package-supplied calendar URL used to reach internal services (SSRF) | `upgrade` only contacts allow-listed calendar hosts over HTTPS, without ports or paths |
 | Weak hash in a timestamp path | Attestations reached through SHA-1 are ignored |
+| Small proof that expands to gigabytes or millions of chain requests | Node and total-message budgets in the `.ots` parser; repeated attestations checked once; more than 8 distinct Bitcoin attestations make the receipt `invalid` |
+| Calendar or explorer that redirects or streams an endless response | Redirects refused; response bodies capped and abandoned once over the cap |
+| Oversized `did:key` (quadratic base58 decoding) | Length checked before decoding |
 | ZIP Slip | Absolute paths, `..`, symlinks, and ambiguous names are rejected |
-| ZIP bomb | Limits on entry count, sizes, and compression ratio |
+| ZIP bomb | Limits on entry count, sizes, and compression ratio; declared sizes checked before inflating; entries may not overlap |
+| ZIP parser differential (an unzip tool extracts other bytes than the verifier checked) | Local headers must match the central directory field by field; no data descriptors; entries must tile the archive with no gaps; CRC-32 checked |
 | Unicode/path collision | NFC, `/` separator, duplicates rejected after normalization and case folding |
 | Unexpected extra entries in the container | Any entry not defined by the specification is rejected in v0.1 |
+| Package text (file names, roles, error details) with terminal escape sequences or bidi marks that redraw the verdict | The CLI escapes control, bidirectional, and zero-width characters in every printed line |
+| Calendar date that some parsers accept and others reject (`2026-02-30`) | Timestamps checked field by field against the calendar, not with a platform date parser |
 | Partial verification shown as complete | Separate `completeness` and `overall` verdicts |
 | Theft of a local key | Encrypted key file; production HSM/KMS providers |
 | Removal of a signature or anchor | Signed policy and a report of missing required proofs |

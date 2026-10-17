@@ -126,7 +126,7 @@ Integers are unsigned LEB128 (`varuint`). Byte strings are a varuint length foll
 | Module | Responsibility |
 |---|---|
 | `ots.ts` | Parse, serialize, execute, and merge proofs. Pure functions, no I/O. |
-| `http.ts` | `fetch` wrapper with timeout (30 s), response size cap (10 kB), and an injectable `fetch` for tests. |
+| `http.ts` | `fetch` wrapper with timeout (30 s), redirects refused, a response size cap (10 kB for calendars, 1 kB for Esplora) enforced while reading, and an injectable `fetch` for tests. |
 | `esplora.ts` | `ChainReader` over an Esplora API (mempool.space by default, or a self-hosted instance). |
 | `index.ts` | `openTimestamps()`: the `AnchorProvider` with `submit`, `upgrade`, and `verify`. |
 
@@ -144,6 +144,8 @@ These follow python-opentimestamps:
 - nesting is at most 256 levels;
 - calendar URIs are at most 1000 characters from `[A-Za-z0-9-._/:]`;
 - trailing data after the proof is rejected.
+
+On top of these, a whole proof has a budget: at most 10 000 timestamp nodes and 4 MiB of messages across all of them. Each node keeps its message, so without the budget a proof of a few kilobytes could expand to gigabytes in memory. Real proofs merged from several calendars have a few hundred nodes. `append` and `prepend` refuse to build a result longer than 4096 bytes.
 
 Any malformed input raises `OtsError`, and nothing else. A test corrupts every byte of a real proof to check this.
 
@@ -163,7 +165,7 @@ Any malformed input raises `OtsError`, and nothing else. A test corrupts every b
 ### `verify`
 
 1. The network must be Bitcoin mainnet, the proof must parse, and its digest must equal both the seal and `receipt.digest`.
-2. Collect all attestations, skipping branches that pass through SHA-1.
+2. Collect all attestations, skipping branches that pass through SHA-1. Bitcoin attestations with the same height and message are counted once; more than 8 distinct ones make the receipt `invalid`. Real proofs carry one or two, and each costs two requests to the chain source, so this stops one proof from turning into thousands of requests.
 3. If there is no Bitcoin attestation, the result is `pending` when a pending one exists, and `unsupported` otherwise.
 4. For each Bitcoin attestation, fetch the header at that height through the `ChainReader` and compare the replayed message with the header's merkle root (internal byte order). **A single mismatch makes the whole receipt `invalid`**, even if another attestation is genuine: a proof that lies about one block cannot be trusted about another.
 5. Take the earliest block time. If it has at least 6 confirmations (configurable), the result is `confirmed` with that time. With fewer, it is `pending`.

@@ -15,10 +15,14 @@ The key words MUST, MUST NOT, SHOULD, and MAY are to be interpreted as described
 | Hashes in JSON | lowercase hex, 64 characters |
 | Salts in JSON | lowercase hex, 32 characters (16 bytes) |
 | Other binary data in JSON (signatures, proofs) | base64url without padding (RFC 4648 §5) |
-| Timestamps | RFC 3339 in UTC with a `Z` suffix, e.g. `2026-10-16T00:00:00Z` |
+| Timestamps | RFC 3339 in UTC with a `Z` suffix, e.g. `2026-10-16T00:00:00Z`; see [Timestamps](#timestamps) |
 | Integers | JSON integers in `0 … 2^53 − 1` |
 
 All JSON documents MUST be I-JSON (RFC 7493). A parser MUST reject duplicate object keys, invalid UTF-8, and lone surrogates. Hashes over JSON documents are always computed over `JCS` of the parsed value, never over the raw file bytes.
+
+### Timestamps
+
+A timestamp matches `YYYY-MM-DDTHH:MM:SS[.fraction]Z` with ASCII digits and MUST name a real calendar date: month `01`–`12`, day within that month (29 February only in Gregorian leap years), hour `00`–`23`, minute and second `00`–`59`. Leap seconds (`:60`) and offsets other than `Z` are rejected. Verifiers check the fields directly rather than relying on a platform date parser, so that every implementation accepts the same strings.
 
 ### Derived values
 
@@ -54,15 +58,21 @@ Each file listed in the manifest is stored at `files/<path>`. Signature envelope
   | Limit | Default |
   |---|---|
   | Entries | 10 100 |
-  | Uncompressed size of one document | 4 GiB |
-  | Uncompressed size of all documents | 16 GiB |
+  | Uncompressed size of one document | 1 GiB |
+  | Uncompressed size of all documents | 2 GiB |
   | Uncompressed size of one JSON entry | 16 MiB |
   | Compression ratio of one entry | 1000 : 1 |
 
-  Sizes are enforced while streaming, not trusted from ZIP headers.
+  The document-size defaults are those of the current in-memory reference implementation, which holds every document in memory while verifying it; they are not limits of the format. A streaming verifier MAY use larger defaults.
+
+  Declared sizes of all entries are checked against the limits before anything is decompressed, and actual sizes are enforced while decompressing: an entry that inflates to more than its declared size is rejected. Every entry's CRC-32 MUST match its data.
 - Absolute paths, `..` and `.` segments, empty segments, backslashes, NUL and other C0 control characters, symlinks, and device entries MUST be rejected.
 - Duplicate entries and collisions after normalization (see [Paths](#paths)) MUST be rejected.
 - **Any entry not defined by this specification MUST be rejected in v0.1** (`format: invalid`). This includes directory entries other than `files/`, `signatures/`, `anchors/` and their subdirectories under `files/`.
+- The local file header of every entry MUST agree with its central directory record: general-purpose flags, compression method, CRC-32, compressed and uncompressed sizes, and file name. Otherwise a streaming unzip tool, which reads local headers, could extract different bytes from those that were verified.
+- Data descriptors (general-purpose flag bit 3) MUST be rejected: sizes and CRC-32 belong in the local header.
+- Entries MUST tile the archive: the first local header starts at offset 0, each entry starts exactly where the previous one ends, and the last one ends at the start of the central directory. Overlapping entries (used by ZIP bombs that reuse one compressed stream) and gaps (where an extra local entry could be hidden) are both rejected.
+- Directory entries MUST be empty.
 - Contents are never executed and never loaded as plugins.
 - Encrypted ZIP entries and ZIP64 multi-disk archives are rejected. ZIP64 single-disk archives are supported.
 
@@ -203,6 +213,7 @@ All fields that affect the meaning of the signature are inside `protected`.
 - `signer` is a `did:key` with the Ed25519 public-key multicodec (`0xed`), multibase base58btc (`z…`).
 - The signature is pure Ed25519 (RFC 8032, not Ed25519ph) over the signed bytes above. `value` is the 64-byte signature in base64url.
 - Verification uses the strict rules of `@noble/curves` (canonical `S`, rejection of small-order public keys).
+- An Ed25519 `did:key` has 48 base58 characters after `did:key:z`. A `signer` with more than 64 characters there MUST be rejected before decoding, because base58 decoding takes quadratic time. Such an envelope has `signature: invalid`.
 
 A package MUST contain at least one envelope. Two envelopes with the same `envelopeDigest` are invalid.
 
@@ -255,10 +266,13 @@ seal              = H(UTF8("DocSeal/v1/anchor\0") ‖ statementHash ‖ signatur
 - The attested time is the block header `time` of the attested block. It is accurate only to within about two hours.
 - The report records which `ChainReader` source was used (own node, explorer URL, or several).
 - Supported operations: `append`, `prepend`, `sha256`, `ripemd160`, `keccak256`, `reverse`, `hexlify`. RIPEMD-160 is accepted because early Bitcoin proofs (2015–2016) use it and it has no known practical attacks. Attestations reached through `sha1` are ignored, since SHA-1 has practical collisions.
-- Parser limits follow the reference implementation: messages and operation arguments up to 4096 bytes, attestation payloads up to 8192 bytes, nesting up to 256, calendar URIs up to 1000 characters from `[A-Za-z0-9-._/:]`.
+- Parser limits follow the reference implementation: messages and operation arguments up to 4096 bytes (including the result of `append` and `prepend`), attestation payloads up to 8192 bytes, nesting up to 256, calendar URIs up to 1000 characters from `[A-Za-z0-9-._/:]`.
+- In addition, a whole proof MAY have at most 10 000 timestamp nodes and 4 MiB of messages across all nodes. Each node keeps a message of up to 4096 bytes, so without this budget a small proof could expand to gigabytes in memory. Real proofs merged from several calendars have a few hundred nodes.
+- Bitcoin attestations that repeat the same block height and message are checked once. A proof with more than **8 distinct** Bitcoin attestations is `invalid`: real proofs carry one or two, and each one costs requests to the `ChainReader`.
 - A Bitcoin attestation whose message differs from the block's merkle root makes the receipt `invalid`, even if another attestation in it is genuine.
 - When sealing, the seal is submitted to several calendars; at least two (or all, if fewer are configured) must accept it. Their answers are merged into one proof.
 - `upgrade` contacts only calendars matching an allow-list (by default `https://*.calendar.opentimestamps.org`, `https://*.calendar.eternitywall.com`, `https://*.calendar.catallaxy.com`), because the calendar URL comes from the package.
+- HTTP requests to calendars and to the `ChainReader` refuse redirects, so an allow-listed host cannot forward the client elsewhere. Response bodies are read incrementally and abandoned as soon as they exceed a size cap (10 000 bytes for calendar answers, 1024 bytes for Esplora answers).
 
 ## Verdicts
 
@@ -275,6 +289,7 @@ overall:      valid | invalid | indeterminate
 ```
 
 - `completeness` is `full` when every manifest file was hashed and every signature and anchor was evaluated; `partial` when only some files were checked by design (future selective disclosure); `incomplete` when a check could not run (missing file, unsupported suite, unreachable `ChainReader`).
+- `trust` is evaluated for every signer with a valid signature. It is `trusted` only when **every** such signer is trusted, `untrusted` when at least one of them is untrusted, and `unknown` otherwise. One trusted signer does not make the package trusted: a pinned author next to an unknown co-signer must not read as `valid`, or the stranger's signature would borrow the author's trust. Envelopes with an unsupported suite are not evaluated for trust; they make `completeness` `incomplete`.
 - `overall: valid` only when `format: valid`, `integrity: valid`, `signature: valid` (policy satisfied), `trust: trusted`, `time: confirmed`, and `completeness: full`.
 - `overall: invalid` when any axis is `invalid`.
 - `overall: indeterminate` otherwise, for example pending time or an untrusted signer.
@@ -298,7 +313,7 @@ Verifier configuration, not part of a package. Used by the pinned-keys `TrustPol
 - `id` is compared byte for byte with `protected.signer`. No normalization is applied.
 - `label` is shown in reports. DocSeal does not verify it: the person who writes this file vouches for it.
 - Duplicate `id` values make the file invalid.
-- A signer is `trusted` only if its signature is valid and its `id` is listed; otherwise `untrusted`.
+- A signer is `trusted` only if its signature is valid and its `id` is listed; otherwise `untrusted`. The package's `trust` axis requires every valid signer to be listed (see [Verdicts](#verdicts)).
 - Validity periods and revocation are out of scope for v0.1.
 
 ## Local key file (development only)

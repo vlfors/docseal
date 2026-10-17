@@ -67,7 +67,7 @@ interface ChainReader {
 The signature is split into three interfaces on purpose:
 - `SignatureSuite` is the algorithm.
 - `KeyProvider` is where the key is. The same Ed25519 suite works with a key file, WebCrypto, or a hardware token.
-- `TrustPolicy` is the trust decision. "The signature is correct" and "the signer is who we expect" are different questions, and the report keeps them apart (`signature` and `trust` axes).
+- `TrustPolicy` is the trust decision. "The signature is correct" and "the signer is who we expect" are different questions, and the report keeps them apart (`signature` and `trust` axes). The policy judges one signer at a time; the core requires **every** signer with a valid signature to be trusted before the package is `trusted`, so an unknown co-signer cannot borrow the trust of a pinned one.
 
 ## The registry
 
