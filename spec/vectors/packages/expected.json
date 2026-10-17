@@ -347,6 +347,96 @@
       }
     },
     {
+      "file": "impossible-date.dseal",
+      "description": "statement.createdAt is 2026-02-30, which matches the pattern but is not a date.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "huge-number.dseal",
+      "description": "manifest metadata holds a 400-digit integer, beyond the range of a double.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "local-header-mismatch.dseal",
+      "description": "The local header of files/contract.pdf declares a different CRC than the central directory.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "crc-mismatch.dseal",
+      "description": "Both headers of files/contract.pdf carry the same wrong CRC-32.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "gap-before-directory.dseal",
+      "description": "Unreferenced bytes (a hidden extra entry) between the last entry and the central directory.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "long-signer.dseal",
+      "description": "protected.signer is a did:key with 100000 base58 digits. Must be rejected quickly, not decoded.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "invalid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
       "file": "anchor-from-other-package.dseal",
       "description": "The anchor file of a different package was copied in.",
       "expected": {

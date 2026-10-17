@@ -19,6 +19,10 @@ const MAX_ARG_LENGTH = 4096;
 const MAX_PAYLOAD_LENGTH = 8192;
 const MAX_URI_LENGTH = 1000;
 const MAX_DEPTH = 256;
+// Real proofs merged from several calendars have a few hundred nodes. The budgets stop a
+// small proof from expanding into gigabytes: every node keeps a message of up to 4096 bytes.
+const MAX_NODES = 10_000;
+const MAX_TOTAL_MESSAGE_BYTES = 4 * 1024 * 1024;
 const URI_CHARS = /^[A-Za-z0-9\-._/:]*$/;
 
 const BITCOIN_TAG = Uint8Array.of(0x05, 0x88, 0x96, 0x0d, 0x73, 0xd7, 0x19, 0x01);
@@ -80,10 +84,10 @@ export function applyOp(op: Op, msg: Uint8Array): Uint8Array | null {
   let result: Uint8Array;
   switch (op.kind) {
     case "append":
-      result = new Uint8Array([...msg, ...op.arg]);
+      result = concat(msg, op.arg);
       break;
     case "prepend":
-      result = new Uint8Array([...op.arg, ...msg]);
+      result = concat(op.arg, msg);
       break;
     case "sha256":
       result = sha256(msg);
@@ -107,6 +111,16 @@ export function applyOp(op: Op, msg: Uint8Array): Uint8Array | null {
     throw new OtsError("Operation result is too long");
   }
   return result;
+}
+
+function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
+  if (a.length + b.length > MAX_MESSAGE_LENGTH) {
+    throw new OtsError("Operation result is too long");
+  }
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a);
+  out.set(b, a.length);
+  return out;
 }
 
 export function isWeakOp(op: Op): boolean {
@@ -182,7 +196,7 @@ export function parseDetached(bytes: Uint8Array): DetachedTimestamp {
   if (reader.byte() !== OP_TAGS.sha256) {
     throw new OtsError("Only SHA-256 file digests are supported");
   }
-  const timestamp = readTimestamp(reader, reader.take(32), MAX_DEPTH);
+  const timestamp = readTimestamp(reader, reader.take(32), MAX_DEPTH, new Budget());
   reader.assertEnd();
   return { hashOp: "sha256", timestamp };
 }
@@ -190,15 +204,29 @@ export function parseDetached(bytes: Uint8Array): DetachedTimestamp {
 /** Parses a bare timestamp, as returned by calendar servers, for the given starting message. */
 export function parseTimestamp(bytes: Uint8Array, msg: Uint8Array): Timestamp {
   const reader = new Reader(bytes);
-  const timestamp = readTimestamp(reader, msg, MAX_DEPTH);
+  const timestamp = readTimestamp(reader, msg, MAX_DEPTH, new Budget());
   reader.assertEnd();
   return timestamp;
 }
 
-function readTimestamp(reader: Reader, msg: Uint8Array, depth: number): Timestamp {
+class Budget {
+  private nodes = 0;
+  private bytes = 0;
+
+  spend(msg: Uint8Array): void {
+    this.nodes++;
+    this.bytes += msg.length;
+    if (this.nodes > MAX_NODES || this.bytes > MAX_TOTAL_MESSAGE_BYTES) {
+      throw new OtsError("Proof is too large");
+    }
+  }
+}
+
+function readTimestamp(reader: Reader, msg: Uint8Array, depth: number, budget: Budget): Timestamp {
   if (depth < 0) {
     throw new OtsError("Proof is nested too deeply");
   }
+  budget.spend(msg);
   const timestamp: Timestamp = { msg, attestations: [], ops: [] };
   const readBranch = (tag: number) => {
     if (tag === 0x00) {
@@ -209,7 +237,7 @@ function readTimestamp(reader: Reader, msg: Uint8Array, depth: number): Timestam
     // Weak ops still have to be parsed to reach the rest of the proof; their results are
     // replaced by an empty message, and nothing below them is ever trusted.
     const next = applyOp(op, msg) ?? new Uint8Array();
-    timestamp.ops.push({ op, next: readTimestamp(reader, next, depth - 1) });
+    timestamp.ops.push({ op, next: readTimestamp(reader, next, depth - 1, budget) });
   };
   let tag = reader.byte();
   while (tag === 0xff) {

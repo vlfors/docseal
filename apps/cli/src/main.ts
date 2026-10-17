@@ -26,6 +26,7 @@ import { Command, CommanderError, InvalidArgumentError, Option } from "commander
 import { collectFiles, readInput, writeOutput } from "./files.js";
 import { CliError, ExitCode, type Io } from "./io.js";
 import { formatReport } from "./report.js";
+import { sanitize } from "./sanitize.js";
 
 export const VERSION = "0.0.0";
 const PASSPHRASE_ENV = "DOCSEAL_PASSPHRASE";
@@ -174,7 +175,7 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
       }
       io.stdout(`${changed ? `Upgraded ${target}` : "No change: calendars have not committed to Bitcoin yet."}\n`);
       for (const line of receiptSummary(container)) {
-        io.stdout(`  ${line}\n`);
+        io.stdout(`  ${sanitize(line)}\n`);
       }
     });
 
@@ -186,10 +187,10 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
       return error.exitCode === 0 ? ExitCode.Valid : ExitCode.Error;
     }
     if (error instanceof CliError || error instanceof KeyFileError || error instanceof FormatError) {
-      io.stderr(`docseal: ${error.message}\n`);
+      io.stderr(`docseal: ${sanitize(error.message)}\n`);
       return ExitCode.Error;
     }
-    io.stderr(`docseal: ${error instanceof Error ? error.message : String(error)}\n`);
+    io.stderr(`docseal: ${sanitize(error instanceof Error ? error.message : String(error))}\n`);
     return ExitCode.Error;
   }
 }

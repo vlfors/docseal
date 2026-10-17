@@ -48,6 +48,8 @@ export const DEFAULT_UPGRADE_ALLOWLIST = [
 ];
 
 const ACCEPT = "application/vnd.opentimestamps.v1";
+/** Real proofs carry one or two Bitcoin attestations; each one costs two chain requests. */
+const MAX_BITCOIN_ATTESTATIONS = 8;
 const MAX_RESPONSE_BYTES = 10_000;
 
 export interface OpenTimestampsOptions extends HttpOptions {
@@ -149,7 +151,17 @@ async function verifyReceipt(
   }
 
   const found = attestations(detached.timestamp);
-  const bitcoin = found.flatMap(({ attestation, msg }) => (attestation.kind === "bitcoin" ? [{ height: attestation.height, msg }] : []));
+  // Repeated identical attestations would otherwise turn one proof into millions of requests.
+  const bitcoin = [
+    ...new Map(
+      found.flatMap(({ attestation, msg }) =>
+        attestation.kind === "bitcoin" ? [[`${String(attestation.height)}:${toHex(msg)}`, { height: attestation.height, msg }] as const] : [],
+      ),
+    ).values(),
+  ];
+  if (bitcoin.length > MAX_BITCOIN_ATTESTATIONS) {
+    return { verdict: "invalid", reason: `Proof has more than ${String(MAX_BITCOIN_ATTESTATIONS)} Bitcoin attestations` };
+  }
   if (bitcoin.length === 0) {
     return found.some(({ attestation }) => attestation.kind === "pending")
       ? { verdict: "pending", reason: "Waiting for a Bitcoin confirmation; run upgrade later" }
@@ -162,8 +174,10 @@ async function verifyReceipt(
   let earliest: { time: number; confirmations: number } | undefined;
   try {
     const tip = await chain.bitcoinTipHeight();
+    const headers = new Map<number, Awaited<ReturnType<NonNullable<ChainReader["bitcoinBlockHeader"]>>>>();
     for (const { height, msg } of bitcoin) {
-      const header = await chain.bitcoinBlockHeader(height);
+      const header = headers.get(height) ?? (await chain.bitcoinBlockHeader(height));
+      headers.set(height, header);
       // A proof that claims a block it is not in is forged or corrupt, even if another
       // attestation in it is genuine.
       if (!equalBytes(msg, header.merkleRoot)) {

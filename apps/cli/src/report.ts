@@ -1,4 +1,5 @@
 import type { AxisVerdicts, VerificationReport } from "@docseal/core";
+import { sanitize } from "./sanitize.js";
 
 const HEADLINES: Record<VerificationReport["overall"], string> = {
   valid: "VALID: every check passed",
@@ -8,7 +9,7 @@ const HEADLINES: Record<VerificationReport["overall"], string> = {
 
 const AXES: (keyof AxisVerdicts)[] = ["format", "integrity", "signature", "trust", "time", "completeness"];
 
-/** Human-readable report. Carries the same facts as the JSON report, never more. */
+/** Human-readable report. Carries the same facts as the JSON report, never more. Safe for terminals. */
 export function formatReport(report: VerificationReport): string {
   const lines = [HEADLINES[report.overall], ""];
   for (const axis of AXES) {
@@ -43,7 +44,8 @@ export function formatReport(report: VerificationReport): string {
     "DocSeal proves that the files are unchanged, that they were signed by the key shown, and that",
     "the signed state existed no later than the confirmed time. It does not prove who owns the key.",
   );
-  return `${lines.join("\n")}\n`;
+  // Every line may contain text from the package; none of ours contains a newline.
+  return `${lines.map(sanitize).join("\n")}\n`;
 }
 
 function axisDetail(axis: keyof AxisVerdicts, report: VerificationReport): string {

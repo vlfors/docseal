@@ -7,7 +7,9 @@ import {
   isAllowed,
   openTimestamps,
   parseDetached,
+  serializeDetached,
   serializeTimestamp,
+  type Fetch,
   type Timestamp,
 } from "@docseal/anchor-ots";
 import { describe, expect, it } from "vitest";
@@ -79,6 +81,41 @@ describe("verify", () => {
     expect((await offline.verify(receiptFor("hello-world", HELLO_DIGEST), HELLO_DIGEST, broken)).verdict).toBe("unsupported");
     const none: ChainReader = { source: "none" };
     expect((await offline.verify(receiptFor("hello-world", HELLO_DIGEST), HELLO_DIGEST, none)).verdict).toBe("unsupported");
+  });
+
+  it("checks repeated identical attestations once, and refuses proofs with many distinct ones", async () => {
+    const digest = hash(new Uint8Array([3]));
+    const header = { height: 800_000, merkleRoot: digest, time: 1_700_000_000 };
+    let calls = 0;
+    const counting: ChainReader = {
+      source: "counting",
+      bitcoinBlockHeader: () => {
+        calls++;
+        return Promise.resolve(header);
+      },
+      bitcoinTipHeight: () => Promise.resolve(800_100),
+    };
+    const repeated: Timestamp = {
+      msg: digest,
+      attestations: Array.from({ length: 5000 }, () => ({ kind: "bitcoin" as const, height: 800_000 })),
+      ops: [],
+    };
+    const receipt = (timestamp: Timestamp): AnchorReceipt => ({
+      provider: "opentimestamps",
+      network: BITCOIN_MAINNET,
+      digestAlgorithm: "sha-256",
+      digest: toHex(digest),
+      proof: toBase64url(serializeDetached({ hashOp: "sha256", timestamp })),
+    });
+    expect((await offline.verify(receipt(repeated), digest, counting)).verdict).toBe("confirmed");
+    expect(calls).toBe(1);
+
+    const many: Timestamp = {
+      msg: digest,
+      attestations: Array.from({ length: 9 }, (_, i) => ({ kind: "bitcoin" as const, height: 800_000 + i })),
+      ops: [],
+    };
+    expect((await offline.verify(receipt(many), digest, counting)).verdict).toBe("invalid");
   });
 
   it("rejects other networks and malformed proofs", async () => {
@@ -177,6 +214,27 @@ describe("upgrade", () => {
     const fetch = fakeFetch(() => undefined);
     await openTimestamps({ fetch }).upgrade?.(receipt);
     expect(fetch.requests).toEqual([]);
+  });
+});
+
+describe("HTTP", () => {
+  it("refuses redirects and stops reading oversized responses", async () => {
+    const inits: (RequestInit | undefined)[] = [];
+    let pulled = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        controller.enqueue(new Uint8Array(64 * 1024));
+      },
+    });
+    const fetch: Fetch = (_, init) => {
+      inits.push(init);
+      return Promise.resolve(new Response(endless));
+    };
+    const chain = esploraChainReader("https://esplora.test", { fetch });
+    await expect(chain.bitcoinTipHeight?.()).rejects.toThrow(/larger than 1024 bytes/);
+    expect(inits[0]?.redirect).toBe("error");
+    expect(pulled).toBeLessThan(5);
   });
 });
 

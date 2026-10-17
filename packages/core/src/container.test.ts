@@ -2,7 +2,7 @@ import { zipSync, type Zippable } from "fflate";
 import { describe, expect, it } from "vitest";
 import { utf8 } from "./bytes.js";
 import { MEDIA_TYPE } from "./constants.js";
-import { DEFAULT_LIMITS, readContainer, writeContainer, type PackageContents } from "./container.js";
+import { DEFAULT_LIMITS, crc32, readContainer, writeContainer, type PackageContents } from "./container.js";
 import { FormatError } from "./errors.js";
 
 const contents = (): PackageContents => ({
@@ -26,7 +26,7 @@ function zipWith(extra: Zippable, options: { mimetype?: Uint8Array | [Uint8Array
   });
 }
 
-/** Stored, UTF-8 flagged local header followed by the data. CRCs are zero: the reader ignores them. */
+/** Stored, UTF-8 flagged local header followed by the data. */
 function localHeader(name: string, data: Uint8Array): Uint8Array {
   const nameBytes = utf8(name);
   const out = new Uint8Array(30 + nameBytes.length + data.length);
@@ -34,6 +34,7 @@ function localHeader(name: string, data: Uint8Array): Uint8Array {
   view.setUint32(0, 0x04034b50, true);
   view.setUint16(4, 20, true);
   view.setUint16(6, 0x0800, true);
+  view.setUint32(14, crc32(data), true);
   view.setUint32(18, data.length, true);
   view.setUint32(22, data.length, true);
   view.setUint16(26, nameBytes.length, true);
@@ -47,6 +48,8 @@ interface RawEntry {
   data: Uint8Array;
   /** Write no local header; point the central directory into another entry's data instead. */
   insideDataOf?: string;
+  /** Write the local header and data, but leave the entry out of the central directory. */
+  omitFromDirectory?: boolean;
 }
 
 /** Minimal stored-only ZIP writer that can produce layouts fflate refuses to create. */
@@ -61,7 +64,8 @@ function rawZip(entries: RawEntry[]): Uint8Array {
     offset += local.length;
   }
   const directoryOffset = offset;
-  for (const entry of entries) {
+  const listed = entries.filter((e) => !e.omitFromDirectory);
+  for (const entry of listed) {
     const nameBytes = utf8(entry.name);
     const central = new Uint8Array(46 + nameBytes.length);
     const view = new DataView(central.buffer);
@@ -71,6 +75,7 @@ function rawZip(entries: RawEntry[]): Uint8Array {
     view.setUint16(4, 20, true);
     view.setUint16(6, 20, true);
     view.setUint16(8, 0x0800, true);
+    view.setUint32(16, crc32(entry.data), true);
     view.setUint32(20, entry.data.length, true);
     view.setUint32(24, entry.data.length, true);
     view.setUint16(28, nameBytes.length, true);
@@ -82,8 +87,8 @@ function rawZip(entries: RawEntry[]): Uint8Array {
   const end = new Uint8Array(22);
   const view = new DataView(end.buffer);
   view.setUint32(0, 0x06054b50, true);
-  view.setUint16(8, entries.length, true);
-  view.setUint16(10, entries.length, true);
+  view.setUint16(8, listed.length, true);
+  view.setUint16(10, listed.length, true);
   view.setUint32(12, offset - directoryOffset, true);
   view.setUint32(16, directoryOffset, true);
   parts.push(end);
@@ -210,6 +215,69 @@ describe("container", () => {
       { name: "files/b.txt", data: utf8("x") },
     ]);
     expect(readContainer(zip).files.get("b.txt")).toEqual(utf8("x"));
+  });
+
+  it("computes the standard CRC-32", () => {
+    expect(crc32(utf8("123456789"))).toBe(0xcbf43926);
+    expect(crc32(new Uint8Array())).toBe(0);
+  });
+
+  /** Offset of the first local or central header whose name is `name`. */
+  function headerOf(zip: Uint8Array, signature: number, name: string): number {
+    const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+    const nameOffset = signature === 0x04034b50 ? 30 : 46;
+    for (let pos = 0; pos < zip.length - 4; pos++) {
+      if (view.getUint32(pos, true) === signature && new TextDecoder().decode(zip.subarray(pos + nameOffset, pos + nameOffset + name.length)) === name) {
+        return pos;
+      }
+    }
+    throw new Error(`no header for ${name}`);
+  }
+
+  it.each([
+    ["method", 8, 2, 0],
+    ["CRC", 14, 4, 0x12345678],
+    ["compressed size", 18, 4, 1],
+  ])("rejects a local header whose %s disagrees with the central directory", (_, offset, width, value) => {
+    const zip = writeContainer(contents());
+    const view = new DataView(zip.buffer);
+    const pos = headerOf(zip, 0x04034b50, "files/a.txt");
+    if (width === 2) view.setUint16(pos + offset, value, true);
+    else view.setUint32(pos + offset, value, true);
+    expectRejected(zip, "zip");
+  });
+
+  it("rejects contents that fail the CRC check", () => {
+    const zip = writeContainer(contents());
+    const crcValue = (pos: number) => new DataView(zip.buffer).getUint32(pos, true);
+    const local = headerOf(zip, 0x04034b50, "files/a.txt");
+    const central = headerOf(zip, 0x02014b50, "files/a.txt");
+    // Change the CRC consistently in both headers: only the data check can notice.
+    const forged = crcValue(local + 14) ^ 1;
+    new DataView(zip.buffer).setUint32(local + 14, forged, true);
+    new DataView(zip.buffer).setUint32(central + 16, forged, true);
+    expectRejected(zip, "zip");
+  });
+
+  it("rejects data descriptors", () => {
+    const zip = writeContainer(contents());
+    const view = new DataView(zip.buffer);
+    const local = headerOf(zip, 0x04034b50, "files/a.txt");
+    const central = headerOf(zip, 0x02014b50, "files/a.txt");
+    view.setUint16(local + 6, view.getUint16(local + 6, true) | 0x0008, true);
+    view.setUint16(central + 8, view.getUint16(central + 8, true) | 0x0008, true);
+    expectRejected(zip, "zip");
+  });
+
+  it("rejects a hidden entry in a gap between entries", () => {
+    const entries = [
+      { name: "mimetype", data: utf8(MEDIA_TYPE) },
+      { name: "manifest.json", data: utf8("{}") },
+      { name: "statement.json", data: utf8("{}") },
+    ];
+    // A local header the central directory never mentions, between two real entries.
+    const zip = rawZip([...entries.slice(0, 2), { name: "files/hidden.txt", data: utf8("evil"), omitFromDirectory: true }, ...entries.slice(2)]);
+    expectRejected(zip, "zip");
   });
 
   it("rejects an entry whose declared size is smaller than its contents", () => {

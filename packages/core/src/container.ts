@@ -4,7 +4,9 @@
  * The central directory is parsed here rather than by a general-purpose unzip routine,
  * because safe extraction needs what those hide: duplicate names, Unix file types
  * (symlinks), overlapping entries, and declared sizes before anything is inflated.
- * fflate is only used to deflate and inflate individual entries.
+ * Local headers must agree with the central directory and entries must be contiguous,
+ * so that a streaming unzip tool, which reads local headers, sees exactly the bytes
+ * DocSeal verified. fflate is only used to deflate and inflate individual entries.
  */
 import { inflateSync, zipSync, type Zippable } from "fflate";
 import { equalBytes, utf8 } from "./bytes.js";
@@ -24,10 +26,14 @@ export interface ContainerLimits {
   maxCompressionRatio: number;
 }
 
+/**
+ * Defaults for this in-memory implementation: every document is held in memory while it is
+ * verified, so the limits are what a typical machine can hold, not what the format allows.
+ */
 export const DEFAULT_LIMITS: Readonly<ContainerLimits> = {
   maxEntries: 10_100,
-  maxDocumentSize: 4 * GiB,
-  maxTotalDocumentSize: 16 * GiB,
+  maxDocumentSize: 1 * GiB,
+  maxTotalDocumentSize: 2 * GiB,
   maxJsonSize: 16 * MiB,
   maxCompressionRatio: 1000,
 };
@@ -43,8 +49,8 @@ export interface PackageContents {
   anchors: Map<string, Uint8Array>;
 }
 
-const SIGNATURE_NAME = /^signatures\/\d{4,}\.json$/;
-const ANCHOR_NAME = /^anchors\/seal-[1-9]\d*\.json$/;
+const SIGNATURE_NAME = /^signatures\/[0-9]{4,}\.json$/;
+const ANCHOR_NAME = /^anchors\/seal-[1-9][0-9]*\.json$/;
 // Entries are timestamped with the DOS epoch so the same contents give the same container bytes.
 const FIXED_MTIME = new Date(1980, 0, 1);
 
@@ -70,6 +76,7 @@ const END_OF_CENTRAL_DIRECTORY = 0x06054b50;
 const ZIP64_MARKER_16 = 0xffff;
 const ZIP64_MARKER_32 = 0xffffffff;
 const FLAG_ENCRYPTED = 0x0001;
+const FLAG_DATA_DESCRIPTOR = 0x0008;
 const FLAG_UTF8 = 0x0800;
 const METHOD_STORED = 0;
 const METHOD_DEFLATE = 8;
@@ -81,7 +88,9 @@ const UNIX_DIRECTORY = 0o040000;
 interface CentralEntry {
   name: string;
   nameBytes: Uint8Array;
+  flags: number;
   method: number;
+  crc: number;
   compressedSize: number;
   size: number;
   localOffset: number;
@@ -102,28 +111,32 @@ export function readContainer(zip: Uint8Array, limits: ContainerLimits = DEFAULT
     throw invalid("mimetype", "'mimetype' must be the first entry, stored without compression");
   }
 
-  const contents: Partial<PackageContents> & Pick<PackageContents, "files" | "signatures" | "anchors"> = {
-    files: new Map(),
-    signatures: new Map(),
-    anchors: new Map(),
-  };
+  // Classify and check every declared size before inflating anything.
+  const targets = entries.map((entry) => ({ entry, target: classify(entry.name) }));
   let totalDocumentSize = 0;
-  for (const entry of entries) {
-    const target = classify(entry.name);
+  for (const { entry, target } of targets) {
     const maxSize = target.kind === "file" ? limits.maxDocumentSize : limits.maxJsonSize;
     if (entry.size > maxSize) {
       throw invalid("limit", `Entry ${JSON.stringify(entry.name)} exceeds the size limit`);
     }
     if (target.kind === "file") {
       totalDocumentSize += entry.size;
-      if (totalDocumentSize > limits.maxTotalDocumentSize) {
-        throw invalid("limit", "Documents exceed the total size limit");
-      }
     }
+    if (target.kind === "directory" && entry.size !== 0) {
+      throw invalid("entry", `Directory entry ${JSON.stringify(entry.name)} has contents`);
+    }
+  }
+  if (totalDocumentSize > limits.maxTotalDocumentSize) {
+    throw invalid("limit", "Documents exceed the total size limit");
+  }
+
+  const contents: Partial<PackageContents> & Pick<PackageContents, "files" | "signatures" | "anchors"> = {
+    files: new Map(),
+    signatures: new Map(),
+    anchors: new Map(),
+  };
+  for (const { entry, target } of targets) {
     if (target.kind === "directory") {
-      if (entry.size !== 0) {
-        throw invalid("entry", `Directory entry ${JSON.stringify(entry.name)} has contents`);
-      }
       continue;
     }
     const data = extract(zip, entry, limits);
@@ -189,6 +202,7 @@ function readCentralDirectory(zip: Uint8Array, view: DataView, limits: Container
     const madeBy = view.getUint16(pos + 4, true);
     const flags = view.getUint16(pos + 8, true);
     const method = view.getUint16(pos + 10, true);
+    const crc = view.getUint32(pos + 16, true);
     const compressedSize = view.getUint32(pos + 20, true);
     const size = view.getUint32(pos + 24, true);
     const nameLength = view.getUint16(pos + 28, true);
@@ -213,6 +227,9 @@ function readCentralDirectory(zip: Uint8Array, view: DataView, limits: Container
     if (flags & FLAG_ENCRYPTED) {
       throw invalid("zip", `Entry ${JSON.stringify(name)} is encrypted`);
     }
+    if (flags & FLAG_DATA_DESCRIPTOR) {
+      throw invalid("zip", `Entry ${JSON.stringify(name)} uses a data descriptor; sizes must be in the local header`);
+    }
     if (method !== METHOD_STORED && method !== METHOD_DEFLATE) {
       throw new FormatError("zip", `Entry ${JSON.stringify(name)} uses compression method ${String(method)}`, "unsupported");
     }
@@ -227,7 +244,7 @@ function readCentralDirectory(zip: Uint8Array, view: DataView, limits: Container
       throw invalid("limit", `Entry ${JSON.stringify(name)} exceeds the compression ratio limit`);
     }
 
-    entries.push({ name, nameBytes, method, compressedSize, size, localOffset, dataOffset: 0 });
+    entries.push({ name, nameBytes, flags, method, crc, compressedSize, size, localOffset, dataOffset: 0 });
   }
   if (pos !== end) {
     throw invalid("zip", "Corrupt central directory");
@@ -236,7 +253,7 @@ function readCentralDirectory(zip: Uint8Array, view: DataView, limits: Container
   for (const entry of entries) {
     entry.dataOffset = readLocalHeader(view, zip, entry, directoryOffset);
   }
-  checkNoOverlap(entries);
+  checkContiguous(entries, directoryOffset);
   return entries;
 }
 
@@ -250,35 +267,51 @@ function findEndOfCentralDirectory(view: DataView): number {
   throw invalid("zip", "Not a ZIP archive");
 }
 
+/** The local header must describe the same entry as the central directory, field by field. */
 function readLocalHeader(view: DataView, zip: Uint8Array, entry: CentralEntry, directoryOffset: number): number {
   const pos = entry.localOffset;
+  const where = JSON.stringify(entry.name);
   if (pos + 30 > directoryOffset || view.getUint32(pos, true) !== LOCAL_HEADER) {
-    throw invalid("zip", `Corrupt local header for ${JSON.stringify(entry.name)}`);
+    throw invalid("zip", `Corrupt local header for ${where}`);
+  }
+  if (
+    view.getUint16(pos + 6, true) !== entry.flags ||
+    view.getUint16(pos + 8, true) !== entry.method ||
+    view.getUint32(pos + 14, true) !== entry.crc ||
+    view.getUint32(pos + 18, true) !== entry.compressedSize ||
+    view.getUint32(pos + 22, true) !== entry.size
+  ) {
+    throw invalid("zip", `Local header of ${where} disagrees with the central directory`);
   }
   const nameLength = view.getUint16(pos + 26, true);
   const extraLength = view.getUint16(pos + 28, true);
-  const localName = zip.subarray(pos + 30, pos + 30 + nameLength);
-  if (!equalBytes(localName, entry.nameBytes)) {
-    throw invalid("zip", `Local and central names differ for ${JSON.stringify(entry.name)}`);
+  if (!equalBytes(zip.subarray(pos + 30, pos + 30 + nameLength), entry.nameBytes)) {
+    throw invalid("zip", `Local and central names differ for ${where}`);
   }
   const dataOffset = pos + 30 + nameLength + extraLength;
   if (dataOffset + entry.compressedSize > directoryOffset) {
-    throw invalid("zip", `Entry ${JSON.stringify(entry.name)} extends past the central directory`);
+    throw invalid("zip", `Entry ${where} extends past the central directory`);
   }
   return dataOffset;
 }
 
-/** Overlapping entries are how "overlapping file" ZIP bombs reuse one compressed stream many times. */
-function checkNoOverlap(entries: readonly CentralEntry[]): void {
+/**
+ * Entries must tile the archive from offset 0 to the central directory: no overlaps (which
+ * "overlapping file" ZIP bombs need) and no gaps (where a second, hidden local entry could sit).
+ */
+function checkContiguous(entries: readonly CentralEntry[], directoryOffset: number): void {
   const ranges = entries
     .map((entry) => ({ start: entry.localOffset, end: entry.dataOffset + entry.compressedSize }))
     .sort((a, b) => a.start - b.start);
-  for (let i = 1; i < ranges.length; i++) {
-    const previous = ranges[i - 1];
-    const current = ranges[i];
-    if (previous && current && current.start < previous.end) {
-      throw invalid("zip", "Entries overlap");
+  let expected = 0;
+  for (const range of ranges) {
+    if (range.start !== expected) {
+      throw invalid("zip", range.start < expected ? "Entries overlap" : "Unaccounted data between entries");
     }
+    expected = range.end;
+  }
+  if (expected !== directoryOffset) {
+    throw invalid("zip", "Unaccounted data before the central directory");
   }
 }
 
@@ -328,21 +361,45 @@ function classify(name: string): EntryKind {
 
 function extract(zip: Uint8Array, entry: CentralEntry, limits: ContainerLimits): Uint8Array {
   const raw = zip.subarray(entry.dataOffset, entry.dataOffset + entry.compressedSize);
-  if (entry.method === METHOD_STORED) {
-    return raw.slice();
-  }
-  // One spare byte: fflate silently truncates at the buffer end, so a result longer
-  // than the declared size shows up as `size + 1` without allocating more.
   let data: Uint8Array;
-  try {
-    data = inflateSync(raw, { out: new Uint8Array(entry.size + 1) });
-  } catch {
-    throw invalid("zip", `Entry ${JSON.stringify(entry.name)} is not valid deflate data`);
+  if (entry.method === METHOD_STORED) {
+    data = raw.slice();
+  } else {
+    // One spare byte: fflate silently truncates at the buffer end, so a result longer
+    // than the declared size shows up as `size + 1` without allocating more.
+    try {
+      data = inflateSync(raw, { out: new Uint8Array(entry.size + 1) });
+    } catch (error) {
+      if (error instanceof RangeError) {
+        throw invalid("limit", `Entry ${JSON.stringify(entry.name)} is too large to hold in memory`);
+      }
+      throw invalid("zip", `Entry ${JSON.stringify(entry.name)} is not valid deflate data`);
+    }
+    if (data.length !== entry.size || data.length > Math.max(raw.length, 1) * limits.maxCompressionRatio) {
+      throw invalid("zip", `Entry ${JSON.stringify(entry.name)} does not match its declared size`);
+    }
   }
-  if (data.length !== entry.size || data.length > Math.max(raw.length, 1) * limits.maxCompressionRatio) {
-    throw invalid("zip", `Entry ${JSON.stringify(entry.name)} does not match its declared size`);
+  if (crc32(data) !== entry.crc) {
+    throw invalid("zip", `Entry ${JSON.stringify(entry.name)} fails its CRC-32 check`);
   }
   return data;
+}
+
+const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) {
+    c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  }
+  return c >>> 0;
+});
+
+/** ZIP's CRC-32 (IEEE 802.3). An integrity check against tool disagreement, not a security hash. */
+export function crc32(data: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (const byte of data) {
+    crc = (CRC_TABLE[(crc ^ byte) & 0xff] ?? 0) ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
 }
 
 function invalid(code: string, message: string): FormatError {

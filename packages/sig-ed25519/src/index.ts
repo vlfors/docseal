@@ -26,8 +26,9 @@ export function publicKeyToDid(publicKey: Uint8Array): string {
 
 /** Throws if `did` is not an Ed25519 `did:key`. */
 export function didToPublicKey(did: string): Uint8Array {
-  if (!did.startsWith(DID_KEY_PREFIX)) {
-    throw new Error("Expected a base58btc did:key");
+  // An Ed25519 did:key has 48 base58 characters; check before decoding, which is quadratic.
+  if (!did.startsWith(DID_KEY_PREFIX) || did.length > DID_KEY_PREFIX.length + 64) {
+    throw new Error("Expected a base58btc Ed25519 did:key");
   }
   const bytes = base58.decode(did.slice(DID_KEY_PREFIX.length));
   if (

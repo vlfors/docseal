@@ -84,6 +84,15 @@ describe("parseDetached", () => {
       expect(() => parseTimestamp(body, new Uint8Array(32))).toThrow(/forbidden/);
     });
 
+    it("refuses a small proof that would expand into a huge tree", () => {
+      // hexlify to 64 bytes, then 20000 one-byte `reverse` branches, each ending in an unknown attestation.
+      const branch = [0xf2, 0x00, 1, 2, 3, 4, 5, 6, 7, 8, 0x00];
+      const body = [0xf3];
+      for (let i = 0; i < 20_000; i++) body.push(0xff, ...branch);
+      body.push(...branch);
+      expect(() => parseTimestamp(Uint8Array.from(body), new Uint8Array(32))).toThrow(/too large/);
+    });
+
     it("never throws anything but OtsError on corrupted proofs", () => {
       const bytes = fixture("hello-world.txt.ots");
       for (let i = 0; i < bytes.length; i++) {

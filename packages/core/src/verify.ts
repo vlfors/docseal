@@ -306,9 +306,11 @@ async function checkTrust(
         });
       }
     }
-    report.axes.trust = verdicts.includes("trusted")
+    // Every valid signer must be trusted: a pinned author next to an unknown "approver"
+    // must not read as VALID, or the stranger's signature borrows the author's trust.
+    report.axes.trust = verdicts.every((v) => v === "trusted")
       ? "trusted"
-      : verdicts.every((v) => v === "untrusted")
+      : verdicts.includes("untrusted")
         ? "untrusted"
         : "unknown";
   }

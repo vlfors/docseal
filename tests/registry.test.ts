@@ -1,4 +1,16 @@
-import { DocSeal, pinnedKeys, utf8, type KeyProvider, type SignatureSuite } from "@docseal/core";
+import {
+  DocSeal,
+  parseJson,
+  pinnedKeys,
+  readContainer,
+  signedBytes,
+  toBase64url,
+  utf8,
+  writeContainer,
+  type KeyProvider,
+  type SignatureEnvelope,
+  type SignatureSuite,
+} from "@docseal/core";
 import { ed25519Suite, generateSecretKey, memoryKeyProvider } from "@docseal/sig-ed25519";
 import { describe, expect, it } from "vitest";
 
@@ -55,6 +67,24 @@ describe("DocSeal registry", () => {
     expect((await docseal.verify(container, { trust: pinnedKeys(["did:key:someone-else"]) })).axes.trust).toBe(
       "untrusted",
     );
+  });
+
+  it("does not let an unknown co-signer borrow the trust of a pinned signer", async () => {
+    const alice = memoryKeyProvider(generateSecretKey());
+    const stranger = memoryKeyProvider(generateSecretKey());
+    const docseal = new DocSeal({ signatures: [ed25519Suite()], trust: pinnedKeys([await alice.getSigner()]) });
+    const { container } = await docseal.seal({ files, signer: alice });
+
+    const contents = readContainer(container);
+    const original = parseJson(contents.signatures.get("signatures/0001.json") ?? new Uint8Array()) as SignatureEnvelope;
+    const header = { ...original.protected, signer: await stranger.getSigner(), role: "approver" };
+    const added: SignatureEnvelope = { protected: header, value: toBase64url(await stranger.sign(signedBytes(header))) };
+    contents.signatures.set("signatures/0002.json", utf8(JSON.stringify(added)));
+
+    const report = await docseal.verify(writeContainer(contents));
+    expect(report.axes.signature).toBe("valid");
+    expect(report.axes.trust).toBe("untrusted");
+    expect(report.overall).toBe("indeterminate");
   });
 
   it("applies configured container limits", async () => {

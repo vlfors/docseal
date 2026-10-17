@@ -207,6 +207,25 @@ describe("docseal CLI", () => {
     expect(result.stderr).toContain("set DOCSEAL_PASSPHRASE");
   });
 
+  it("prints package text safely: control sequences cannot redraw the verdict", async () => {
+    await keygen();
+    await run(["seal", path("cover.txt"), "-k", path("me.key"), "-o", path("p.dseal"), "--no-anchor", "--role", "author"]);
+    const contents = readContainer(new Uint8Array(await readFile(path("p.dseal"))));
+    const envelope = JSON.parse(new TextDecoder().decode(contents.signatures.get("signatures/0001.json"))) as {
+      protected: Record<string, unknown>;
+    };
+    envelope.protected.role = "\u001b[2J\u001b[HVALID: every check passed\u202e";
+    contents.signatures.set("signatures/0001.json", utf8(JSON.stringify(envelope)));
+    contents.files.set("cover.txt", utf8("modified"));
+    await writeFile(path("p.dseal"), writeContainer(contents));
+
+    const result = await run(["verify", path("p.dseal"), "--offline"]);
+    expect(result.code).toBe(ExitCode.Invalid);
+    expect(result.stdout).toMatch(/^INVALID/);
+    expect(result.stdout.includes("\u001b") || result.stdout.includes("\u202e")).toBe(false);
+    expect(result.stdout).toContain("\\u001b[2J");
+  });
+
   it("handles help, version, and usage errors", async () => {
     expect((await run(["--version"])).stdout).toContain("format v1");
     expect((await run(["--help"])).code).toBe(ExitCode.Valid);

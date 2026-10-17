@@ -377,6 +377,19 @@ async function mutate(change: (c: PackageContents) => void, options: { anchor?: 
   return writeContainer(contents);
 }
 
+/** Offset of the first local (0x04034b50) or central (0x02014b50) header for `name`. */
+function headerOf(zip: Uint8Array, signature: number, name: string): number {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  const nameOffset = signature === 0x04034b50 ? 30 : 46;
+  const target = utf8(name);
+  for (let pos = 0; pos < zip.length - 4; pos++) {
+    if (view.getUint32(pos, true) === signature && target.every((byte, i) => zip[pos + nameOffset + i] === byte)) {
+      return pos;
+    }
+  }
+  throw new Error(`no header for ${name}`);
+}
+
 /** Replaces bytes in the archive in place (same length), to build what zip writers refuse to. */
 function patch(zip: Uint8Array, from: string, to: string): Uint8Array {
   const out = zip.slice();
@@ -579,7 +592,7 @@ const GOLDEN: Golden[] = [
         ...Object.fromEntries([...c.files].map(([path, data]) => [`files/${path}`, data])),
         "files/link": [utf8("/etc/passwd"), { os: 3, attrs: (0o120777 << 16) >>> 0 }],
         ...Object.fromEntries(c.signatures),
-      });
+      }, { mtime: new Date(1980, 0, 1) });
     },
   },
   {
@@ -594,7 +607,7 @@ const GOLDEN: Golden[] = [
         "statement.json": c.statement,
         ...Object.fromEntries([...c.files].map(([path, data]) => [`files/${path}`, data])),
         ...Object.fromEntries(c.signatures),
-      });
+      }, { mtime: new Date(1980, 0, 1) });
     },
   },
   {
@@ -610,8 +623,83 @@ const GOLDEN: Golden[] = [
         ...Object.fromEntries([...c.files].map(([path, data]) => [`files/${path}`, data])),
         ...Object.fromEntries(c.signatures),
         "META-INF/manifest.xml": utf8("<x/>"),
-      });
+      }, { mtime: new Date(1980, 0, 1) });
     },
+  },
+  {
+    file: "impossible-date.dseal",
+    description: "statement.createdAt is 2026-02-30, which matches the pattern but is not a date.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: () =>
+      mutate((c) => {
+        const statement = json(c.statement);
+        statement.createdAt = "2026-02-30T12:00:00Z";
+        c.statement = pretty(statement);
+      }),
+  },
+  {
+    file: "huge-number.dseal",
+    description: "manifest metadata holds a 400-digit integer, beyond the range of a double.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: () =>
+      mutate((c) => {
+        const text = new TextDecoder().decode(c.manifest);
+        c.manifest = utf8(text.replace('"title"', `"huge": 1${"0".repeat(400)}, "title"`));
+      }),
+  },
+  {
+    file: "local-header-mismatch.dseal",
+    description: "The local header of files/contract.pdf declares a different CRC than the central directory.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: async () => {
+      const zip = await base();
+      const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+      view.setUint32(headerOf(zip, 0x04034b50, "files/contract.pdf") + 14, 0x12345678, true);
+      return zip;
+    },
+  },
+  {
+    file: "crc-mismatch.dseal",
+    description: "Both headers of files/contract.pdf carry the same wrong CRC-32.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: async () => {
+      const zip = await base();
+      const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+      const local = headerOf(zip, 0x04034b50, "files/contract.pdf");
+      const forged = view.getUint32(local + 14, true) ^ 1;
+      view.setUint32(local + 14, forged, true);
+      view.setUint32(headerOf(zip, 0x02014b50, "files/contract.pdf") + 16, forged, true);
+      return zip;
+    },
+  },
+  {
+    file: "gap-before-directory.dseal",
+    description: "Unreferenced bytes (a hidden extra entry) between the last entry and the central directory.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: async () => {
+      const zip = await base();
+      const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+      const end = zip.length - 22;
+      const directoryOffset = view.getUint32(end + 16, true);
+      const hidden = utf8("PK\u0003\u0004 hidden entry that streaming unzip tools would see");
+      const out = new Uint8Array(zip.length + hidden.length);
+      out.set(zip.subarray(0, directoryOffset));
+      out.set(hidden, directoryOffset);
+      out.set(zip.subarray(directoryOffset), directoryOffset + hidden.length);
+      new DataView(out.buffer).setUint32(end + hidden.length + 16, directoryOffset + hidden.length, true);
+      return out;
+    },
+  },
+  {
+    file: "long-signer.dseal",
+    description: "protected.signer is a did:key with 100000 base58 digits. Must be rejected quickly, not decoded.",
+    expected: { axes: { ...OK, signature: "invalid" }, overall: "invalid" },
+    build: () =>
+      mutate((c) => {
+        const envelope = json(c.signatures.get("signatures/0001.json")) as { protected: Record<string, unknown> };
+        envelope.protected.signer = `did:key:z${"2".repeat(100_000)}`;
+        c.signatures.set("signatures/0001.json", pretty(envelope));
+      }),
   },
   {
     file: "anchor-from-other-package.dseal",

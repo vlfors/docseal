@@ -82,11 +82,27 @@ def parse_json(data: bytes) -> Any:
             raise FormatError("json", "number out of range")
         return value
 
+    def bounded_int(token: str) -> int:
+        # JSON numbers are doubles: an integer beyond the double range is out of range,
+        # as it is for every ECMAScript parser.
+        value = int(token)
+        try:
+            float(value)
+        except OverflowError:
+            raise FormatError("json", "number out of range") from None
+        return value
+
     def reject_constant(token: str) -> None:
         raise FormatError("json", f"{token} is not JSON")
 
     try:
-        value = json.loads(text, object_pairs_hook=no_duplicates, parse_float=finite, parse_constant=reject_constant)
+        value = json.loads(
+            text,
+            object_pairs_hook=no_duplicates,
+            parse_float=finite,
+            parse_int=bounded_int,
+            parse_constant=reject_constant,
+        )
     except FormatError:
         raise
     except (ValueError, RecursionError) as error:
@@ -346,8 +362,9 @@ SMALL_ORDER_Y = {
 
 
 def did_to_public_key(did: str) -> bytes:
-    if not isinstance(did, str) or not did.startswith("did:key:z"):
-        raise ValueError("expected a base58btc did:key")
+    # An Ed25519 did:key has 48 base58 characters; check first, since decoding is quadratic.
+    if not isinstance(did, str) or not did.startswith("did:key:z") or len(did) > len("did:key:z") + 64:
+        raise ValueError("expected a base58btc Ed25519 did:key")
     data = from_base58(did[len("did:key:z") :])
     if len(data) != 34 or data[:2] != b"\xed\x01":
         raise ValueError("did:key is not an Ed25519 key")
@@ -376,7 +393,7 @@ def verify_ed25519(signer: str, message: bytes, signature: bytes) -> bool:
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 HEX32 = re.compile(r"^[0-9a-f]{32}$")
 UUID_RE = re.compile(r"^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
-TIME_RE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?Z$")
+TIME_RE = re.compile(r"^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.[0-9]+)?Z$")
 
 
 def invalid(where: str, message: str) -> FormatError:
@@ -412,7 +429,15 @@ def require_string_list(value: Any, where: str) -> list[str]:
 
 
 def require_timestamp(value: Any, where: str) -> None:
-    require_pattern(value, TIME_RE, where)
+    """RFC 3339 in UTC with a real calendar date; leap seconds are rejected."""
+    match = TIME_RE.fullmatch(value) if isinstance(value, str) else None
+    if match:
+        year, month, day, hour, minute, second = map(int, match.groups())
+        leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+        days = [31, 29 if leap else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        if 1 <= month <= 12 and 1 <= day <= days[month - 1] and hour <= 23 and minute <= 59 and second <= 59:
+            return
+    raise invalid(where, "expected an RFC 3339 UTC timestamp with a valid date")
 
 
 def check_header(obj: dict[str, Any], where: str, type_: str) -> None:
@@ -536,8 +561,8 @@ MiB = 1024 * 1024
 GiB = 1024 * MiB
 LIMITS = {
     "max_entries": 10_100,
-    "max_document_size": 4 * GiB,
-    "max_total_document_size": 16 * GiB,
+    "max_document_size": 1 * GiB,
+    "max_total_document_size": 2 * GiB,
     "max_json_size": 16 * MiB,
     "max_compression_ratio": 1000,
 }
@@ -565,7 +590,7 @@ def read_container(data: bytes) -> dict[str, Any]:
     for _ in range(total):
         if pos + 46 > end or data[pos : pos + 4] != b"PK\x01\x02":
             raise FormatError("zip", "corrupt central directory")
-        (made_by, _needed, flags, method, _time, _date, _crc, compressed, size, name_len, extra_len, comment_len, _disk_start, _internal, external, local_offset) = struct.unpack_from("<HHHHHHIIIHHHHHII", data, pos + 4)
+        (made_by, _needed, flags, method, _time, _date, crc, compressed, size, name_len, extra_len, comment_len, _disk_start, _internal, external, local_offset) = struct.unpack_from("<HHHHHHIIIHHHHHII", data, pos + 4)
         name_bytes = data[pos + 46 : pos + 46 + name_len]
         pos += 46 + name_len + extra_len + comment_len
         if pos > end:
@@ -578,6 +603,8 @@ def read_container(data: bytes) -> dict[str, Any]:
             raise FormatError("zip64", "ZIP64 archives are not supported", "unsupported")
         if flags & 0x0001:
             raise FormatError("zip", f"entry {name!r} is encrypted")
+        if flags & 0x0008:
+            raise FormatError("zip", f"entry {name!r} uses a data descriptor")
         if method not in (0, 8):
             raise FormatError("zip", f"entry {name!r} uses compression method {method}", "unsupported")
         if made_by >> 8 == 3:  # Unix: the high 16 bits of the external attributes are st_mode
@@ -587,7 +614,7 @@ def read_container(data: bytes) -> dict[str, Any]:
                 raise FormatError("entry-type", f"entry {name!r} is a symlink or special file")
         if (compressed != size) if method == 0 else size > max(compressed, 1) * LIMITS["max_compression_ratio"]:
             raise FormatError("limit", f"entry {name!r} exceeds the compression ratio limit")
-        entries.append({"name": name, "name_bytes": name_bytes, "method": method, "compressed": compressed, "size": size, "offset": local_offset})
+        entries.append({"name": name, "name_bytes": name_bytes, "flags": flags, "method": method, "crc": crc, "compressed": compressed, "size": size, "offset": local_offset})
     if pos != end:
         raise FormatError("zip", "corrupt central directory")
 
@@ -595,35 +622,42 @@ def read_container(data: bytes) -> dict[str, Any]:
         offset = entry["offset"]
         if offset + 30 > cd_offset or data[offset : offset + 4] != b"PK\x03\x04":
             raise FormatError("zip", f"corrupt local header for {entry['name']!r}")
-        name_len, extra_len = struct.unpack_from("<HH", data, offset + 26)
+        local_flags, local_method, _t, _d, local_crc, local_compressed, local_size, name_len, extra_len = struct.unpack_from("<HHHHIIIHH", data, offset + 6)
+        if (local_flags, local_method, local_crc, local_compressed, local_size) != (entry["flags"], entry["method"], entry["crc"], entry["compressed"], entry["size"]):
+            raise FormatError("zip", f"local header of {entry['name']!r} disagrees with the central directory")
         if data[offset + 30 : offset + 30 + name_len] != entry["name_bytes"]:
             raise FormatError("zip", f"local and central names differ for {entry['name']!r}")
         entry["data_offset"] = offset + 30 + name_len + extra_len
         if entry["data_offset"] + entry["compressed"] > cd_offset:
             raise FormatError("zip", f"entry {entry['name']!r} extends past the central directory")
-    ranges = sorted((e["offset"], e["data_offset"] + e["compressed"]) for e in entries)
-    for (_, previous_end), (start, _) in zip(ranges, ranges[1:]):
-        if start < previous_end:
-            raise FormatError("zip", "entries overlap")
+    # Entries must tile the archive from 0 to the central directory: no overlaps, no gaps.
+    expected_offset = 0
+    for start, stop in sorted((e["offset"], e["data_offset"] + e["compressed"]) for e in entries):
+        if start != expected_offset:
+            raise FormatError("zip", "entries overlap" if start < expected_offset else "unaccounted data between entries")
+        expected_offset = stop
+    if expected_offset != cd_offset:
+        raise FormatError("zip", "unaccounted data before the central directory")
 
     first = entries[0] if entries else None
     if first is None or first["name"] != "mimetype" or first["method"] != 0 or first["offset"] != 0:
         raise FormatError("mimetype", "'mimetype' must be the first entry, stored without compression")
 
     contents: dict[str, Any] = {"manifest": None, "statement": None, "files": {}, "signatures": {}, "anchors": {}}
+    classified = [(entry, *classify(entry["name"])) for entry in entries]
     total_documents = 0
-    for entry in entries:
-        kind, key = classify(entry["name"])
+    for entry, kind, _ in classified:  # every declared size is checked before inflating anything
         max_size = LIMITS["max_document_size"] if kind == "files" else LIMITS["max_json_size"]
         if entry["size"] > max_size:
             raise FormatError("limit", f"entry {entry['name']!r} exceeds the size limit")
         if kind == "files":
             total_documents += entry["size"]
-            if total_documents > LIMITS["max_total_document_size"]:
-                raise FormatError("limit", "documents exceed the total size limit")
+        if kind == "directory" and entry["size"] != 0:
+            raise FormatError("entry", f"directory entry {entry['name']!r} has contents")
+    if total_documents > LIMITS["max_total_document_size"]:
+        raise FormatError("limit", "documents exceed the total size limit")
+    for entry, kind, key in classified:
         if kind == "directory":
-            if entry["size"] != 0:
-                raise FormatError("entry", f"directory entry {entry['name']!r} has contents")
             continue
         content = extract(data, entry)
         if kind == "mimetype":
@@ -680,8 +714,13 @@ def classify(name: str) -> tuple[str, str]:
 
 def extract(data: bytes, entry: dict[str, Any]) -> bytes:
     raw = data[entry["data_offset"] : entry["data_offset"] + entry["compressed"]]
-    if entry["method"] == 0:
-        return raw
+    content = raw if entry["method"] == 0 else inflate(raw, entry)
+    if zlib.crc32(content) != entry["crc"]:
+        raise FormatError("zip", f"entry {entry['name']!r} fails its CRC-32 check")
+    return content
+
+
+def inflate(raw: bytes, entry: dict[str, Any]) -> bytes:
     try:
         # One spare byte shows an entry longer than declared, without inflating all of it.
         content = zlib.decompressobj(-15).decompress(raw, entry["size"] + 1)
@@ -843,7 +882,8 @@ def verify_package(data: bytes, trusted: dict[str, str] | None = None) -> dict[s
         for result in valid_signers:
             result["trust"] = "trusted" if result["signer"] in trusted else "untrusted"
             verdicts.append(result["trust"])
-        axes["trust"] = "trusted" if "trusted" in verdicts else "untrusted"
+        # Every valid signer must be trusted, or a stranger's signature borrows the author's trust.
+        axes["trust"] = "trusted" if all(v == "trusted" for v in verdicts) else "untrusted"
 
     axes["completeness"] = "full" if files_complete and signatures_complete and time_complete else "incomplete"
     return finish(report)
@@ -955,6 +995,14 @@ def run_vectors(directory: Path) -> int:
 # ---------------------------------------------------------------------------
 
 
+UNSAFE_CHARS = re.compile("[\x00-\x1f\x7f-\x9f\u061c\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff]")
+
+
+def sanitize(text: str) -> str:
+    """Escapes controls and bidirectional marks, so package text cannot redraw the terminal."""
+    return UNSAFE_CHARS.sub(lambda m: f"\\u{ord(m.group()):04x}", text)
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="docseal_verify.py", description=__doc__.split("\n\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -972,16 +1020,16 @@ def main(argv: list[str]) -> int:
         trusted = load_trusted_keys(args.trust) if args.trust else None
         report = verify_package(args.package.read_bytes(), trusted)
     except (OSError, FormatError) as error:
-        print(f"docseal_verify: {error}", file=sys.stderr)
+        print(sanitize(f"docseal_verify: {error}"), file=sys.stderr)
         return 3
     if args.json:
-        print(json.dumps(report, indent=2, ensure_ascii=False))
+        print(json.dumps(report, indent=2, ensure_ascii=True))
     else:
         print(report["overall"].upper())
         for axis, verdict in report["axes"].items():
             print(f"  {axis:<13} {verdict}")
         for item in report["issues"]:
-            print(f"  [{item['axis']}] {item.get('subject', '')} {item['message']}".rstrip())
+            print(sanitize(f"  [{item['axis']}] {item.get('subject', '')} {item['message']}".rstrip()))
     return {"valid": 0, "invalid": 1, "indeterminate": 2}[report["overall"]]
 
 

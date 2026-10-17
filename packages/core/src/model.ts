@@ -263,12 +263,37 @@ function urnUuid(value: unknown, where: string): void {
   }
 }
 
-const RFC3339_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+const RFC3339_UTC = /^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.[0-9]+)?Z$/;
 
+/**
+ * RFC 3339 in UTC with a real calendar date. Checked field by field rather than with
+ * Date.parse, so every implementation can apply the same rule. Leap seconds are rejected.
+ */
 function timestamp(value: unknown, where: string): void {
-  if (typeof value !== "string" || !RFC3339_UTC.test(value) || Number.isNaN(Date.parse(value))) {
-    throw invalid(where, "expected an RFC 3339 UTC timestamp ending in 'Z'");
+  const match = typeof value === "string" ? RFC3339_UTC.exec(value) : null;
+  const [year, month, day, hour, minute, second] = (match?.slice(1) ?? []).map(Number);
+  if (
+    year === undefined ||
+    month === undefined ||
+    day === undefined ||
+    hour === undefined ||
+    minute === undefined ||
+    second === undefined ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > daysInMonth(year, month) ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59
+  ) {
+    throw invalid(where, "expected an RFC 3339 UTC timestamp with a valid date, ending in 'Z'");
   }
+}
+
+function daysInMonth(year: number, month: number): number {
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  return [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 0;
 }
 
 function invalid(where: string, message: string): FormatError {
