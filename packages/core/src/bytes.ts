@@ -22,9 +22,37 @@ export interface StreamDigest {
   size: number;
 }
 
-/** Hashes a stream chunk by chunk, so arbitrarily large files never sit in memory at once. */
-export async function hashStream(stream: ReadableStream<Uint8Array>): Promise<StreamDigest> {
-  const h = sha256.create();
+/** An incremental SHA-256, as returned by `sha256.create()` or wrapped around a native one. */
+export interface IncrementalHash {
+  update(chunk: Uint8Array): void;
+  digest(): Uint8Array;
+}
+
+/**
+ * Creates SHA-256 instances for hashing documents. The default is portable JavaScript;
+ * an application may pass a native implementation (Node's `crypto`), which is several
+ * times faster on large files. JSON documents always use the default.
+ */
+export type Sha256Factory = () => IncrementalHash;
+
+export const portableSha256: Sha256Factory = () => sha256.create();
+
+const ABC_SHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+
+/** Throws unless `factory` computes SHA-256 correctly (FIPS 180-2 "abc", fed in two updates). */
+export function checkSha256(factory: Sha256Factory): void {
+  const h = factory();
+  h.update(utf8("a"));
+  h.update(utf8("bc"));
+  const digest = Array.from(h.digest(), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  if (digest !== ABC_SHA256) {
+    throw new Error("The SHA-256 implementation gives wrong results");
+  }
+}
+
+/** Hashes chunk by chunk, so arbitrarily large files never sit in memory at once. */
+export async function hashStream(stream: AsyncIterable<Uint8Array>, sha: Sha256Factory = portableSha256): Promise<StreamDigest> {
+  const h = sha();
   let size = 0;
   for await (const chunk of stream) {
     h.update(chunk);

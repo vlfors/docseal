@@ -561,46 +561,111 @@ MiB = 1024 * 1024
 GiB = 1024 * MiB
 LIMITS = {
     "max_entries": 10_100,
-    "max_document_size": 1 * GiB,
-    "max_total_document_size": 2 * GiB,
+    "max_document_size": 16 * GiB,
+    "max_total_document_size": 64 * GiB,
     "max_json_size": 16 * MiB,
     "max_compression_ratio": 1000,
+    "max_central_directory_size": 64 * MiB,
 }
 SIGNATURE_NAME = re.compile(r"^signatures/[0-9]{4,}\.json$")
 ANCHOR_NAME = re.compile(r"^anchors/seal-[1-9][0-9]*\.json$")
+M16, M32 = 0xFFFF, 0xFFFFFFFF
+ZIP64_EXTRA, UNICODE_PATH_EXTRA = 0x0001, 0x7075
+
+
+def locate_central_directory(data: bytes) -> tuple[int, int, int]:
+    """Returns (offset, size, entry count), from the ZIP64 records when a locator is present."""
+    end = find_end_of_central_directory(data)
+    disk, cd_disk, on_disk, total, cd_size, cd_offset = struct.unpack_from("<HHHHII", data, end + 4)
+    locator = end - 20
+    if locator < 0 or data[locator : locator + 4] != b"PK\x06\x07":
+        if M16 in (disk, cd_disk, on_disk, total) or M32 in (cd_size, cd_offset):
+            raise FormatError("zip", "end of central directory refers to a missing ZIP64 record")
+        if disk != 0 or cd_disk != 0 or on_disk != total:
+            raise FormatError("zip", "multi-disk archives are not supported")
+        if cd_offset + cd_size != end:
+            raise FormatError("zip", "unexpected data around the central directory")
+        return cd_offset, cd_size, total
+    record_disk, record, total_disks = struct.unpack_from("<IQI", data, locator + 4)
+    if record_disk != 0 or total_disks > 1:
+        raise FormatError("zip", "multi-disk archives are not supported")
+    if record + 56 != locator or data[record : record + 4] != b"PK\x06\x06":
+        raise FormatError("zip", "corrupt ZIP64 end of central directory")
+    (record_size, _made, _needed, disk64, cd_disk64, on_disk64, total64, size64, offset64) = struct.unpack_from("<QHHIIQQQQ", data, record + 4)
+    if record_size != 44:
+        raise FormatError("zip", "ZIP64 end of central directory has extensible data")
+    pairs = ((disk, M16, disk64), (cd_disk, M16, cd_disk64), (on_disk, M16, on_disk64), (total, M16, total64), (cd_size, M32, size64), (cd_offset, M32, offset64))
+    if any(value not in (marker, actual) for value, marker, actual in pairs):
+        raise FormatError("zip", "end of central directory disagrees with the ZIP64 record")
+    if disk64 != 0 or cd_disk64 != 0 or on_disk64 != total64:
+        raise FormatError("zip", "multi-disk archives are not supported")
+    if offset64 + size64 != record:
+        raise FormatError("zip", "unexpected data around the central directory")
+    return offset64, size64, total64
+
+
+def parse_extra(extra: bytes, name: str) -> dict[int, bytes]:
+    blocks: dict[int, bytes] = {}
+    pos = 0
+    while pos < len(extra):
+        if pos + 4 > len(extra):
+            raise FormatError("zip", f"corrupt extra field in {name!r}")
+        block_id, length = struct.unpack_from("<HH", extra, pos)
+        if pos + 4 + length > len(extra) or block_id in blocks:
+            raise FormatError("zip", f"corrupt extra field in {name!r}")
+        if block_id == UNICODE_PATH_EXTRA:
+            raise FormatError("zip", f"entry {name!r} carries a second name in a Unicode Path extra field")
+        blocks[block_id] = extra[pos + 4 : pos + 4 + length]
+        pos += 4 + length
+    return blocks
 
 
 def read_container(data: bytes) -> dict[str, Any]:
     """Parses the ZIP central directory itself, like the specification requires, instead of
     trusting zipfile: duplicate names, symlinks, overlaps, and declared sizes all matter."""
-    end = find_end_of_central_directory(data)
-    disk, cd_disk, entries_on_disk, total, cd_size, cd_offset = struct.unpack_from("<HHHHII", data, end + 4)
-    if total == 0xFFFF or cd_size == 0xFFFFFFFF or cd_offset == 0xFFFFFFFF:
-        raise FormatError("zip64", "ZIP64 archives are not supported", "unsupported")
-    if disk != 0 or cd_disk != 0 or entries_on_disk != total:
-        raise FormatError("zip", "multi-disk archives are not supported")
+    cd_offset, cd_size, total = locate_central_directory(data)
     if total > LIMITS["max_entries"]:
         raise FormatError("limit", "too many entries")
-    if cd_offset + cd_size != end:
-        raise FormatError("zip", "unexpected data around the central directory")
+    if cd_size > LIMITS["max_central_directory_size"]:
+        raise FormatError("limit", "central directory is too large")
+    cd_end = cd_offset + cd_size
 
     entries = []
     names: set[str] = set()
     pos = cd_offset
     for _ in range(total):
-        if pos + 46 > end or data[pos : pos + 4] != b"PK\x01\x02":
+        if pos + 46 > cd_end or data[pos : pos + 4] != b"PK\x01\x02":
             raise FormatError("zip", "corrupt central directory")
-        (made_by, _needed, flags, method, _time, _date, crc, compressed, size, name_len, extra_len, comment_len, _disk_start, _internal, external, local_offset) = struct.unpack_from("<HHHHHHIIIHHHHHII", data, pos + 4)
+        (made_by, _needed, flags, method, _time, _date, crc, compressed, size, name_len, extra_len, comment_len, disk_start, _internal, external, local_offset) = struct.unpack_from("<HHHHHHIIIHHHHHII", data, pos + 4)
         name_bytes = data[pos + 46 : pos + 46 + name_len]
+        extra = data[pos + 46 + name_len : pos + 46 + name_len + extra_len]
         pos += 46 + name_len + extra_len + comment_len
-        if pos > end:
+        if pos > cd_end:
             raise FormatError("zip", "corrupt central directory")
         name = decode_name(name_bytes, flags)
         if name in names:
             raise FormatError("duplicate-entry", f"duplicate entry {name!r}")
         names.add(name)
-        if 0xFFFFFFFF in (compressed, size, local_offset):
-            raise FormatError("zip64", "ZIP64 archives are not supported", "unsupported")
+        # The ZIP64 block holds exactly the fields whose header value is the marker, in order.
+        zip64 = parse_extra(extra, name).get(ZIP64_EXTRA)
+        fields = []
+        if size == M32:
+            fields.append(("size", "Q"))
+        if compressed == M32:
+            fields.append(("compressed", "Q"))
+        if local_offset == M32:
+            fields.append(("local_offset", "Q"))
+        if disk_start == M16:
+            fields.append(("disk_start", "I"))
+        layout = "<" + "".join(kind for _, kind in fields)
+        if (zip64 is None and fields) or (zip64 is not None and len(zip64) != struct.calcsize(layout)):
+            raise FormatError("zip", f"ZIP64 fields of {name!r} do not match its header")
+        values = dict(zip((field for field, _ in fields), struct.unpack(layout, zip64))) if zip64 is not None else {}
+        size = values.get("size", size)
+        compressed = values.get("compressed", compressed)
+        local_offset = values.get("local_offset", local_offset)
+        if values.get("disk_start", disk_start) != 0:
+            raise FormatError("zip", "multi-disk archives are not supported")
         if flags & 0x0001:
             raise FormatError("zip", f"entry {name!r} is encrypted")
         if flags & 0x0008:
@@ -615,7 +680,7 @@ def read_container(data: bytes) -> dict[str, Any]:
         if (compressed != size) if method == 0 else size > max(compressed, 1) * LIMITS["max_compression_ratio"]:
             raise FormatError("limit", f"entry {name!r} exceeds the compression ratio limit")
         entries.append({"name": name, "name_bytes": name_bytes, "flags": flags, "method": method, "crc": crc, "compressed": compressed, "size": size, "offset": local_offset})
-    if pos != end:
+    if pos != cd_end:
         raise FormatError("zip", "corrupt central directory")
 
     for entry in entries:
@@ -623,10 +688,18 @@ def read_container(data: bytes) -> dict[str, Any]:
         if offset + 30 > cd_offset or data[offset : offset + 4] != b"PK\x03\x04":
             raise FormatError("zip", f"corrupt local header for {entry['name']!r}")
         local_flags, local_method, _t, _d, local_crc, local_compressed, local_size, name_len, extra_len = struct.unpack_from("<HHHHIIIHH", data, offset + 6)
-        if (local_flags, local_method, local_crc, local_compressed, local_size) != (entry["flags"], entry["method"], entry["crc"], entry["compressed"], entry["size"]):
-            raise FormatError("zip", f"local header of {entry['name']!r} disagrees with the central directory")
+        if offset + 30 + name_len + extra_len > cd_offset:
+            raise FormatError("zip", f"corrupt local header for {entry['name']!r}")
         if data[offset + 30 : offset + 30 + name_len] != entry["name_bytes"]:
             raise FormatError("zip", f"local and central names differ for {entry['name']!r}")
+        # Sizes are either both in the header, or both markers with the values in a ZIP64 block.
+        zip64 = parse_extra(data[offset + 30 + name_len : offset + 30 + name_len + extra_len], entry["name"]).get(ZIP64_EXTRA)
+        if local_size == M32 and local_compressed == M32 and zip64 is not None and len(zip64) == 16:
+            local_size, local_compressed = struct.unpack("<QQ", zip64)
+        elif M32 in (local_size, local_compressed) or zip64 is not None:
+            raise FormatError("zip", f"corrupt ZIP64 sizes in the local header of {entry['name']!r}")
+        if (local_flags, local_method, local_crc, local_compressed, local_size) != (entry["flags"], entry["method"], entry["crc"], entry["compressed"], entry["size"]):
+            raise FormatError("zip", f"local header of {entry['name']!r} disagrees with the central directory")
         entry["data_offset"] = offset + 30 + name_len + extra_len
         if entry["data_offset"] + entry["compressed"] > cd_offset:
             raise FormatError("zip", f"entry {entry['name']!r} extends past the central directory")

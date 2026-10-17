@@ -95,9 +95,9 @@ function rawZip(entries: RawEntry[]): Uint8Array {
   return new Uint8Array(parts.flatMap((part) => [...part]));
 }
 
-function expectRejected(zip: Uint8Array, code?: string): void {
+async function expectRejected(zip: Uint8Array, code?: string): Promise<void> {
   try {
-    readContainer(zip);
+    await readContainer(zip);
   } catch (error) {
     expect(error).toBeInstanceOf(FormatError);
     if (code !== undefined) {
@@ -122,20 +122,20 @@ function patch(zip: Uint8Array, from: string, to: string): Uint8Array {
 }
 
 describe("container", () => {
-  it("round-trips, including Unicode paths", () => {
+  it("round-trips, including Unicode paths", async () => {
     const original = contents();
-    const read = readContainer(writeContainer(original));
+    const read = await readContainer(await writeContainer(original));
     expect(read.files).toEqual(original.files);
     expect(read.signatures).toEqual(original.signatures);
     expect(read.manifest).toEqual(original.manifest);
   });
 
-  it("writes byte-identical containers for identical contents", () => {
-    expect(writeContainer(contents())).toEqual(writeContainer(contents()));
+  it("writes byte-identical containers for identical contents", async () => {
+    expect(await writeContainer(contents())).toEqual(await writeContainer(contents()));
   });
 
-  it("stores mimetype first and uncompressed", () => {
-    const zip = writeContainer(contents());
+  it("stores mimetype first and uncompressed", async () => {
+    const zip = await writeContainer(contents());
     expect(new TextDecoder().decode(zip.subarray(30, 38))).toBe("mimetype");
     expect(zip[8]).toBe(0); // compression method of the first local header
   });
@@ -149,53 +149,53 @@ describe("container", () => {
     ["signatures/1.json", "unexpected-entry"],
     ["anchors/seal-0.json", "unexpected-entry"],
     ["META-INF/manifest.xml", "unexpected-entry"],
-  ])("rejects entry %j", (name, code) => {
-    expectRejected(zipWith({ [name]: utf8("x") }), code);
+  ])("rejects entry %j", async (name, code) => {
+    await expectRejected(zipWith({ [name]: utf8("x") }), code);
   });
 
-  it("rejects case collisions between files", () => {
-    expectRejected(zipWith({ "files/A.txt": utf8("1"), "files/a.txt": utf8("2") }), "path-collision");
+  it("rejects case collisions between files", async () => {
+    await expectRejected(zipWith({ "files/A.txt": utf8("1"), "files/a.txt": utf8("2") }), "path-collision");
   });
 
-  it("rejects duplicate entry names", () => {
+  it("rejects duplicate entry names", async () => {
     const zip = zipWith({ "files/a.txt": utf8("1"), "files/b.txt": utf8("2") });
-    expectRejected(patch(zip, "files/b.txt", "files/a.txt"), "duplicate-entry");
+    await expectRejected(patch(zip, "files/b.txt", "files/a.txt"), "duplicate-entry");
   });
 
-  it("rejects symlinks", () => {
+  it("rejects symlinks", async () => {
     const zip = zipWith({ "files/link": [utf8("/etc/passwd"), { os: 3, attrs: (0o120777 << 16) >>> 0 }] });
-    expectRejected(zip, "entry-type");
+    await expectRejected(zip, "entry-type");
   });
 
-  it("rejects a missing, compressed, or wrong mimetype", () => {
-    expectRejected(zipSync({ "manifest.json": utf8("{}"), "statement.json": utf8("{}") }), "mimetype");
-    expectRejected(zipWith({}, { mimetype: [utf8(MEDIA_TYPE), { level: 9 }] }), "mimetype");
-    expectRejected(zipWith({}, { mimetype: [utf8("application/zip"), { level: 0 }] }), "mimetype");
+  it("rejects a missing, compressed, or wrong mimetype", async () => {
+    await expectRejected(zipSync({ "manifest.json": utf8("{}"), "statement.json": utf8("{}") }), "mimetype");
+    await expectRejected(zipWith({}, { mimetype: [utf8(MEDIA_TYPE), { level: 9 }] }), "mimetype");
+    await expectRejected(zipWith({}, { mimetype: [utf8("application/zip"), { level: 0 }] }), "mimetype");
   });
 
-  it("rejects missing manifest or statement", () => {
-    expectRejected(zipSync({ mimetype: [utf8(MEDIA_TYPE), { level: 0 }], "manifest.json": utf8("{}") }), "missing-entry");
+  it("rejects missing manifest or statement", async () => {
+    await expectRejected(zipSync({ mimetype: [utf8(MEDIA_TYPE), { level: 0 }], "manifest.json": utf8("{}") }), "missing-entry");
   });
 
-  it("rejects data prepended or appended to the archive", () => {
-    const zip = writeContainer(contents());
-    expectRejected(new Uint8Array([0, ...zip]));
-    expectRejected(new Uint8Array([...zip, 0]));
+  it("rejects data prepended or appended to the archive", async () => {
+    const zip = await writeContainer(contents());
+    await expectRejected(new Uint8Array([0, ...zip]));
+    await expectRejected(new Uint8Array([...zip, 0]));
   });
 
-  it("rejects a high compression ratio (ZIP bomb)", () => {
+  it("rejects a high compression ratio (ZIP bomb)", async () => {
     const zip = zipWith({ "files/zeros.bin": new Uint8Array(10 * 1024 * 1024) });
-    expectRejected(zip, "limit");
+    await expectRejected(zip, "limit");
   });
 
-  it("enforces size and entry limits", () => {
-    const zip = writeContainer(contents());
-    expect(() => readContainer(zip, { ...DEFAULT_LIMITS, maxDocumentSize: 999 })).toThrow(FormatError);
-    expect(() => readContainer(zip, { ...DEFAULT_LIMITS, maxTotalDocumentSize: 1004 })).toThrow(FormatError);
-    expect(() => readContainer(zip, { ...DEFAULT_LIMITS, maxEntries: 5 })).toThrow(FormatError);
+  it("enforces size and entry limits", async () => {
+    const zip = await writeContainer(contents());
+    await expect(readContainer(zip, { ...DEFAULT_LIMITS, maxDocumentSize: 999 })).rejects.toThrow(FormatError);
+    await expect(readContainer(zip, { ...DEFAULT_LIMITS, maxTotalDocumentSize: 1004 })).rejects.toThrow(FormatError);
+    await expect(readContainer(zip, { ...DEFAULT_LIMITS, maxEntries: 5 })).rejects.toThrow(FormatError);
   });
 
-  it("rejects an entry hidden inside the data of another (overlapping entries)", () => {
+  it("rejects an entry hidden inside the data of another (overlapping entries)", async () => {
     const hidden = localHeader("files/b.txt", utf8("x"));
     const zip = rawZip([
       { name: "mimetype", data: utf8(MEDIA_TYPE) },
@@ -204,17 +204,17 @@ describe("container", () => {
       { name: "files/a.bin", data: hidden },
       { name: "files/b.txt", data: utf8("x"), insideDataOf: "files/a.bin" },
     ]);
-    expectRejected(zip, "zip");
+    await expectRejected(zip, "zip");
   });
 
-  it("accepts the same layout without overlap", () => {
+  it("accepts the same layout without overlap", async () => {
     const zip = rawZip([
       { name: "mimetype", data: utf8(MEDIA_TYPE) },
       { name: "manifest.json", data: utf8("{}") },
       { name: "statement.json", data: utf8("{}") },
       { name: "files/b.txt", data: utf8("x") },
     ]);
-    expect(readContainer(zip).files.get("b.txt")).toEqual(utf8("x"));
+    expect((await readContainer(zip)).files.get("b.txt")).toEqual(utf8("x"));
   });
 
   it("computes the standard CRC-32", () => {
@@ -235,20 +235,20 @@ describe("container", () => {
   }
 
   it.each([
-    ["method", 8, 2, 0],
+    ["method", 8, 2, 8],
     ["CRC", 14, 4, 0x12345678],
     ["compressed size", 18, 4, 1],
-  ])("rejects a local header whose %s disagrees with the central directory", (_, offset, width, value) => {
-    const zip = writeContainer(contents());
+  ])("rejects a local header whose %s disagrees with the central directory", async (_, offset, width, value) => {
+    const zip = await writeContainer(contents());
     const view = new DataView(zip.buffer);
     const pos = headerOf(zip, 0x04034b50, "files/a.txt");
     if (width === 2) view.setUint16(pos + offset, value, true);
     else view.setUint32(pos + offset, value, true);
-    expectRejected(zip, "zip");
+    await expectRejected(zip, "zip");
   });
 
-  it("rejects contents that fail the CRC check", () => {
-    const zip = writeContainer(contents());
+  it("rejects contents that fail the CRC check", async () => {
+    const zip = await writeContainer(contents());
     const crcValue = (pos: number) => new DataView(zip.buffer).getUint32(pos, true);
     const local = headerOf(zip, 0x04034b50, "files/a.txt");
     const central = headerOf(zip, 0x02014b50, "files/a.txt");
@@ -256,20 +256,20 @@ describe("container", () => {
     const forged = crcValue(local + 14) ^ 1;
     new DataView(zip.buffer).setUint32(local + 14, forged, true);
     new DataView(zip.buffer).setUint32(central + 16, forged, true);
-    expectRejected(zip, "zip");
+    await expectRejected(zip, "zip");
   });
 
-  it("rejects data descriptors", () => {
-    const zip = writeContainer(contents());
+  it("rejects data descriptors", async () => {
+    const zip = await writeContainer(contents());
     const view = new DataView(zip.buffer);
     const local = headerOf(zip, 0x04034b50, "files/a.txt");
     const central = headerOf(zip, 0x02014b50, "files/a.txt");
     view.setUint16(local + 6, view.getUint16(local + 6, true) | 0x0008, true);
     view.setUint16(central + 8, view.getUint16(central + 8, true) | 0x0008, true);
-    expectRejected(zip, "zip");
+    await expectRejected(zip, "zip");
   });
 
-  it("rejects a hidden entry in a gap between entries", () => {
+  it("rejects a hidden entry in a gap between entries", async () => {
     const entries = [
       { name: "mimetype", data: utf8(MEDIA_TYPE) },
       { name: "manifest.json", data: utf8("{}") },
@@ -277,11 +277,11 @@ describe("container", () => {
     ];
     // A local header the central directory never mentions, between two real entries.
     const zip = rawZip([...entries.slice(0, 2), { name: "files/hidden.txt", data: utf8("evil"), omitFromDirectory: true }, ...entries.slice(2)]);
-    expectRejected(zip, "zip");
+    await expectRejected(zip, "zip");
   });
 
-  it("rejects an entry whose declared size is smaller than its contents", () => {
-    const zip = writeContainer(contents());
+  it("rejects an entry whose declared size is smaller than its contents", async () => {
+    const zip = await writeContainer(contents());
     // Shrink the declared uncompressed size of the 1000-byte document in the central directory.
     const view = new DataView(zip.buffer);
     for (let pos = 0; pos < zip.length - 4; pos++) {
@@ -289,16 +289,16 @@ describe("container", () => {
         view.setUint32(pos + 24, 999, true);
       }
     }
-    expectRejected(zip);
+    await expectRejected(zip);
   });
 
-  it("never throws anything but FormatError on corrupted input", () => {
-    const zip = writeContainer(contents());
+  it("never throws anything but FormatError on corrupted input", async () => {
+    const zip = await writeContainer(contents());
     for (let i = 0; i < zip.length; i += 7) {
       const corrupted = zip.slice();
       corrupted[i] = (corrupted[i] ?? 0) ^ 0xff;
       try {
-        readContainer(corrupted);
+        await readContainer(corrupted);
       } catch (error) {
         expect(error).toBeInstanceOf(FormatError);
       }

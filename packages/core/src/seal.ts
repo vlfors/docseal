@@ -1,8 +1,9 @@
-import { hash, utf8 } from "./bytes.js";
-import { writeContainer } from "./container.js";
+import { portableSha256, utf8, type Sha256Factory } from "./bytes.js";
+import { writeContainerTo, type DocumentSource } from "./container.js";
 import { jsonHash, sealDigest, signaturesSetHash, signedBytes } from "./digests.js";
 import { toBase64url, toHex } from "./encoding.js";
 import { FormatError } from "./errors.js";
+import { bytesSource, memorySink, readChunks, type ByteSink, type ByteSource } from "./io.js";
 import { leafHash, merkleRoot } from "./merkle.js";
 import {
   HASH_ALGORITHM,
@@ -16,14 +17,12 @@ import {
 } from "./model.js";
 import { checkPathCollisions, comparePaths, normalizePath } from "./paths.js";
 import type { AnchorProvider, KeyProvider } from "./plugins.js";
+import { crc32 } from "./zip.js";
 
 const SALT_LENGTH = 16;
 
-export interface SealFile {
-  path: string;
-  data: Uint8Array;
-  mediaType?: string;
-}
+/** A file to seal: bytes in memory, or a source read in chunks (twice: to hash, then to write). */
+export type SealFile = { path: string; mediaType?: string } & ({ data: Uint8Array } | { source: ByteSource });
 
 export interface SealOptions {
   files: readonly SealFile[];
@@ -34,13 +33,14 @@ export interface SealOptions {
   generator?: string;
   /** Providers the seal is submitted to. Without any, the package has no time proof yet. */
   anchors?: readonly AnchorProvider[];
+  /** SHA-256 used for documents; see {@link Sha256Factory}. */
+  sha256?: Sha256Factory;
   /** Clock and randomness are injectable for reproducible tests. */
   now?: () => Date;
   randomBytes?: (length: number) => Uint8Array;
 }
 
-export interface SealResult {
-  container: Uint8Array;
+export interface SealInfo {
   manifest: Manifest;
   statement: Statement;
   envelope: SignatureEnvelope;
@@ -49,7 +49,22 @@ export interface SealResult {
   seal: string;
 }
 
+export interface SealResult extends SealInfo {
+  container: Uint8Array;
+}
+
+/** Seals into memory. See {@link sealPackageTo} for packages that should not be held in memory. */
 export async function sealPackage(options: SealOptions): Promise<SealResult> {
+  const sink = memorySink();
+  const info = await sealPackageTo(sink, options);
+  return { container: sink.bytes(), ...info };
+}
+
+/**
+ * Seals a package and streams the container to `output`. Every file is read twice, to hash
+ * it and to write it; a file that changes in between makes sealing fail.
+ */
+export async function sealPackageTo(output: ByteSink, options: SealOptions): Promise<SealInfo> {
   const now = options.now ?? (() => new Date());
   const randomBytes = options.randomBytes ?? defaultRandomBytes;
   if (options.files.length === 0) {
@@ -57,17 +72,27 @@ export async function sealPackage(options: SealOptions): Promise<SealResult> {
   }
 
   const files = options.files
-    .map((file) => ({ ...file, path: normalizePath(file.path) }))
+    .map((file) => ({
+      path: normalizePath(file.path),
+      mediaType: file.mediaType,
+      source: "data" in file ? bytesSource(file.data) : file.source,
+    }))
     .sort((a, b) => comparePaths(a.path, b.path));
   checkPathCollisions(files.map((file) => file.path));
 
-  const entries: FileEntry[] = files.map((file) => ({
-    path: file.path,
-    size: file.data.length,
-    ...(file.mediaType === undefined ? {} : { mediaType: file.mediaType }),
-    hash: toHex(hash(file.data)),
-    salt: toHex(randomBytes(SALT_LENGTH)),
-  }));
+  const entries: FileEntry[] = [];
+  const documents: DocumentSource[] = [];
+  for (const file of files) {
+    const { digest, crc } = await digestSource(file.source, options.sha256 ?? portableSha256);
+    entries.push({
+      path: file.path,
+      size: file.source.size,
+      ...(file.mediaType === undefined ? {} : { mediaType: file.mediaType }),
+      hash: toHex(digest),
+      salt: toHex(randomBytes(SALT_LENGTH)),
+    });
+    documents.push({ path: file.path, source: file.source, crc });
+  }
 
   const manifest: Manifest = {
     type: "docseal-manifest",
@@ -126,14 +151,25 @@ export async function sealPackage(options: SealOptions): Promise<SealResult> {
     };
   }
 
-  const container = writeContainer({
+  await writeContainerTo(output, {
     manifest: prettyJson(manifest),
     statement: prettyJson(statement),
-    files: new Map(files.map((file) => [file.path, file.data])),
+    documents,
     signatures: new Map([["signatures/0001.json", prettyJson(envelope)]]),
     anchors: new Map<string, Uint8Array>(anchor ? [["anchors/seal-1.json", prettyJson(anchor)]] : []),
   });
-  return { container, manifest, statement, envelope, ...(anchor ? { anchor } : {}), seal: toHex(seal) };
+  return { manifest, statement, envelope, ...(anchor ? { anchor } : {}), seal: toHex(seal) };
+}
+
+/** SHA-256 for the manifest and CRC-32 for the ZIP headers, in one pass. */
+async function digestSource(source: ByteSource, sha256: Sha256Factory): Promise<{ digest: Uint8Array; crc: number }> {
+  const h = sha256();
+  let crc = 0;
+  for await (const chunk of readChunks(source)) {
+    h.update(chunk);
+    crc = crc32(chunk, crc);
+  }
+  return { digest: h.digest(), crc };
 }
 
 /** Stored JSON is human-readable; hashes never depend on formatting because they use JCS. */

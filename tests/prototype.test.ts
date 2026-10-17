@@ -46,9 +46,10 @@ beforeAll(async () => {
 });
 
 /** Opens the sealed container, lets `change` edit it, and packs it again. */
-function mutate(change: (contents: PackageContents) => void | Promise<void>): Promise<Uint8Array> {
-  const contents = readContainer(sealed);
-  return Promise.resolve(change(contents)).then(() => writeContainer(contents));
+async function mutate(change: (contents: PackageContents) => void | Promise<void>): Promise<Uint8Array> {
+  const contents = await readContainer(sealed);
+  await change(contents);
+  return writeContainer(contents);
 }
 
 function json(bytes: Uint8Array | undefined): Record<string, unknown> {
@@ -76,13 +77,13 @@ describe("prototype", () => {
     expect(report.issues).toEqual([]);
   });
 
-  it("stores paths sorted by UTF-8 bytes", () => {
-    const manifest = json(readContainer(sealed).manifest) as { files: { path: string }[] };
+  it("stores paths sorted by UTF-8 bytes", async () => {
+    const manifest = json((await readContainer(sealed)).manifest) as { files: { path: string }[] };
     expect(manifest.files.map((f) => f.path)).toEqual(["annex/annex-1.txt", "contract.pdf", "Договор.txt"]);
   });
 
   it("detects any single-byte change in any document", async () => {
-    const contents = readContainer(sealed);
+    const contents = await readContainer(sealed);
     const paths = [...contents.files.keys()];
     await fc.assert(
       fc.asyncProperty(fc.constantFrom(...paths), fc.nat(), fc.integer({ min: 1, max: 255 }), async (path, at, xor) => {

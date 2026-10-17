@@ -40,6 +40,9 @@ DocSeal does not prove that a document is true, the signer's identity without an
 | ZIP Slip | Absolute paths, `..`, symlinks, and ambiguous names are rejected |
 | ZIP bomb | Limits on entry count, sizes, and compression ratio; declared sizes checked before inflating; entries may not overlap |
 | ZIP parser differential (an unzip tool extracts other bytes than the verifier checked) | Local headers must match the central directory field by field; no data descriptors; entries must tile the archive with no gaps; CRC-32 checked |
+| An entry that some tools extract under another name (Info-ZIP Unicode Path extra field) | The Unicode Path block is rejected; extra fields must be well formed with no repeated blocks |
+| ZIP64 fields that tools read differently (classic and ZIP64 values that disagree, surplus fields) | Each classic field is a marker or equals its ZIP64 value; the ZIP64 block holds exactly the marked fields; the ZIP64 end record must sit right before its locator |
+| Package or document too large for memory, to exhaust the verifier | Documents are streamed and hashed in 1 MiB chunks; deflate input is fed 64 KiB at a time; the central directory is limited to 64 MiB |
 | Unicode/path collision | NFC, `/` separator, duplicates rejected after normalization and case folding |
 | Unexpected extra entries in the container | Any entry not defined by the specification is rejected in v0.1 |
 | Package text (file names, roles, error details) with terminal escape sequences or bidi marks that redraw the verdict | The CLI escapes control, bidirectional, and zero-width characters in every printed line |

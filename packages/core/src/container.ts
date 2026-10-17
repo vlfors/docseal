@@ -1,18 +1,17 @@
 /**
- * Reading and writing the `.dseal` ZIP container (FORMAT-v0.1 §Container).
+ * The `.dseal` container (FORMAT-v0.1 §Container): which entries may exist, limits, and the
+ * order they are written in. ZIP details live in zip.ts and zip-writer.ts.
  *
- * The central directory is parsed here rather than by a general-purpose unzip routine,
- * because safe extraction needs what those hide: duplicate names, Unix file types
- * (symlinks), overlapping entries, and declared sizes before anything is inflated.
- * Local headers must agree with the central directory and entries must be contiguous,
- * so that a streaming unzip tool, which reads local headers, sees exactly the bytes
- * DocSeal verified. fflate is only used to deflate and inflate individual entries.
+ * Small JSON entries are read into memory; documents are only ever streamed, so packages
+ * larger than memory can be verified.
  */
-import { inflateSync, zipSync, type Zippable } from "fflate";
 import { equalBytes, utf8 } from "./bytes.js";
-import { FormatError } from "./errors.js";
 import { MEDIA_TYPE } from "./constants.js";
+import { FormatError } from "./errors.js";
+import { bytesSource, memorySink, readAll, readChunks, type ByteSink, type ByteSource } from "./io.js";
 import { checkPathCollisions, validatePath } from "./paths.js";
+import { entryChunks, rawChunks, readEntry, readZipDirectory, METHOD_STORED, type ZipEntry } from "./zip.js";
+import { ZipWriter, type ZipWriterOptions } from "./zip-writer.js";
 
 const MiB = 1024 * 1024;
 const GiB = 1024 * MiB;
@@ -26,75 +25,48 @@ export interface ContainerLimits {
   maxCompressionRatio: number;
 }
 
-/**
- * Defaults for this in-memory implementation: every document is held in memory while it is
- * verified, so the limits are what a typical machine can hold, not what the format allows.
- */
 export const DEFAULT_LIMITS: Readonly<ContainerLimits> = {
   maxEntries: 10_100,
-  maxDocumentSize: 1 * GiB,
-  maxTotalDocumentSize: 2 * GiB,
+  maxDocumentSize: 16 * GiB,
+  maxTotalDocumentSize: 64 * GiB,
   maxJsonSize: 16 * MiB,
   maxCompressionRatio: 1000,
 };
 
-export interface PackageContents {
+/** Documents up to this size are deflated in memory when sealing; larger ones are stored and streamed. */
+export const COMPRESS_MAX_SIZE = 8 * MiB;
+
+/** A document inside an opened container. Its contents are read only when asked for. */
+export interface DocumentEntry {
+  /** Manifest path, without the `files/` prefix. */
+  readonly path: string;
+  /** Declared uncompressed size. */
+  readonly size: number;
+  /**
+   * The contents, chunk by chunk. Throws FormatError if they turn out longer or shorter than
+   * declared, or fail the CRC-32 check, so a consumer must read to the end.
+   */
+  chunks(): AsyncIterable<Uint8Array>;
+}
+
+export interface Container {
   manifest: Uint8Array;
   statement: Uint8Array;
-  /** Documents keyed by manifest path (without the `files/` prefix). */
-  files: Map<string, Uint8Array>;
+  /** Documents keyed by manifest path, in container order. */
+  files: ReadonlyMap<string, DocumentEntry>;
   /** Envelopes keyed by entry name, e.g. `signatures/0001.json`. */
   signatures: Map<string, Uint8Array>;
   /** Anchor files keyed by entry name, e.g. `anchors/seal-1.json`. */
   anchors: Map<string, Uint8Array>;
 }
 
-const SIGNATURE_NAME = /^signatures\/[0-9]{4,}\.json$/;
-const ANCHOR_NAME = /^anchors\/seal-[1-9][0-9]*\.json$/;
-// Entries are timestamped with the DOS epoch so the same contents give the same container bytes.
-const FIXED_MTIME = new Date(1980, 0, 1);
-
-export function writeContainer(contents: PackageContents): Uint8Array {
-  const entries: Zippable = {
-    mimetype: [utf8(MEDIA_TYPE), { level: 0 }],
-    "manifest.json": contents.manifest,
-    "statement.json": contents.statement,
-  };
-  for (const [path, data] of contents.files) {
-    entries[`files/${path}`] = data;
-  }
-  for (const [name, data] of [...contents.signatures, ...contents.anchors]) {
-    entries[name] = data;
-  }
-  return zipSync(entries, { mtime: FIXED_MTIME });
-}
-
-const LOCAL_HEADER = 0x04034b50;
-const CENTRAL_HEADER = 0x02014b50;
-const END_OF_CENTRAL_DIRECTORY = 0x06054b50;
-
-const ZIP64_MARKER_16 = 0xffff;
-const ZIP64_MARKER_32 = 0xffffffff;
-const FLAG_ENCRYPTED = 0x0001;
-const FLAG_DATA_DESCRIPTOR = 0x0008;
-const FLAG_UTF8 = 0x0800;
-const METHOD_STORED = 0;
-const METHOD_DEFLATE = 8;
-const HOST_UNIX = 3;
-const UNIX_TYPE_MASK = 0o170000;
-const UNIX_REGULAR = 0o100000;
-const UNIX_DIRECTORY = 0o040000;
-
-interface CentralEntry {
-  name: string;
-  nameBytes: Uint8Array;
-  flags: number;
-  method: number;
-  crc: number;
-  compressedSize: number;
-  size: number;
-  localOffset: number;
-  dataOffset: number;
+/** A container read wholly into memory: for small packages and tests. */
+export interface PackageContents {
+  manifest: Uint8Array;
+  statement: Uint8Array;
+  files: Map<string, Uint8Array>;
+  signatures: Map<string, Uint8Array>;
+  anchors: Map<string, Uint8Array>;
 }
 
 type EntryKind =
@@ -102,16 +74,25 @@ type EntryKind =
   | { kind: "file"; path: string }
   | { kind: "signature" | "anchor"; name: string };
 
-export function readContainer(zip: Uint8Array, limits: ContainerLimits = DEFAULT_LIMITS): PackageContents {
-  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
-  const entries = readCentralDirectory(zip, view, limits);
+const SIGNATURE_NAME = /^signatures\/[0-9]{4,}\.json$/;
+const ANCHOR_NAME = /^anchors\/seal-[1-9][0-9]*\.json$/;
+
+/** Where an opened container came from, for copying its entries without recompressing them. */
+const origins = new WeakMap<Container, { source: ByteSource; entries: readonly ZipEntry[] }>();
+
+/**
+ * Checks the whole structure and reads the JSON entries. Documents are not read: their
+ * contents are checked when {@link DocumentEntry.chunks} is consumed.
+ */
+export async function openContainer(source: ByteSource, limits: ContainerLimits = DEFAULT_LIMITS): Promise<Container> {
+  const entries = await readZipDirectory(source, limits);
 
   const first = entries[0];
   if (first?.name !== "mimetype" || first.method !== METHOD_STORED || first.localOffset !== 0) {
     throw invalid("mimetype", "'mimetype' must be the first entry, stored without compression");
   }
 
-  // Classify and check every declared size before inflating anything.
+  // Classify and check every declared size before reading anything.
   const targets = entries.map((entry) => ({ entry, target: classify(entry.name) }));
   let totalDocumentSize = 0;
   for (const { entry, target } of targets) {
@@ -130,201 +111,147 @@ export function readContainer(zip: Uint8Array, limits: ContainerLimits = DEFAULT
     throw invalid("limit", "Documents exceed the total size limit");
   }
 
-  const contents: Partial<PackageContents> & Pick<PackageContents, "files" | "signatures" | "anchors"> = {
-    files: new Map(),
-    signatures: new Map(),
-    anchors: new Map(),
-  };
+  let manifest: Uint8Array | undefined;
+  let statement: Uint8Array | undefined;
+  const files = new Map<string, DocumentEntry>();
+  const signatures = new Map<string, Uint8Array>();
+  const anchors = new Map<string, Uint8Array>();
   for (const { entry, target } of targets) {
-    if (target.kind === "directory") {
-      continue;
-    }
-    const data = extract(zip, entry, limits);
     switch (target.kind) {
+      case "directory":
+        break;
+      case "file":
+        files.set(target.path, { path: target.path, size: entry.size, chunks: () => entryChunks(source, entry) });
+        break;
       case "mimetype":
-        if (!equalBytes(data, utf8(MEDIA_TYPE))) {
+        if (!equalBytes(await readEntry(source, entry), utf8(MEDIA_TYPE))) {
           throw invalid("mimetype", `'mimetype' must contain ${MEDIA_TYPE}`);
         }
         break;
       case "manifest":
-        contents.manifest = data;
+        manifest = await readEntry(source, entry);
         break;
       case "statement":
-        contents.statement = data;
-        break;
-      case "file":
-        contents.files.set(target.path, data);
+        statement = await readEntry(source, entry);
         break;
       case "signature":
-        contents.signatures.set(target.name, data);
+        signatures.set(target.name, await readEntry(source, entry));
         break;
       case "anchor":
-        contents.anchors.set(target.name, data);
+        anchors.set(target.name, await readEntry(source, entry));
         break;
     }
   }
-  if (!contents.manifest || !contents.statement) {
+  if (!manifest || !statement) {
     throw invalid("missing-entry", "'manifest.json' and 'statement.json' are required");
   }
-  checkPathCollisions(contents.files.keys());
-  return contents as PackageContents;
+  checkPathCollisions(files.keys());
+  const container: Container = { manifest, statement, files, signatures, anchors };
+  origins.set(container, { source, entries });
+  return container;
 }
 
-function readCentralDirectory(zip: Uint8Array, view: DataView, limits: ContainerLimits): CentralEntry[] {
-  const end = findEndOfCentralDirectory(view);
-  const diskNumber = view.getUint16(end + 4, true);
-  const directoryDisk = view.getUint16(end + 6, true);
-  const entriesOnDisk = view.getUint16(end + 8, true);
-  const totalEntries = view.getUint16(end + 10, true);
-  const directorySize = view.getUint32(end + 12, true);
-  const directoryOffset = view.getUint32(end + 16, true);
-
-  if (totalEntries === ZIP64_MARKER_16 || directorySize === ZIP64_MARKER_32 || directoryOffset === ZIP64_MARKER_32) {
-    throw zip64();
+/** Reads a whole container into memory, checking every document. */
+export async function readContainer(zip: Uint8Array, limits: ContainerLimits = DEFAULT_LIMITS): Promise<PackageContents> {
+  const container = await openContainer(bytesSource(zip), limits);
+  const files = new Map<string, Uint8Array>();
+  for (const [path, entry] of container.files) {
+    const parts: Uint8Array[] = [];
+    for await (const chunk of entry.chunks()) {
+      parts.push(chunk);
+    }
+    files.set(path, concat(parts, entry.size));
   }
-  if (diskNumber !== 0 || directoryDisk !== 0 || entriesOnDisk !== totalEntries) {
-    throw invalid("zip", "Multi-disk archives are not supported");
-  }
-  if (totalEntries > limits.maxEntries) {
-    throw invalid("limit", `More than ${String(limits.maxEntries)} entries`);
-  }
-  if (directoryOffset + directorySize !== end) {
-    throw invalid("zip", "Unexpected data around the central directory");
-  }
-
-  const entries: CentralEntry[] = [];
-  const names = new Set<string>();
-  let pos = directoryOffset;
-  for (let i = 0; i < totalEntries; i++) {
-    if (pos + 46 > end || view.getUint32(pos, true) !== CENTRAL_HEADER) {
-      throw invalid("zip", "Corrupt central directory");
-    }
-    const madeBy = view.getUint16(pos + 4, true);
-    const flags = view.getUint16(pos + 8, true);
-    const method = view.getUint16(pos + 10, true);
-    const crc = view.getUint32(pos + 16, true);
-    const compressedSize = view.getUint32(pos + 20, true);
-    const size = view.getUint32(pos + 24, true);
-    const nameLength = view.getUint16(pos + 28, true);
-    const extraLength = view.getUint16(pos + 30, true);
-    const commentLength = view.getUint16(pos + 32, true);
-    const externalAttributes = view.getUint32(pos + 38, true);
-    const localOffset = view.getUint32(pos + 42, true);
-    const nameBytes = zip.subarray(pos + 46, pos + 46 + nameLength);
-    pos += 46 + nameLength + extraLength + commentLength;
-    if (pos > end) {
-      throw invalid("zip", "Corrupt central directory");
-    }
-
-    const name = decodeName(nameBytes, flags);
-    if (names.has(name)) {
-      throw invalid("duplicate-entry", `Duplicate entry ${JSON.stringify(name)}`);
-    }
-    names.add(name);
-    if (compressedSize === ZIP64_MARKER_32 || size === ZIP64_MARKER_32 || localOffset === ZIP64_MARKER_32) {
-      throw zip64();
-    }
-    if (flags & FLAG_ENCRYPTED) {
-      throw invalid("zip", `Entry ${JSON.stringify(name)} is encrypted`);
-    }
-    if (flags & FLAG_DATA_DESCRIPTOR) {
-      throw invalid("zip", `Entry ${JSON.stringify(name)} uses a data descriptor; sizes must be in the local header`);
-    }
-    if (method !== METHOD_STORED && method !== METHOD_DEFLATE) {
-      throw new FormatError("zip", `Entry ${JSON.stringify(name)} uses compression method ${String(method)}`, "unsupported");
-    }
-    if (madeBy >> 8 === HOST_UNIX) {
-      const type = (externalAttributes >>> 16) & UNIX_TYPE_MASK;
-      const allowed = name.endsWith("/") ? UNIX_DIRECTORY : UNIX_REGULAR;
-      if (type !== 0 && type !== allowed) {
-        throw invalid("entry-type", `Entry ${JSON.stringify(name)} is a symlink or special file`);
-      }
-    }
-    if (method === METHOD_STORED ? compressedSize !== size : size > Math.max(compressedSize, 1) * limits.maxCompressionRatio) {
-      throw invalid("limit", `Entry ${JSON.stringify(name)} exceeds the compression ratio limit`);
-    }
-
-    entries.push({ name, nameBytes, flags, method, crc, compressedSize, size, localOffset, dataOffset: 0 });
-  }
-  if (pos !== end) {
-    throw invalid("zip", "Corrupt central directory");
-  }
-
-  for (const entry of entries) {
-    entry.dataOffset = readLocalHeader(view, zip, entry, directoryOffset);
-  }
-  checkContiguous(entries, directoryOffset);
-  return entries;
+  return { ...container, files };
 }
 
-function findEndOfCentralDirectory(view: DataView): number {
-  const minimum = Math.max(0, view.byteLength - 22 - 0xffff);
-  for (let pos = view.byteLength - 22; pos >= minimum; pos--) {
-    if (view.getUint32(pos, true) === END_OF_CENTRAL_DIRECTORY && pos + 22 + view.getUint16(pos + 20, true) === view.byteLength) {
-      return pos;
-    }
-  }
-  throw invalid("zip", "Not a ZIP archive");
+/** A document to write: its size and CRC-32 must be known before its contents are streamed. */
+export interface DocumentSource {
+  path: string;
+  source: ByteSource;
+  crc: number;
 }
 
-/** The local header must describe the same entry as the central directory, field by field. */
-function readLocalHeader(view: DataView, zip: Uint8Array, entry: CentralEntry, directoryOffset: number): number {
-  const pos = entry.localOffset;
-  const where = JSON.stringify(entry.name);
-  if (pos + 30 > directoryOffset || view.getUint32(pos, true) !== LOCAL_HEADER) {
-    throw invalid("zip", `Corrupt local header for ${where}`);
-  }
-  if (
-    view.getUint16(pos + 6, true) !== entry.flags ||
-    view.getUint16(pos + 8, true) !== entry.method ||
-    view.getUint32(pos + 14, true) !== entry.crc ||
-    view.getUint32(pos + 18, true) !== entry.compressedSize ||
-    view.getUint32(pos + 22, true) !== entry.size
-  ) {
-    throw invalid("zip", `Local header of ${where} disagrees with the central directory`);
-  }
-  const nameLength = view.getUint16(pos + 26, true);
-  const extraLength = view.getUint16(pos + 28, true);
-  if (!equalBytes(zip.subarray(pos + 30, pos + 30 + nameLength), entry.nameBytes)) {
-    throw invalid("zip", `Local and central names differ for ${where}`);
-  }
-  const dataOffset = pos + 30 + nameLength + extraLength;
-  if (dataOffset + entry.compressedSize > directoryOffset) {
-    throw invalid("zip", `Entry ${where} extends past the central directory`);
-  }
-  return dataOffset;
+export interface ContainerParts {
+  manifest: Uint8Array;
+  statement: Uint8Array;
+  documents: readonly DocumentSource[];
+  signatures: ReadonlyMap<string, Uint8Array>;
+  anchors: ReadonlyMap<string, Uint8Array>;
 }
 
 /**
- * Entries must tile the archive from offset 0 to the central directory: no overlaps (which
- * "overlapping file" ZIP bombs need) and no gaps (where a second, hidden local entry could sit).
+ * Writes a container: mimetype, manifest, statement, documents, signatures, anchors.
+ * Documents up to {@link COMPRESS_MAX_SIZE} are deflated when that helps; larger ones are
+ * stored and streamed, so their size never matters for memory.
  */
-function checkContiguous(entries: readonly CentralEntry[], directoryOffset: number): void {
-  const ranges = entries
-    .map((entry) => ({ start: entry.localOffset, end: entry.dataOffset + entry.compressedSize }))
-    .sort((a, b) => a.start - b.start);
-  let expected = 0;
-  for (const range of ranges) {
-    if (range.start !== expected) {
-      throw invalid("zip", range.start < expected ? "Entries overlap" : "Unaccounted data between entries");
+export async function writeContainerTo(sink: ByteSink, parts: ContainerParts, options: ZipWriterOptions = {}): Promise<void> {
+  const zip = new ZipWriter(sink, options);
+  await writeHead(zip, parts.manifest, parts.statement);
+  for (const document of parts.documents) {
+    const name = `files/${document.path}`;
+    if (document.source.size <= COMPRESS_MAX_SIZE) {
+      await zip.add(name, await readAll(document.source), { compress: true, crc: document.crc });
+    } else {
+      await zip.addStored(name, document.source.size, document.crc, readChunks(document.source));
     }
-    expected = range.end;
   }
-  if (expected !== directoryOffset) {
-    throw invalid("zip", "Unaccounted data before the central directory");
-  }
+  await writeTail(zip, parts.signatures, parts.anchors);
+  await zip.finish();
 }
 
-const utf8Decoder = new TextDecoder("utf-8", { fatal: true });
-
-function decodeName(bytes: Uint8Array, flags: number): string {
-  if (!(flags & FLAG_UTF8) && bytes.some((byte) => byte >= 0x80)) {
-    throw invalid("entry-name", "Non-ASCII entry names must be flagged as UTF-8");
+/** In-memory counterpart of {@link writeContainerTo}. */
+export async function writeContainer(contents: PackageContents, options: ZipWriterOptions = {}): Promise<Uint8Array> {
+  const sink = memorySink();
+  const zip = new ZipWriter(sink, options);
+  await writeHead(zip, contents.manifest, contents.statement);
+  for (const [path, data] of contents.files) {
+    await zip.add(`files/${path}`, data, { compress: true });
   }
-  try {
-    return utf8Decoder.decode(bytes);
-  } catch {
-    throw invalid("entry-name", "Entry name is not valid UTF-8");
+  await writeTail(zip, contents.signatures, contents.anchors);
+  await zip.finish();
+  return sink.bytes();
+}
+
+/**
+ * Writes an opened container again with different anchor files, copying every other entry's
+ * compressed bytes unchanged. Anchors are outside the signed state, so this is all `upgrade` needs.
+ */
+export async function rewriteAnchors(
+  container: Container,
+  anchors: ReadonlyMap<string, Uint8Array>,
+  sink: ByteSink,
+  options: ZipWriterOptions = {},
+): Promise<void> {
+  const origin = origins.get(container);
+  if (!origin) {
+    throw new Error("Container was not opened with openContainer");
+  }
+  const zip = new ZipWriter(sink, options);
+  for (const entry of origin.entries) {
+    const replacement = anchors.get(entry.name);
+    if (replacement) {
+      await zip.add(entry.name, replacement, { compress: true });
+    } else {
+      await zip.addRaw(entry.name, entry, rawChunks(origin.source, entry));
+    }
+  }
+  await zip.finish();
+}
+
+async function writeHead(zip: ZipWriter, manifest: Uint8Array, statement: Uint8Array): Promise<void> {
+  await zip.add("mimetype", utf8(MEDIA_TYPE), { compress: false });
+  await zip.add("manifest.json", manifest, { compress: true });
+  await zip.add("statement.json", statement, { compress: true });
+}
+
+async function writeTail(
+  zip: ZipWriter,
+  signatures: ReadonlyMap<string, Uint8Array>,
+  anchors: ReadonlyMap<string, Uint8Array>,
+): Promise<void> {
+  for (const [name, data] of [...signatures, ...anchors]) {
+    await zip.add(name, data, { compress: true });
   }
 }
 
@@ -359,53 +286,18 @@ function classify(name: string): EntryKind {
   throw invalid("unexpected-entry", `Unexpected entry ${JSON.stringify(name)}`);
 }
 
-function extract(zip: Uint8Array, entry: CentralEntry, limits: ContainerLimits): Uint8Array {
-  const raw = zip.subarray(entry.dataOffset, entry.dataOffset + entry.compressedSize);
-  let data: Uint8Array;
-  if (entry.method === METHOD_STORED) {
-    data = raw.slice();
-  } else {
-    // One spare byte: fflate silently truncates at the buffer end, so a result longer
-    // than the declared size shows up as `size + 1` without allocating more.
-    try {
-      data = inflateSync(raw, { out: new Uint8Array(entry.size + 1) });
-    } catch (error) {
-      if (error instanceof RangeError) {
-        throw invalid("limit", `Entry ${JSON.stringify(entry.name)} is too large to hold in memory`);
-      }
-      throw invalid("zip", `Entry ${JSON.stringify(entry.name)} is not valid deflate data`);
-    }
-    if (data.length !== entry.size || data.length > Math.max(raw.length, 1) * limits.maxCompressionRatio) {
-      throw invalid("zip", `Entry ${JSON.stringify(entry.name)} does not match its declared size`);
-    }
+function concat(parts: readonly Uint8Array[], length: number): Uint8Array {
+  const out = new Uint8Array(length);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
   }
-  if (crc32(data) !== entry.crc) {
-    throw invalid("zip", `Entry ${JSON.stringify(entry.name)} fails its CRC-32 check`);
-  }
-  return data;
-}
-
-const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) {
-    c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  }
-  return c >>> 0;
-});
-
-/** ZIP's CRC-32 (IEEE 802.3). An integrity check against tool disagreement, not a security hash. */
-export function crc32(data: Uint8Array): number {
-  let crc = 0xffffffff;
-  for (const byte of data) {
-    crc = (CRC_TABLE[(crc ^ byte) & 0xff] ?? 0) ^ (crc >>> 8);
-  }
-  return (crc ^ 0xffffffff) >>> 0;
+  return out;
 }
 
 function invalid(code: string, message: string): FormatError {
   return new FormatError(code, message);
 }
 
-function zip64(): FormatError {
-  return new FormatError("zip64", "ZIP64 archives are not supported yet", "unsupported");
-}
+export { crc32 } from "./zip.js";

@@ -58,14 +58,13 @@ Each file listed in the manifest is stored at `files/<path>`. Signature envelope
   | Limit | Default |
   |---|---|
   | Entries | 10 100 |
-  | Uncompressed size of one document | 1 GiB |
-  | Uncompressed size of all documents | 2 GiB |
+  | Uncompressed size of one document | 16 GiB |
+  | Uncompressed size of all documents | 64 GiB |
   | Uncompressed size of one JSON entry | 16 MiB |
   | Compression ratio of one entry | 1000 : 1 |
+  | Central directory | 64 MiB |
 
-  The document-size defaults are those of the current in-memory reference implementation, which holds every document in memory while verifying it; they are not limits of the format. A streaming verifier MAY use larger defaults.
-
-  Declared sizes of all entries are checked against the limits before anything is decompressed, and actual sizes are enforced while decompressing: an entry that inflates to more than its declared size is rejected. Every entry's CRC-32 MUST match its data.
+  Declared sizes of all entries are checked against the limits before anything is decompressed, and actual sizes are enforced while decompressing: an entry that inflates to more than its declared size is rejected. Every entry's CRC-32 MUST match its data. Documents are meant to be verified as streams: a verifier need not hold a document, or the package, in memory.
 - Absolute paths, `..` and `.` segments, empty segments, backslashes, NUL and other C0 control characters, symlinks, and device entries MUST be rejected.
 - Duplicate entries and collisions after normalization (see [Paths](#paths)) MUST be rejected.
 - **Any entry not defined by this specification MUST be rejected in v0.1** (`format: invalid`). This includes directory entries other than `files/`, `signatures/`, `anchors/` and their subdirectories under `files/`.
@@ -73,8 +72,26 @@ Each file listed in the manifest is stored at `files/<path>`. Signature envelope
 - Data descriptors (general-purpose flag bit 3) MUST be rejected: sizes and CRC-32 belong in the local header.
 - Entries MUST tile the archive: the first local header starts at offset 0, each entry starts exactly where the previous one ends, and the last one ends at the start of the central directory. Overlapping entries (used by ZIP bombs that reuse one compressed stream) and gaps (where an extra local entry could be hidden) are both rejected.
 - Directory entries MUST be empty.
+- Extra fields MUST be well formed: a sequence of blocks, none truncated and no block ID repeated. Unknown blocks (timestamps, Unix IDs) are ignored. The Info-ZIP Unicode Path block (`0x7075`) MUST be rejected, because some tools extract the entry under the name it carries instead of the header name.
 - Contents are never executed and never loaded as plugins.
-- Encrypted ZIP entries and ZIP64 multi-disk archives are rejected. ZIP64 single-disk archives are supported.
+- Encrypted entries and multi-disk archives are rejected: every disk number is 0, and the starting disk of every entry is 0.
+
+### ZIP64
+
+Single-disk ZIP64 archives are supported, and are required once a size, an offset, or the entry count does not fit the classic fields. The rules leave one reading of every value:
+
+- A header field holding its marker (`0xFFFF` or `0xFFFFFFFF`) takes its value from the ZIP64 extra block (`0x0001`); any other value is the value itself.
+- In the central directory, the ZIP64 block MUST contain exactly the fields whose header value is the marker, in the order uncompressed size, compressed size, local header offset, starting disk; no more, no fewer.
+- In a local header, the two sizes are either both values, with no ZIP64 block, or both `0xFFFFFFFF` with a ZIP64 block of exactly the uncompressed and the compressed size (16 bytes). Either way they MUST equal the central directory's.
+- If the ZIP64 end of central directory locator is present right before the end of central directory record, the ZIP64 end record MUST start at the offset the locator names and end exactly where the locator starts, with a record size of 44 (no extensible data). Each field of the classic end record MUST then be its marker or equal to the ZIP64 value. Without a locator, no field of the classic end record may be a marker.
+- The central directory ends exactly where the ZIP64 end record starts, or, without ZIP64, where the classic end record starts.
+- Values above 2^53 − 1 are rejected.
+
+Writers SHOULD use ZIP64 fields only where a value needs them, so that small packages stay readable by older tools.
+
+### Writing
+
+This part is informative. Since sizes and CRC-32 must precede the data, a writer has to know them before writing an entry. The reference implementation therefore reads every document twice when sealing: once to compute SHA-256 and CRC-32, once to write it, and sealing fails if the size or CRC-32 differs on the second read. Documents up to 8 MiB are deflated in memory when that makes them smaller; larger documents are stored uncompressed and streamed, so their size never matters for memory. Entries are written as `mimetype`, `manifest.json`, `statement.json`, documents in manifest order, signatures, anchors.
 
 ## Paths
 

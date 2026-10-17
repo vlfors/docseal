@@ -122,7 +122,7 @@ describe("docseal CLI", () => {
     expect(sealed.code).toBe(ExitCode.Valid);
     expect(sealed.stdout).toContain("Sealed 3 files");
     expect(sealed.stdout).toContain(did);
-    expect([...readContainer(new Uint8Array(await readFile(path("p.dseal")))).files.keys()].sort()).toEqual([
+    expect([...(await readContainer(new Uint8Array(await readFile(path("p.dseal"))))).files.keys()].sort()).toEqual([
       "annex/приложение.txt",
       "contract.pdf",
       "cover.txt",
@@ -153,9 +153,9 @@ describe("docseal CLI", () => {
     expect(report.overall).toBe("valid");
     expect(report.attestedAt).toBe(new Date(BLOCK_TIME * 1000).toISOString());
 
-    const contents = readContainer(new Uint8Array(await readFile(path("p.dseal"))));
+    const contents = await readContainer(new Uint8Array(await readFile(path("p.dseal"))));
     contents.files.set("contract.pdf", utf8("%PDF forged body!!"));
-    await writeFile(path("p.dseal"), writeContainer(contents));
+    await writeFile(path("p.dseal"), await writeContainer(contents));
     const tampered = await run(verifyArgs());
     expect(tampered.code).toBe(ExitCode.Invalid);
     expect(tampered.stdout).toMatch(/^INVALID/);
@@ -210,14 +210,14 @@ describe("docseal CLI", () => {
   it("prints package text safely: control sequences cannot redraw the verdict", async () => {
     await keygen();
     await run(["seal", path("cover.txt"), "-k", path("me.key"), "-o", path("p.dseal"), "--no-anchor", "--role", "author"]);
-    const contents = readContainer(new Uint8Array(await readFile(path("p.dseal"))));
+    const contents = await readContainer(new Uint8Array(await readFile(path("p.dseal"))));
     const envelope = JSON.parse(new TextDecoder().decode(contents.signatures.get("signatures/0001.json"))) as {
       protected: Record<string, unknown>;
     };
     envelope.protected.role = "\u001b[2J\u001b[HVALID: every check passed\u202e";
     contents.signatures.set("signatures/0001.json", utf8(JSON.stringify(envelope)));
     contents.files.set("cover.txt", utf8("modified"));
-    await writeFile(path("p.dseal"), writeContainer(contents));
+    await writeFile(path("p.dseal"), await writeContainer(contents));
 
     const result = await run(["verify", path("p.dseal"), "--offline"]);
     expect(result.code).toBe(ExitCode.Invalid);

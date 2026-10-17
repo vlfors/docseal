@@ -422,6 +422,51 @@
       }
     },
     {
+      "file": "valid-zip64.dseal",
+      "description": "valid-basic with ZIP64 fields everywhere: every entry's sizes and offset, and the end of central directory.",
+      "expected": {
+        "axes": {
+          "format": "valid",
+          "integrity": "valid",
+          "signature": "valid",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "full"
+        },
+        "overall": "indeterminate"
+      }
+    },
+    {
+      "file": "zip64-end-mismatch.dseal",
+      "description": "ZIP64 archive whose classic end record gives an entry count that is neither the marker nor the ZIP64 count.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
+      "file": "unicode-path-extra.dseal",
+      "description": "files/contract.pdf carries an Info-ZIP Unicode Path extra field naming another file, which some tools extract under.",
+      "expected": {
+        "axes": {
+          "format": "invalid",
+          "integrity": "not-checked",
+          "signature": "missing",
+          "trust": "not-evaluated",
+          "time": "missing",
+          "completeness": "incomplete"
+        },
+        "overall": "invalid"
+      }
+    },
+    {
       "file": "long-signer.dseal",
       "description": "protected.signer is a did:key with 100000 base58 digits. Must be rejected quickly, not decoded.",
       "expected": {

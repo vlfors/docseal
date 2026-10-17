@@ -102,7 +102,9 @@ The core must not:
 - load plugin code by name from an untrusted package;
 - implement Ed25519, SHA-256, GOST, or the OpenTimestamps protocol's cryptography itself.
 
-The core uses only platform-neutral APIs (`Uint8Array`, Web Streams, WebCrypto) and does not depend on `fs` or `Buffer`, so the same code runs in the browser in v0.2.
+The core uses only platform-neutral APIs (`Uint8Array`, async iterables, WebCrypto) and does not depend on `fs` or `Buffer`, so the same code runs in the browser in v0.2.
+
+Packages and documents are never required to fit in memory. The core reads through `ByteSource` (random access: a Node file in the CLI, a `Blob` in the browser, or bytes in memory) and writes through `ByteSink` (sequential). Verification streams each document through SHA-256 in chunks; sealing reads each file twice, to hash it and then to write it; `upgrade` copies every entry except the anchor file without decompressing it. An application may pass a native SHA-256 for documents (the CLI uses Node's `crypto`); it is checked against a test vector when `DocSeal` is created.
 
 ## Plugin interfaces
 

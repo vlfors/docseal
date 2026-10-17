@@ -170,4 +170,6 @@ A matching `KeyProvider` could keep the key in a PKCS#11 token or a cloud KMS. T
 | `@docseal/sig-ed25519` | `ed25519Suite()`, `memoryKeyProvider()`, `did:key` helpers |
 | `@docseal/anchor-ots` | `openTimestamps()`, `esploraChainReader()`, the `.ots` format — see [OPENTIMESTAMPS.md](OPENTIMESTAMPS.md) |
 
+Besides plugins, `DocSeal` accepts `sha256`, a factory for incremental SHA-256 used on documents. The portable default is pure JavaScript; the CLI passes Node's `crypto`, which is several times faster on large files. It is checked against a known test vector when `DocSeal` is created. Packages are read and written through `ByteSource` and `ByteSink` (`verify(source)`, `sealTo(sink, …)`, `upgradeTo(source, …)`), so they never have to fit in memory.
+
 Planned extension points (not in v0.1): X.509/CMS and WebAuthn suites, HSM/KMS key providers, an X.509 trust policy, RFC 3161 timestamps, and a Bitcoin Core `ChainReader`.

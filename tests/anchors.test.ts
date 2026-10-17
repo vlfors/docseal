@@ -79,6 +79,17 @@ function anchorOf(contents: PackageContents): AnchorFile {
 }
 
 describe("anchoring", () => {
+  it("upgrade rewrites only the anchor file and copies every other entry byte for byte", async () => {
+    const { cal, docseal, sealed } = await setup();
+    cal.confirm();
+    const { container } = await docseal.upgrade(sealed.container);
+    // Entries are written in order and the anchor comes last, so everything before it is unchanged.
+    const anchorAt = localHeaderOf(sealed.container, "anchors/seal-1.json");
+    expect(localHeaderOf(container, "anchors/seal-1.json")).toBe(anchorAt);
+    expect(Buffer.compare(container.subarray(0, anchorAt), sealed.container.subarray(0, anchorAt))).toBe(0);
+    expect(Buffer.compare(container, sealed.container)).not.toBe(0);
+  });
+
   it("goes from pending to fully valid after upgrade", async () => {
     const { cal, docseal, sealed } = await setup();
     expect(sealed.anchor?.seal).toBe(sealed.seal);
@@ -139,11 +150,11 @@ describe("anchoring", () => {
   it("rejects an anchor moved from another package", async () => {
     const first = await setup();
     const second = await setup();
-    const contents = readContainer(second.sealed.container);
-    const foreign = readContainer(first.sealed.container).anchors.get("anchors/seal-1.json");
+    const contents = await readContainer(second.sealed.container);
+    const foreign = (await readContainer(first.sealed.container)).anchors.get("anchors/seal-1.json");
     if (!foreign) throw new Error("missing anchor");
     contents.anchors.set("anchors/seal-1.json", foreign);
-    const report = await second.docseal.verify(writeContainer(contents));
+    const report = await second.docseal.verify(await writeContainer(contents));
     expect(report.axes.time).toBe("invalid");
     expect(report.overall).toBe("invalid");
   });
@@ -162,11 +173,11 @@ describe("anchoring", () => {
         if (receipt) receipt.digest = "22".repeat(32);
       },
     ]) {
-      const contents = readContainer(sealed.container);
+      const contents = await readContainer(sealed.container);
       const anchor = anchorOf(contents);
       edit(anchor);
       contents.anchors.set("anchors/seal-1.json", utf8(JSON.stringify(anchor)));
-      expect((await docseal.verify(writeContainer(contents))).axes.time).toBe("invalid");
+      expect((await docseal.verify(await writeContainer(contents))).axes.time).toBe("invalid");
     }
   });
 
@@ -190,23 +201,23 @@ describe("anchoring", () => {
         for (const r of a.receipts) r.digest = "22".repeat(32);
       },
     ]) {
-      const contents = readContainer(sealed.container);
+      const contents = await readContainer(sealed.container);
       const anchor = anchorOf(contents);
       edit(anchor);
       contents.anchors.set("anchors/seal-1.json", utf8(JSON.stringify(anchor)));
-      expect((await verifier.verify(writeContainer(contents))).axes.time).toBe("invalid");
+      expect((await verifier.verify(await writeContainer(contents))).axes.time).toBe("invalid");
     }
   });
 
   it("invalidates the anchor when a signature is added afterwards", async () => {
     const { docseal, sealed } = await setup();
-    const contents = readContainer(sealed.container);
+    const contents = await readContainer(sealed.container);
     const envelope = contents.signatures.get("signatures/0001.json");
     if (!envelope) throw new Error("missing");
     const copy = parseJson(envelope) as { protected: { role?: string } };
     copy.protected.role = "witness"; // breaks this signature, but the point is the seal no longer covers the set
     contents.signatures.set("signatures/0002.json", utf8(JSON.stringify(copy)));
-    const report = await docseal.verify(writeContainer(contents));
+    const report = await docseal.verify(await writeContainer(contents));
     expect(report.axes.time).toBe("invalid");
   });
 
@@ -230,3 +241,14 @@ describe("anchoring", () => {
     expect((await docseal.verify(result.container)).axes.time).toBe("missing");
   });
 });
+
+function localHeaderOf(zip: Uint8Array, name: string): number {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+  const target = utf8(name);
+  for (let pos = 0; pos < zip.length - 30; pos++) {
+    if (view.getUint32(pos, true) === 0x04034b50 && target.every((byte, i) => zip[pos + 30 + i] === byte)) {
+      return pos;
+    }
+  }
+  throw new Error(`no local header for ${name}`);
+}

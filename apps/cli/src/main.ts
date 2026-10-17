@@ -3,13 +3,14 @@ import {
   DocSeal,
   FORMAT_VERSION,
   FormatError,
+  openContainer,
   parseAnchorFile,
   parseJson,
   parseTrustedKeys,
   pinnedKeys,
-  readContainer,
   utf8,
   type AnchorProvider,
+  type ByteSource,
   type VerificationReport,
 } from "@docseal/core";
 import {
@@ -23,7 +24,8 @@ import {
   openKeyFile,
 } from "@docseal/sig-ed25519";
 import { Command, CommanderError, InvalidArgumentError, Option } from "commander";
-import { collectFiles, readInput, writeOutput } from "./files.js";
+import { createHash } from "node:crypto";
+import { collectFiles, createOutput, openFileSource, readInput, withOutput, writeOutput, type OutputFile } from "./files.js";
 import { CliError, ExitCode, type Io } from "./io.js";
 import { formatReport } from "./report.js";
 import { sanitize } from "./sanitize.js";
@@ -106,16 +108,17 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
         const docseal = new DocSeal({
           signatures: [ed25519Suite()],
           anchors: options.anchor ? [anchorProvider(io, { calendars: options.calendar })] : [],
+          sha256: nodeSha256,
         });
-        const result = await docseal.seal({
-          files,
-          signer: memoryKeyProvider(seed),
-          role: options.role,
-          ...(options.title === undefined ? {} : { metadata: { title: options.title } }),
-          generator: `docseal-cli/${VERSION}`,
-        });
-        seed.fill(0);
-        await writeOutput(options.output, result.container, { overwrite: options.force === true });
+        const result = await withOutput(options.output, { overwrite: options.force === true }, (sink) =>
+          docseal.sealTo(sink, {
+            files,
+            signer: memoryKeyProvider(seed),
+            role: options.role,
+            ...(options.title === undefined ? {} : { metadata: { title: options.title } }),
+            generator: `docseal-cli/${VERSION}`,
+          }),
+        ).finally(() => seed.fill(0));
         io.stdout(
           [
             `Sealed ${String(files.length)} file${files.length === 1 ? "" : "s"} into ${options.output}`,
@@ -144,7 +147,6 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
         path: string,
         options: { trust?: string; json?: boolean; chain: string; offline?: boolean; minConfirmations: number },
       ) => {
-        const zip = await readInput(path, "package");
         const trust = options.trust
           ? pinnedKeys(parseTrustedKeys(await readInput(options.trust, "trusted keys file")).keys)
           : undefined;
@@ -153,8 +155,10 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
           anchors: [anchorProvider(io, { minConfirmations: options.minConfirmations })],
           ...(trust ? { trust } : {}),
           ...(options.offline ? {} : { chain: esploraChainReader(options.chain, httpOptions(io)) }),
+          sha256: nodeSha256,
         });
-        const report = await docseal.verify(zip);
+        const source = await openFileSource(path, "package");
+        const report = await docseal.verify(source).finally(() => source.close());
         io.stdout(options.json ? `${JSON.stringify(report, null, 2)}\n` : formatReport(report));
         exitCode = exitCodeFor(report);
       },
@@ -166,16 +170,30 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
     .argument("<package>")
     .option("-o, --output <file>", "write the upgraded package here instead of in place")
     .action(async (path: string, options: { output?: string }) => {
-      const zip = await readInput(path, "package");
       const docseal = new DocSeal({ signatures: [ed25519Suite()], anchors: [anchorProvider(io, {})] });
-      const { container, changed } = await docseal.upgrade(zip);
       const target = options.output ?? path;
-      if (changed || options.output) {
-        await writeOutput(target, container, { overwrite: true });
+      const source = await openFileSource(path, "package");
+      let output: OutputFile | undefined;
+      let changed: boolean;
+      try {
+        // Written only if something changed, or a separate output was asked for.
+        ({ changed } = await docseal.upgradeTo(source, async (didChange) =>
+          didChange || options.output ? (output = await createOutput(target, { overwrite: true })) : undefined,
+        ));
+        await source.close();
+        await output?.commit();
+      } finally {
+        await output?.abort();
+        await source.close().catch(() => undefined);
       }
       io.stdout(`${changed ? `Upgraded ${target}` : "No change: calendars have not committed to Bitcoin yet."}\n`);
-      for (const line of receiptSummary(container)) {
-        io.stdout(`  ${sanitize(line)}\n`);
+      const result = await openFileSource(target, "package");
+      try {
+        for (const line of await receiptSummary(result)) {
+          io.stdout(`  ${sanitize(line)}\n`);
+        }
+      } finally {
+        await result.close();
       }
     });
 
@@ -193,6 +211,17 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
     io.stderr(`docseal: ${sanitize(error instanceof Error ? error.message : String(error))}\n`);
     return ExitCode.Error;
   }
+}
+
+/** Node's native SHA-256: several times faster than portable JavaScript on large documents. */
+function nodeSha256() {
+  const h = createHash("sha256");
+  return {
+    update(chunk: Uint8Array) {
+      h.update(chunk);
+    },
+    digest: () => new Uint8Array(h.digest()),
+  };
 }
 
 function exitCodeFor(report: VerificationReport): number {
@@ -221,9 +250,9 @@ function httpOptions(io: Io) {
   return io.fetch ? { fetch: io.fetch } : {};
 }
 
-function receiptSummary(zip: Uint8Array): string[] {
+async function receiptSummary(source: ByteSource): Promise<string[]> {
   const lines: string[] = [];
-  for (const [entry, bytes] of readContainer(zip).anchors) {
+  for (const [entry, bytes] of (await openContainer(source)).anchors) {
     for (const receipt of parseAnchorFile(parseJson(bytes)).receipts) {
       const status = receipt.cached?.status ?? "unknown";
       const block = receipt.cached?.blockHeight === undefined ? "" : ` at block ${String(receipt.cached.blockHeight)}`;

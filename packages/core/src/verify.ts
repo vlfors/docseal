@@ -1,8 +1,9 @@
-import { hash } from "./bytes.js";
-import { DEFAULT_LIMITS, readContainer, type ContainerLimits, type PackageContents } from "./container.js";
+import { hashStream, type Sha256Factory } from "./bytes.js";
+import { DEFAULT_LIMITS, openContainer, type Container, type ContainerLimits } from "./container.js";
 import { jsonHash, sealDigest, signaturesSetHash, signedBytes } from "./digests.js";
 import { EncodingError, fromBase64url, toHex } from "./encoding.js";
 import { FormatError } from "./errors.js";
+import { bytesSource, type ByteSource } from "./io.js";
 import { parseJson } from "./json.js";
 import { leafHash, merkleRoot } from "./merkle.js";
 import { parseAnchorFile, parseEnvelope, parseManifest, parseStatement, type Manifest, type Statement } from "./model.js";
@@ -27,6 +28,8 @@ export interface VerifyOptions {
   /** Source of public-chain data. Without one, confirmed proofs cannot be checked. */
   chain?: ChainReader;
   limits?: Partial<ContainerLimits>;
+  /** SHA-256 used for documents; see {@link Sha256Factory}. */
+  sha256?: Sha256Factory;
 }
 
 export interface Issue {
@@ -85,7 +88,11 @@ export interface VerificationReport {
   issues: Issue[];
 }
 
-export async function verifyPackage(zip: Uint8Array, options: VerifyOptions): Promise<VerificationReport> {
+/** SHA-256 and size of each document, as found in the container. */
+type DocumentDigests = Map<string, { digest: string; size: number }>;
+
+/** Verifies a package from memory or, without loading it, from a source such as a file. */
+export async function verifyPackage(input: Uint8Array | ByteSource, options: VerifyOptions): Promise<VerificationReport> {
   const report: Omit<VerificationReport, "overall"> = {
     axes: {
       format: "valid",
@@ -102,13 +109,17 @@ export async function verifyPackage(zip: Uint8Array, options: VerifyOptions): Pr
   };
   const finish = (): VerificationReport => ({ overall: overallVerdict(report.axes), ...report });
 
-  let contents: PackageContents;
+  let contents: Container;
   let manifest: Manifest;
   let statement: Statement;
+  let documents: DocumentDigests;
   try {
-    contents = readContainer(zip, { ...DEFAULT_LIMITS, ...options.limits });
+    contents = await openContainer(input instanceof Uint8Array ? bytesSource(input) : input, { ...DEFAULT_LIMITS, ...options.limits });
     manifest = parseManifest(parseJson(contents.manifest));
     statement = parseStatement(parseJson(contents.statement));
+    // Every document is read to the end, which also checks its size and CRC-32: a damaged
+    // container is a format failure, whatever the manifest says.
+    documents = await hashDocuments(contents, options.sha256);
   } catch (error) {
     if (!(error instanceof FormatError)) {
       throw error;
@@ -122,7 +133,7 @@ export async function verifyPackage(zip: Uint8Array, options: VerifyOptions): Pr
   report.merkleRoot = statement.merkleRoot;
   report.statementHash = toHex(statementHash);
 
-  const filesComplete = checkIntegrity(contents, manifest, statement, report);
+  const filesComplete = checkIntegrity(documents, manifest, statement, report);
   const signatures = await checkSignatures(contents, statementHash, options, report);
   // Time first: trust decisions may depend on the proven time, never on a claimed one.
   const time = await checkAnchors(contents, statementHash, signatures.digests, options, report);
@@ -132,9 +143,18 @@ export async function verifyPackage(zip: Uint8Array, options: VerifyOptions): Pr
   return finish();
 }
 
+async function hashDocuments(contents: Container, sha256?: Sha256Factory): Promise<DocumentDigests> {
+  const digests: DocumentDigests = new Map();
+  for (const [path, entry] of contents.files) {
+    const { digest, size } = await hashStream(entry.chunks(), sha256);
+    digests.set(path, { digest: toHex(digest), size });
+  }
+  return digests;
+}
+
 /** Returns whether every manifest file was available to hash. */
 function checkIntegrity(
-  contents: PackageContents,
+  documents: DocumentDigests,
   manifest: Manifest,
   statement: Statement,
   report: Omit<VerificationReport, "overall">,
@@ -158,19 +178,19 @@ function checkIntegrity(
   const listed = new Set<string>();
   for (const entry of manifest.files) {
     listed.add(entry.path);
-    const data = contents.files.get(entry.path);
-    if (data === undefined) {
+    const document = documents.get(entry.path);
+    if (document === undefined) {
       complete = false;
       report.files.push({ path: entry.path, status: "missing" });
       fail("missing-file", "File listed in the manifest is missing", entry.path);
-    } else if (data.length !== entry.size || toHex(hash(data)) !== entry.hash) {
+    } else if (document.size !== entry.size || document.digest !== entry.hash) {
       report.files.push({ path: entry.path, status: "modified" });
       fail("modified-file", "File contents do not match the manifest", entry.path);
     } else {
       report.files.push({ path: entry.path, status: "valid" });
     }
   }
-  for (const path of contents.files.keys()) {
+  for (const path of documents.keys()) {
     if (!listed.has(path)) {
       report.files.push({ path, status: "extra" });
       fail("extra-file", "File is not listed in the manifest", path);
@@ -190,7 +210,7 @@ interface SignatureOutcome {
 }
 
 async function checkSignatures(
-  contents: PackageContents,
+  contents: Container,
   statementHash: Uint8Array,
   options: VerifyOptions,
   report: Omit<VerificationReport, "overall">,
@@ -323,7 +343,7 @@ interface TimeOutcome {
 }
 
 async function checkAnchors(
-  contents: PackageContents,
+  contents: Container,
   statementHash: Uint8Array,
   envelopeDigests: readonly Uint8Array[],
   options: VerifyOptions,

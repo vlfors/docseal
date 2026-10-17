@@ -5,6 +5,7 @@ export * from "./digests.js";
 export * from "./docseal.js";
 export * from "./encoding.js";
 export * from "./errors.js";
+export * from "./io.js";
 export * from "./json.js";
 export * from "./merkle.js";
 export * from "./model.js";

@@ -4,13 +4,16 @@
  * JSON vectors are regenerated on every run and must equal the committed files byte for byte,
  * so a code change that alters the format fails here. Golden packages are fixed artifacts:
  * they are only written with UPDATE_VECTORS=1, and every run verifies the committed files.
+ * UPDATE_VECTORS=missing writes only golden packages that do not exist yet, so the existing
+ * ones stay byte for byte as they were (some were made by another ZIP writer, on purpose).
  *
  *   UPDATE_VECTORS=1 pnpm vitest run tests/vectors.test.ts
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import {
   checkPathCollisions,
   comparePaths,
+  crc32,
   fromHex,
   hash,
   jcs,
@@ -47,6 +50,7 @@ import { describe, expect, it } from "vitest";
 const VECTORS = new URL("../spec/vectors/", import.meta.url);
 const SCHEMAS = new URL("../spec/schemas/", import.meta.url);
 const UPDATE = process.env.UPDATE_VECTORS === "1";
+const ADD_MISSING = UPDATE || process.env.UPDATE_VECTORS === "missing";
 
 // RFC 8032 §7.1 TEST 1 secret key, so signatures can be cross-checked against the RFC.
 const SEED = fromHex("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
@@ -62,7 +66,7 @@ function seeded(label: string): (length: number) => Uint8Array {
 function writeOrCompare(name: string, value: unknown): void {
   const text = `${JSON.stringify(value, null, 2)}\n`;
   const file = new URL(name, VECTORS);
-  if (UPDATE) {
+  if (ADD_MISSING) {
     mkdirSync(new URL(".", file), { recursive: true });
     writeFileSync(file, text);
   }
@@ -372,9 +376,9 @@ async function base(options: { anchor?: boolean; label?: string } = {}): Promise
 }
 
 async function mutate(change: (c: PackageContents) => void, options: { anchor?: boolean } = {}): Promise<Uint8Array> {
-  const contents = readContainer(await base(options));
+  const contents = await readContainer(await base(options));
   change(contents);
-  return writeContainer(contents);
+  return await writeContainer(contents);
 }
 
 /** Offset of the first local (0x04034b50) or central (0x02014b50) header for `name`. */
@@ -584,7 +588,7 @@ const GOLDEN: Golden[] = [
     description: "A container entry marked as a Unix symbolic link.",
     expected: { axes: FORMAT_FAILED, overall: "invalid" },
     build: async () => {
-      const c = readContainer(await base());
+      const c = await readContainer(await base());
       return zipSync({
         mimetype: [utf8("application/vnd.docseal+zip"), { level: 0 }],
         "manifest.json": c.manifest,
@@ -600,7 +604,7 @@ const GOLDEN: Golden[] = [
     description: "mimetype is the first entry but compressed.",
     expected: { axes: FORMAT_FAILED, overall: "invalid" },
     build: async () => {
-      const c = readContainer(await base());
+      const c = await readContainer(await base());
       return zipSync({
         mimetype: [utf8("application/vnd.docseal+zip"), { level: 9 }],
         "manifest.json": c.manifest,
@@ -615,7 +619,7 @@ const GOLDEN: Golden[] = [
     description: "An entry outside the defined layout (META-INF/).",
     expected: { axes: FORMAT_FAILED, overall: "invalid" },
     build: async () => {
-      const c = readContainer(await base());
+      const c = await readContainer(await base());
       return zipSync({
         mimetype: [utf8("application/vnd.docseal+zip"), { level: 0 }],
         "manifest.json": c.manifest,
@@ -691,6 +695,42 @@ const GOLDEN: Golden[] = [
     },
   },
   {
+    file: "valid-zip64.dseal",
+    description: "valid-basic with ZIP64 fields everywhere: every entry's sizes and offset, and the end of central directory.",
+    expected: { axes: OK, overall: "indeterminate" },
+    build: async () => writeContainer(await readContainer(await base()), { forceZip64: true }),
+  },
+  {
+    file: "zip64-end-mismatch.dseal",
+    description: "ZIP64 archive whose classic end record gives an entry count that is neither the marker nor the ZIP64 count.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: async () => {
+      const zip = await writeContainer(await readContainer(await base()), { forceZip64: true });
+      new DataView(zip.buffer, zip.byteOffset, zip.byteLength).setUint16(zip.length - 22 + 10, 3, true);
+      return zip;
+    },
+  },
+  {
+    file: "unicode-path-extra.dseal",
+    description: "files/contract.pdf carries an Info-ZIP Unicode Path extra field naming another file, which some tools extract under.",
+    expected: { axes: FORMAT_FAILED, overall: "invalid" },
+    build: async () => {
+      const c = await readContainer(await base());
+      const name = utf8("files/other.pdf");
+      const unicodePath = new Uint8Array(5 + name.length);
+      unicodePath[0] = 1;
+      new DataView(unicodePath.buffer).setUint32(1, crc32(utf8("files/contract.pdf")), true);
+      unicodePath.set(name, 5);
+      return zipSync({
+        mimetype: [utf8("application/vnd.docseal+zip"), { level: 0 }],
+        "manifest.json": c.manifest,
+        "statement.json": c.statement,
+        ...Object.fromEntries([...c.files].map(([path, data]) => [`files/${path}`, path === "contract.pdf" ? [data, { extra: { 0x7075: unicodePath } }] : data])),
+        ...Object.fromEntries(c.signatures),
+      }, { mtime: new Date(1980, 0, 1) });
+    },
+  },
+  {
     file: "long-signer.dseal",
     description: "protected.signer is a did:key with 100000 base58 digits. Must be rejected quickly, not decoded.",
     expected: { axes: { ...OK, signature: "invalid" }, overall: "invalid" },
@@ -706,7 +746,7 @@ const GOLDEN: Golden[] = [
     description: "The anchor file of a different package was copied in.",
     expected: { axes: { ...OK, time: "invalid" }, overall: "invalid" },
     build: async () => {
-      const other = readContainer(await base({ anchor: true, label: "other package" }));
+      const other = await readContainer(await base({ anchor: true, label: "other package" }));
       return mutate((c) => c.anchors.set("anchors/seal-1.json", other.anchors.get("anchors/seal-1.json") ?? new Uint8Array()), { anchor: true });
     },
   },
@@ -773,7 +813,7 @@ describe("test vectors", () => {
     const index = [];
     for (const golden of GOLDEN) {
       const file = new URL(`packages/${golden.file}`, VECTORS);
-      if (UPDATE) {
+      if (UPDATE || (ADD_MISSING && !existsSync(file))) {
         mkdirSync(new URL("packages/", VECTORS), { recursive: true });
         writeFileSync(file, await golden.build());
       }
@@ -788,7 +828,7 @@ describe("test vectors", () => {
     });
   });
 
-  it("documents in the golden packages conform to the JSON Schemas", () => {
+  it("documents in the golden packages conform to the JSON Schemas", async () => {
     const ajv = new Ajv2020({ strict: true, allErrors: true });
     const schema = (name: string) => ajv.compile(JSON.parse(readFileSync(new URL(name, SCHEMAS), "utf8")) as object);
     const validators = {
@@ -798,7 +838,7 @@ describe("test vectors", () => {
       anchor: schema("anchor.schema.json"),
     };
     for (const file of ["valid-basic.dseal", "valid-single-file.dseal", "valid-pending-anchor.dseal"]) {
-      const c = readContainer(new Uint8Array(readFileSync(new URL(`packages/${file}`, VECTORS))));
+      const c = await readContainer(new Uint8Array(readFileSync(new URL(`packages/${file}`, VECTORS))));
       expect(validators.manifest(json(c.manifest)), JSON.stringify(validators.manifest.errors)).toBe(true);
       expect(validators.statement(json(c.statement)), JSON.stringify(validators.statement.errors)).toBe(true);
       for (const bytes of c.signatures.values()) {
@@ -810,6 +850,6 @@ describe("test vectors", () => {
     }
     // A schema that accepts everything would pass the loop above.
     expect(validators.statement({ type: "docseal-package-statement" })).toBe(false);
-    expect(validators.manifest({ ...json(readContainer(new Uint8Array(readFileSync(new URL("packages/valid-basic.dseal", VECTORS)))).manifest), files: [] })).toBe(false);
+    expect(validators.manifest({ ...json((await readContainer(new Uint8Array(readFileSync(new URL("packages/valid-basic.dseal", VECTORS))))).manifest), files: [] })).toBe(false);
   });
 });

@@ -75,13 +75,13 @@ describe("DocSeal registry", () => {
     const docseal = new DocSeal({ signatures: [ed25519Suite()], trust: pinnedKeys([await alice.getSigner()]) });
     const { container } = await docseal.seal({ files, signer: alice });
 
-    const contents = readContainer(container);
+    const contents = await readContainer(container);
     const original = parseJson(contents.signatures.get("signatures/0001.json") ?? new Uint8Array()) as SignatureEnvelope;
     const header = { ...original.protected, signer: await stranger.getSigner(), role: "approver" };
     const added: SignatureEnvelope = { protected: header, value: toBase64url(await stranger.sign(signedBytes(header))) };
     contents.signatures.set("signatures/0002.json", utf8(JSON.stringify(added)));
 
-    const report = await docseal.verify(writeContainer(contents));
+    const report = await docseal.verify(await writeContainer(contents));
     expect(report.axes.signature).toBe("valid");
     expect(report.axes.trust).toBe("untrusted");
     expect(report.overall).toBe("indeterminate");
