@@ -4,7 +4,7 @@ This roadmap describes the current direction of the project. It is not a commitm
 
 ## v0.1 — Core and CLI
 
-- [ ] Freeze the versioned `.dseal` specification.
+- [ ] Freeze the versioned `.dseal` specification. *Release candidate 1 published ([FORMAT-v0.1.md](docs/FORMAT-v0.1.md)); frozen with the first release, after fuzzing.*
 - [x] Implement a safe fat package with documents inside.
 - [x] Add `manifest.json`, `statement.json`, and JSON Schemas.
 - [x] Implement streaming SHA-256 hashing, streaming container I/O, and ZIP64.

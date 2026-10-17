@@ -225,6 +225,45 @@ async function signatureVectors() {
     return new Uint8Array([...rEncoding, ...le32((k * scalar) % L)]);
   };
   const universal = new Uint8Array([...le32(1n), ...le32(0n)]);
+
+  // Signatures that only a cofactored check ([8]SB = [8]R + [8]kA) accepts: R or A carries a
+  // point of order 8. Cofactorless libraries (OpenSSL) reject them, so the profile requires
+  // R and A to be in the prime-order subgroup, where both checks agree.
+  const torsion = ed25519.Point.fromBytes(fromHex(SMALL_ORDER_Y[2] ?? ""));
+  const challenge = (rBytes: Uint8Array, aBytes: Uint8Array, message: Uint8Array) =>
+    fromLe(sha512(new Uint8Array([...rBytes, ...aBytes, ...message]))) % L;
+  const torsionInR = (() => {
+    const r = 123456789n;
+    const rBytes = ed25519.Point.BASE.multiply(r).add(torsion).toBytes();
+    return new Uint8Array([...rBytes, ...le32((r + challenge(rBytes, pointBytes, bytes) * scalar) % L)]);
+  })();
+  const torsionInA = (() => {
+    const aBytes = ed25519.Point.BASE.multiply(scalar).add(torsion).toBytes();
+    const signer = publicKeyToDid(aBytes);
+    const message = signedBytes({ ...header, signer });
+    // Pick a nonce whose challenge is not a multiple of 8, so the torsion does not cancel.
+    for (let r = 1n; ; r++) {
+      const rBytes = ed25519.Point.BASE.multiply(r).toBytes();
+      const k = challenge(rBytes, aBytes, message);
+      if (k % 8n !== 0n) {
+        return { did: signer, signature: new Uint8Array([...rBytes, ...le32((r + k * scalar) % L)]) };
+      }
+    }
+  })();
+  // Torsion T in both: R + kA = rB + kaB + (1 + k)T, so with k ≡ 7 (mod 8) it cancels and even a
+  // cofactorless check accepts. Only the subgroup rule rejects it.
+  const cancellingTorsion = (() => {
+    const aBytes = ed25519.Point.BASE.multiply(scalar).add(torsion).toBytes();
+    const signer = publicKeyToDid(aBytes);
+    const message = signedBytes({ ...header, signer });
+    for (let r = 1n; ; r++) {
+      const rBytes = ed25519.Point.BASE.multiply(r).add(torsion).toBytes();
+      const k = challenge(rBytes, aBytes, message);
+      if (k % 8n === 7n) {
+        return { did: signer, signature: new Uint8Array([...rBytes, ...le32((r + k * scalar) % L)]) };
+      }
+    }
+  })();
   const check = (signer: string, h: unknown, sig: Uint8Array, valid: boolean) => ({
     signer,
     protected: h,
@@ -239,6 +278,15 @@ async function signatureVectors() {
     { name: "non-canonical S (S + L)", ...check(did, header, new Uint8Array([...signature.slice(0, 32), ...le32(fromLe(signature.slice(32)) + L)]), false) },
     { name: "nonce r = 0, canonical R (valid under RFC 8032)", ...check(did, header, zeroNonce(le32(1n)), true) },
     { name: "nonce r = 0, non-canonical R (y = p + 1)", ...check(did, header, zeroNonce(le32(P + 1n)), false) },
+    { name: "R with a small-order component (valid only under the cofactored equation)", ...check(did, header, torsionInR, false) },
+    {
+      name: "public key with a small-order component (valid only under the cofactored equation)",
+      ...check(torsionInA.did, { ...header, signer: torsionInA.did }, torsionInA.signature, false),
+    },
+    {
+      name: "R and public key with cancelling small-order components (valid under both equations)",
+      ...check(cancellingTorsion.did, { ...header, signer: cancellingTorsion.did }, cancellingTorsion.signature, false),
+    },
     ...SMALL_ORDER_Y.flatMap((y) =>
       [0, 0x80].map((sign) => {
         const key = fromHex(y);

@@ -65,7 +65,13 @@ function verifyStrict(signer: string, message: Uint8Array, signature: Uint8Array
   }
   try {
     const publicKey = didToPublicKey(signer);
-    if (ed25519.Point.fromBytes(publicKey, false).isSmallOrder()) {
+    // A and R must be canonical encodings of points in the prime-order subgroup. Then the
+    // cofactored check noble performs and the cofactorless one of OpenSSL and others give the
+    // same answer; otherwise a signer could craft a signature that only some verifiers accept.
+    // Small-order keys would let one signature verify every message.
+    const A = ed25519.Point.fromBytes(publicKey, false);
+    const R = ed25519.Point.fromBytes(signature.subarray(0, 32), false);
+    if (A.isSmallOrder() || !A.isTorsionFree() || !R.isTorsionFree()) {
       return "invalid";
     }
     return ed25519.verify(signature, message, publicKey, { zip215: false }) ? "valid" : "invalid";

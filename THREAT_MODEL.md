@@ -24,6 +24,7 @@ DocSeal does not prove that a document is true, the signer's identity without an
 | A leaf is substituted for a node | Domain separation with `0x00` and `0x01` |
 | Role or time in the signature envelope is changed | All meaningful fields are inside the signed `protected` payload |
 | Small-order Ed25519 public key (one signature verifies every message) | Explicit rejection of all small-order encodings in every implementation; covered by shared vectors |
+| Ed25519 signature that only some verifiers accept (a small-order component in `R` or `A`; cofactored vs cofactorless equation) | `A` and `R` must be in the prime-order subgroup, checked by every implementation; covered by shared vectors |
 | Implementation-specific parsing (duplicate JSON keys, ZIP quirks) | Strict parsers in both implementations; golden packages for each case |
 | Algorithm substitution | Suite identifier and version are covered by the signature |
 | An unknown co-signer added next to a trusted signer | `trust: trusted` requires every valid signer to be trusted; one untrusted signer makes the package `untrusted` |

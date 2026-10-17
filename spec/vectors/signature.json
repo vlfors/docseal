@@ -161,6 +161,69 @@
       "valid": false
     },
     {
+      "name": "R with a small-order component (valid only under the cofactored equation)",
+      "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+      "protected": {
+        "type": "docseal-signature",
+        "version": 1,
+        "suite": "ed25519",
+        "profile": "docseal-ed25519-v1",
+        "signer": "did:key:z6MktwupdmLXVVqTzCw4i46r4uGyosGXRnR3XjN4Zq7oMMsw",
+        "role": "author",
+        "claimedAt": "2026-10-16T12:00:00Z",
+        "statementHash": "7ce2f78d8f930a68f96f57909a884e8f03a2229afab26a53279954a441eec168",
+        "attributes": {
+          "purpose": "approve",
+          "note": "Подпись ✓"
+        },
+        "critical": []
+      },
+      "signature": "HdlgspHFNRT-zhNB_A3NimSLOTTCxTNmb3N6ZU_x4b-qjy6wOrGu39vu3NheFAaSpKQzsq3Qj1AlerU7-xdnAw",
+      "valid": false
+    },
+    {
+      "name": "public key with a small-order component (valid only under the cofactored equation)",
+      "signer": "did:key:z6MkiSxpvQnJQuJhywZ1kZjCs7pG27yebm5HTqG8jGXJmNfE",
+      "protected": {
+        "type": "docseal-signature",
+        "version": 1,
+        "suite": "ed25519",
+        "profile": "docseal-ed25519-v1",
+        "signer": "did:key:z6MkiSxpvQnJQuJhywZ1kZjCs7pG27yebm5HTqG8jGXJmNfE",
+        "role": "author",
+        "claimedAt": "2026-10-16T12:00:00Z",
+        "statementHash": "7ce2f78d8f930a68f96f57909a884e8f03a2229afab26a53279954a441eec168",
+        "attributes": {
+          "purpose": "approve",
+          "note": "Подпись ✓"
+        },
+        "critical": []
+      },
+      "signature": "WGZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmbX2qk251HCIqY2mHbn1x9YJFre6HcXzGaspwnFhVbqCA",
+      "valid": false
+    },
+    {
+      "name": "R and public key with cancelling small-order components (valid under both equations)",
+      "signer": "did:key:z6MkiSxpvQnJQuJhywZ1kZjCs7pG27yebm5HTqG8jGXJmNfE",
+      "protected": {
+        "type": "docseal-signature",
+        "version": 1,
+        "suite": "ed25519",
+        "profile": "docseal-ed25519-v1",
+        "signer": "did:key:z6MkiSxpvQnJQuJhywZ1kZjCs7pG27yebm5HTqG8jGXJmNfE",
+        "role": "author",
+        "claimedAt": "2026-10-16T12:00:00Z",
+        "statementHash": "7ce2f78d8f930a68f96f57909a884e8f03a2229afab26a53279954a441eec168",
+        "attributes": {
+          "purpose": "approve",
+          "note": "Подпись ✓"
+        },
+        "critical": []
+      },
+      "signature": "VDrJCMqXEkqwbKqxFVIlflOroipOZrdpF1gjoZoEUuBagCw-xUrMdVQwzQYDpwl9Zu2hRVx-8BTYcbxZjHIeBA",
+      "valid": false
+    },
+    {
       "name": "small-order public key y=00000000… sign=0",
       "signer": "did:key:z6MkeTG3bFFSLYVU7VqhgZxqr6YzpaGrQtFMh1uvqGy1vDnP",
       "protected": {

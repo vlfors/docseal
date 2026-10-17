@@ -1,6 +1,6 @@
 # OpenTimestamps in DocSeal
 
-This document explains how DocSeal proves *when* a package existed, how the OpenTimestamps (OTS) integration in `@docseal/anchor-ots` works, and why it was built the way it is. The normative rules are in [FORMAT-v0.1-DRAFT.md](FORMAT-v0.1-DRAFT.md#opentimestamps).
+This document explains how DocSeal proves *when* a package existed, how the OpenTimestamps (OTS) integration in `@docseal/anchor-ots` works, and why it was built the way it is. The normative rules are in [FORMAT-v0.1.md](FORMAT-v0.1.md#opentimestamps).
 
 ## What OpenTimestamps provides
 

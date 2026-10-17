@@ -48,7 +48,7 @@ The value of the project lies in an open format, independent verification, a cle
 | CLI exit codes | `0` valid, `1` invalid, `2` indeterminate, `3` error. |
 | Passphrase input | Hidden terminal prompt, or `DOCSEAL_PASSPHRASE` for scripts. Never a command-line argument, which would leak into shell history and process lists. |
 
-See [FORMAT-v0.1-DRAFT.md](FORMAT-v0.1-DRAFT.md) for the normative details.
+See [FORMAT-v0.1.md](FORMAT-v0.1.md) for the normative details.
 
 ## Why `PackageStatement` exists
 

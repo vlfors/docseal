@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Independent verifier for DocSeal .dseal packages, format v0.1.
 
-Written from docs/FORMAT-v0.1-DRAFT.md, not from the TypeScript implementation, so that the
+Written from docs/FORMAT-v0.1.md, not from the TypeScript implementation, so that the
 two can be compared on the shared test vectors in spec/vectors/. It checks format, integrity,
 signatures, trust (pinned keys), and the binding of anchors to the package. It does not
 contact Bitcoin: confirmed time proofs are the TypeScript implementation's job.
@@ -371,6 +371,61 @@ def did_to_public_key(did: str) -> bytes:
     return data[2:]
 
 
+# Just enough Edwards25519 arithmetic (RFC 8032 §5.1) to check subgroup membership.
+# Signature verification itself is left to OpenSSL.
+ED_P = 2**255 - 19
+ED_L = 2**252 + 27742317777372353535851937790883648493
+ED_D = -121665 * pow(121666, ED_P - 2, ED_P) % ED_P
+ED_SQRT_M1 = pow(2, (ED_P - 1) // 4, ED_P)
+
+
+def ed_decode(encoding: bytes) -> tuple[int, int, int, int] | None:
+    """RFC 8032 §5.1.3 point decoding in extended coordinates; None if not a canonical point."""
+    y = int.from_bytes(encoding, "little") & ((1 << 255) - 1)
+    sign = encoding[31] >> 7
+    if y >= ED_P:
+        return None
+    u = (y * y - 1) % ED_P
+    v = (ED_D * y * y + 1) % ED_P
+    x = u * pow(v, 3, ED_P) * pow(u * pow(v, 7, ED_P), (ED_P - 5) // 8, ED_P) % ED_P
+    if (v * x * x - u) % ED_P != 0:
+        if (v * x * x + u) % ED_P != 0:
+            return None
+        x = x * ED_SQRT_M1 % ED_P
+    if x == 0 and sign:
+        return None
+    if x & 1 != sign:
+        x = ED_P - x
+    return (x, y, 1, x * y % ED_P)
+
+
+def ed_add(p: tuple[int, int, int, int], q: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+    x1, y1, z1, t1 = p
+    x2, y2, z2, t2 = q
+    a = (y1 - x1) * (y2 - x2) % ED_P
+    b = (y1 + x1) * (y2 + x2) % ED_P
+    c = t1 * 2 * ED_D * t2 % ED_P
+    d = z1 * 2 * z2 % ED_P
+    e, f, g, h = b - a, d - c, d + c, b + a
+    return (e * f % ED_P, g * h % ED_P, f * g % ED_P, e * h % ED_P)
+
+
+def in_prime_order_subgroup(encoding: bytes) -> bool:
+    """[L]P is the identity: P has no small-order component."""
+    point = ed_decode(encoding)
+    if point is None:
+        return False
+    result = (0, 1, 1, 0)
+    scalar = ED_L
+    while scalar:
+        if scalar & 1:
+            result = ed_add(result, point)
+        point = ed_add(point, point)
+        scalar >>= 1
+    x, y, z, _ = result
+    return x % ED_P == 0 and (y - z) % ED_P == 0
+
+
 def verify_ed25519(signer: str, message: bytes, signature: bytes) -> bool:
     try:
         public_key = did_to_public_key(signer)
@@ -379,6 +434,9 @@ def verify_ed25519(signer: str, message: bytes, signature: bytes) -> bool:
     if len(signature) != 64:
         return False
     if public_key[:31] + bytes([public_key[31] & 0x7F]) in SMALL_ORDER_Y:
+        return False
+    # A and R in the prime-order subgroup: then cofactored and cofactorless checks agree.
+    if not in_prime_order_subgroup(public_key) or not in_prime_order_subgroup(signature[:32]):
         return False
     try:
         Ed25519PublicKey.from_public_bytes(public_key).verify(signature, message)

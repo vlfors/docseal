@@ -1,6 +1,6 @@
-# `.dseal` Format v0.1 — Draft
+# `.dseal` Format v0.1 — Release Candidate 1
 
-Status: design draft. The format must not be considered stable until the JSON Schemas and test vectors are published.
+Status: release candidate. The format is complete and cross-checked by two independent implementations against the published JSON Schemas and test vectors. It will be frozen as v0.1 with the first release, after parser fuzzing; until then a change is still possible, and any change comes with new test vectors and a new release candidate number. After the freeze, any change that alters what a verifier accepts requires a new format version.
 
 The key words MUST, MUST NOT, SHOULD, and MAY are to be interpreted as described in RFC 2119.
 
@@ -18,7 +18,13 @@ The key words MUST, MUST NOT, SHOULD, and MAY are to be interpreted as described
 | Timestamps | RFC 3339 in UTC with a `Z` suffix, e.g. `2026-10-16T00:00:00Z`; see [Timestamps](#timestamps) |
 | Integers | JSON integers in `0 … 2^53 − 1` |
 
-All JSON documents MUST be I-JSON (RFC 7493). A parser MUST reject duplicate object keys, invalid UTF-8, and lone surrogates. Hashes over JSON documents are always computed over `JCS` of the parsed value, never over the raw file bytes.
+All JSON documents MUST be I-JSON (RFC 7493). A parser MUST reject duplicate object keys, invalid UTF-8, lone surrogates, numbers that do not fit an IEEE 754 double (such as a 400-digit integer), and values nested more than 64 levels deep (the top-level value is at level 0). Numbers are read as doubles, as in ECMAScript: an integer beyond 2^53 is rounded before JCS, so every implementation hashes the same value. Fields this specification defines as integers MUST be in `0 … 2^53 − 1`. Hashes over JSON documents are always computed over `JCS` of the parsed value, never over the raw file bytes.
+
+### Validation and verdicts of documents
+
+Each document has a `type` and a `version`. A wrong `type`, a missing required field, or a field of the wrong form makes the document invalid. A `version` other than `1`, or a value this version does not define where the text says "MUST be … in v0.1" (`hashAlgorithm`, `merkleScheme`, `previous`, `signaturePolicy.type`, a non-empty `critical`), makes it unsupported. Fields not defined here are kept and covered by the document's hash.
+
+Where the result lands depends on the document: a problem in `manifest.json` or `statement.json` is a `format` result for the whole package; in a signature envelope it is the result of that one signature; in an anchor file, of the `time` axis. See [Verdicts](#verdicts).
 
 ### Timestamps
 
@@ -53,7 +59,7 @@ Each file listed in the manifest is stored at `files/<path>`. Signature envelope
 
 ### Parser requirements
 
-- Limits on entry count, per-entry and total uncompressed size, and compression ratio. Defaults are configurable and the effective limits are included in the report:
+- Limits on entry count, per-entry and total uncompressed size, and compression ratio. Defaults are configurable; a verifier that changes them says so:
 
   | Limit | Default |
   |---|---|
@@ -100,7 +106,7 @@ A manifest `path`:
 - is converted to Unicode NFC;
 - uses `/` as the separator, with no leading or trailing `/`;
 - has no empty, `.`, or `..` segments;
-- contains no NUL, C0 control characters, or `\`;
+- contains no C0 control characters (including NUL), no DEL (`0x7F`), and no `\`;
 - is at most 1024 UTF-8 bytes.
 
 After normalization, paths MUST be unique, and also unique when compared after locale-independent Unicode lowercasing **and** after locale-independent Unicode uppercasing (full mappings, as ECMAScript `toLowerCase()`/`toUpperCase()` and Python `str.lower()`/`str.upper()`), to prevent collisions on case-insensitive file systems. Two paths that are equal under either mapping collide: neither mapping alone matches file systems (`ΟΔΟΣ` lowercases with a final `ς`; `ß` only uppercases to `SS`). A path MUST NOT also be used as a directory of another path (`a` and `a/b`), under the same comparisons. Paths are sorted by their UTF-8 bytes.
@@ -229,7 +235,10 @@ All fields that affect the meaning of the signature are inside `protected`.
 
 - `signer` is a `did:key` with the Ed25519 public-key multicodec (`0xed`), multibase base58btc (`z…`).
 - The signature is pure Ed25519 (RFC 8032, not Ed25519ph) over the signed bytes above. `value` is the 64-byte signature in base64url.
-- Verification uses the strict rules of `@noble/curves` (canonical `S`, rejection of small-order public keys).
+- Verification follows RFC 8032 §5.1.7 with these additional rules, which every verifier MUST apply:
+  - the public key `A` and the point `R` (the first 32 bytes of the signature) MUST be canonical encodings (`y < p`, and not `x = 0` with the sign bit set);
+  - `S` MUST be less than the group order `L`;
+  - `A` MUST NOT be of small order, and `A` and `R` MUST both be in the prime-order subgroup (`[L]P` is the identity). Then the cofactored equation `[8][S]B = [8]R + [8][k]A` and the cofactorless one `[S]B = R + [k]A` give the same answer, so verifiers built on different libraries agree. Without this rule a signer could add a point of order 8 to `R` or `A` and produce a signature that only some verifiers accept. Honestly generated keys and signatures always satisfy it.
 - An Ed25519 `did:key` has 48 base58 characters after `did:key:z`. A `signer` with more than 64 characters there MUST be rejected before decoding, because base58 decoding takes quadratic time. Such an envelope has `signature: invalid`.
 
 A package MUST contain at least one envelope. Two envelopes with the same `envelopeDigest` are invalid.
@@ -273,11 +282,13 @@ seal              = H(UTF8("DocSeal/v1/anchor\0") ‖ statementHash ‖ signatur
 
 - `envelopes` lists the envelope digests in sorted order. The verifier recomputes `seal` from the envelopes present in the package and MUST report `time: invalid` if the recomputed seal or the envelope set differs.
 - `receipt.digest` MUST equal `seal`.
-- v0.1 packages have at most one anchor file, `anchors/seal-1.json`. A package without an anchor yields `time: missing`.
+- v0.1 packages have at most one anchor file, named `anchors/seal-N.json` (normally `seal-1.json`). More than one anchor file makes `time: invalid`; none yields `time: missing`.
+- `receipts` MUST contain at least one receipt. A receipt with a `digestAlgorithm` other than `sha-256` makes the anchor file unsupported. A receipt of a provider or network the verifier does not support is `unsupported`.
 - Everything under `cached` is an untrusted hint. Status, time, and block height are always derived from the proof and a `ChainReader`.
 
 ### OpenTimestamps
 
+- `network` MUST be `bip122:000000000019d6689c085ae165831e93` (Bitcoin mainnet); any other network is `unsupported`.
 - `proof` is the binary `.ots` detached timestamp file for `seal`.
 - A Bitcoin attestation is accepted as `confirmed` when its block has at least **6 confirmations** by default (configurable). Fewer confirmations, or only calendar (pending) attestations, yield `time: pending`.
 - The attested time is the block header `time` of the attested block. It is accurate only to within about two hours.
@@ -305,7 +316,12 @@ completeness: full | partial | incomplete
 overall:      valid | invalid | indeterminate
 ```
 
-- `completeness` is `full` when every manifest file was hashed and every signature and anchor was evaluated; `partial` when only some files were checked by design (future selective disclosure); `incomplete` when a check could not run (missing file, unsupported suite, unreachable `ChainReader`).
+- If `format` is not `valid`, nothing else is evaluated: `integrity: not-checked`, `signature: missing`, `trust: not-evaluated`, `time: missing`, `completeness: incomplete`.
+- `integrity` is `invalid` if `manifestHash`, `packageId`, or `merkleRoot` of the statement does not match the manifest, or if any file is missing, modified (different size or hash), or extra (in the container but not in the manifest); otherwise `valid`.
+- Each envelope is checked on its own: `invalid` if it is malformed, signs a different `statementHash`, or does not verify; `unsupported` if its version, suite, or profile is unknown or its `critical` is not empty; otherwise `valid`. The `signature` axis is `invalid` if any envelope is invalid or two envelopes have the same digest; else `valid` if at least one envelope is valid (`any-valid`); else `unsupported` if any is unsupported; else `missing`.
+- Each receipt is `confirmed`, `pending`, `invalid`, or `unsupported` (no registered provider, no chain source, unknown network, or the source cannot be reached); an anchor file that is malformed or does not cover this statement and these envelopes counts as one `invalid` result. The `time` axis is `invalid` if any result is invalid; else `confirmed` if any receipt is confirmed, with the earliest attested time; else `pending` if any is pending; else `unsupported`.
+- `trust` is `not-evaluated` without a trust policy or unless `signature` is `valid`.
+- `completeness` is `full` when every manifest file was hashed and every signature and anchor was evaluated; `partial` when only some files were checked by design (future selective disclosure, never produced in v0.1); `incomplete` when a check could not run (a missing file, an unsupported envelope, an unsupported receipt or anchor file).
 - `trust` is evaluated for every signer with a valid signature. It is `trusted` only when **every** such signer is trusted, `untrusted` when at least one of them is untrusted, and `unknown` otherwise. One trusted signer does not make the package trusted: a pinned author next to an unknown co-signer must not read as `valid`, or the stranger's signature would borrow the author's trust. Envelopes with an unsupported suite are not evaluated for trust; they make `completeness` `incomplete`.
 - `overall: valid` only when `format: valid`, `integrity: valid`, `signature: valid` (policy satisfied), `trust: trusted`, `time: confirmed`, and `completeness: full`.
 - `overall: invalid` when any axis is `invalid`.
@@ -347,7 +363,7 @@ Verifier configuration, not part of a package. Used by the pinned-keys `TrustPol
 }
 ```
 
-The key is derived with scrypt (`@noble/hashes`) and encrypted with XChaCha20-Poly1305 (`@noble/ciphers`). JCS of the object without `ciphertext` is used as associated data. The CLI warns that this format is for development and that production keys belong in an HSM, KMS, or hardware token.
+The key is derived with scrypt from the passphrase in Unicode NFC, UTF-8 encoded, and encrypted with XChaCha20-Poly1305. `N` MUST be a power of two from 2^10 to 2^20, `r` MUST be 8 and `p` MUST be 1, so a tampered file cannot make a reader allocate gigabytes. JCS of the object without `ciphertext` is used as associated data. The CLI warns that this format is for development and that production keys belong in an HSM, KMS, or hardware token.
 
 ## Crypto agility
 
@@ -355,8 +371,10 @@ v0.1 is effectively fixed to SHA-256 and the `docseal-ed25519-v1` profile. Algor
 
 ## Test vectors
 
-Published in [`spec/vectors/`](../spec/vectors/): JCS, paths, Merkle trees, signatures, seals, and 25 golden packages with required verdicts. JSON Schemas for every document are in [`spec/schemas/`](../spec/schemas/). Two independent implementations (TypeScript and [Python](../verifiers/python/)) reproduce all vectors.
+Published in [`spec/vectors/`](../spec/vectors/): JCS, paths, Merkle trees, signatures, seals, and 34 golden packages with required verdicts. JSON Schemas for every document are in [`spec/schemas/`](../spec/schemas/). Two independent implementations (TypeScript and [Python](../verifiers/python/)) reproduce all vectors.
 
 ### Ed25519 implementation note
 
 Verifiers MUST reject public keys of small order (the eight points of order dividing 8, in any encoding), before or in addition to calling an Ed25519 library. With such a key, one signature verifies every message. Some widely used libraries (OpenSSL through Python `cryptography`, as of 2026) accept these keys; `signature.json` contains the cases.
+
+Libraries also differ in the verification equation: some check it cofactored (`@noble/curves`), others cofactorless (OpenSSL). The prime-order subgroup rule above makes them agree, but most libraries do not apply it themselves; a verifier checks `[L]A` and `[L]R` before calling the library. `signature.json` contains signatures that pass only the cofactored check, and one with small-order components in `R` and `A` that cancel and pass both; all must be rejected.

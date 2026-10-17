@@ -73,7 +73,7 @@ example.dseal
     └── seal-1.json
 ```
 
-A "thin" package without `files/` is considered for a future release. See the [format draft](docs/FORMAT-v0.1-DRAFT.md).
+A "thin" package without `files/` is considered for a future release. See the [format specification](docs/FORMAT-v0.1.md).
 
 ## Architecture
 
@@ -124,7 +124,7 @@ one file → manifest → statement → Ed25519 → .dseal → verify
 
 Changing a single byte must produce a negative verification result. After that come multiple files, the Merkle tree, OpenTimestamps, the CLI, and the web interface.
 
-See the [roadmap](ROADMAP.md), [architecture](ARCHITECTURE.md), [format draft](docs/FORMAT-v0.1-DRAFT.md), [decisions](docs/DECISIONS.md), [threat model](THREAT_MODEL.md), and [security policy](SECURITY.md).
+See the [roadmap](ROADMAP.md), [architecture](ARCHITECTURE.md), [format specification](docs/FORMAT-v0.1.md), [decisions](docs/DECISIONS.md), [threat model](THREAT_MODEL.md), and [security policy](SECURITY.md).
 
 In-depth guides: [plugin system](docs/PLUGINS.md) and [OpenTimestamps integration](docs/OPENTIMESTAMPS.md).
 
