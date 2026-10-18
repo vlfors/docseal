@@ -12,13 +12,7 @@ All packages are released together, with one version, by pushing a tag. The work
 
 ## Once, before the first release
 
-1. **Repository.** Push the project to GitHub and set `repository` in each published `package.json` (npm provenance links each package to it):
-
-   ```json
-   "repository": { "type": "git", "url": "git+https://github.com/OWNER/REPO.git", "directory": "packages/core" }
-   ```
-
-   with `directory` set to the package's own folder. Add `homepage` and `bugs` while at it.
+1. **Repository.** The project lives at [github.com/vlfors/docseal](https://github.com/vlfors/docseal). Each published `package.json` names it in `repository`, with `directory` set to the package's folder; npm provenance links each package to it, and `scripts/check-release.mjs` refuses a release without it.
 2. **npm.** Create the `docseal` organization on npmjs.com. For each package, configure *trusted publishing* for the GitHub repository, workflow `release.yml`, and environment `npm` — then no token is stored anywhere. Until that is configured (it needs the package to exist), add an automation token as the `NPM_TOKEN` secret of the `npm` environment and remove it afterwards.
 3. **GitHub.**
    - Create the environment `npm` (Settings → Environments) with a **required reviewer**, so a pushed tag waits for approval before anything is published, and **deployment branches and tags** restricted to the tag pattern `v*`.
@@ -43,6 +37,6 @@ All packages are released together, with one version, by pushing a tag. The work
 
 ```bash
 npm audit signatures                     # in a project that installed @docseal/*: npm provenance
-gh attestation verify docseal-core-0.1.0.tgz --repo OWNER/REPO
+gh attestation verify docseal-core-0.1.0.tgz --repo vlfors/docseal
 sha256sum -c SHA256SUMS                  # next to the tarballs from the GitHub release
 ```

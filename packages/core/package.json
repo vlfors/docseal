@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "description": "DocSeal core: package format, hashing, Merkle tree, verification pipeline, and plugin interfaces",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vlfors/docseal.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/vlfors/docseal/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/vlfors/docseal/issues"
+  },
   "keywords": [
     "document",
     "signature",
