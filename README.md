@@ -2,9 +2,9 @@
 
 > Open-source toolkit for creating portable, independently verifiable proofs of document integrity, authorship by a cryptographic key, and existence no later than a confirmed timestamp.
 
-DocSeal is a library, CLI, and web verifier for creating verifiable document packages. Documents are processed locally. Only a cryptographic digest of the signed package state is sent to a public network.
+DocSeal is a library and command-line tool for creating and verifying document packages; a browser verifier is planned for v0.2. Documents are processed locally. Only a cryptographic digest of the signed package state is sent to a public network.
 
-The project is intended as a complete, portfolio-grade open-source project: first a small, well-tested core and CLI, then a browser interface. A server, legally binding signatures, and enterprise integrations are out of scope for the first releases.
+The project is intended as a complete, portfolio-grade open-source project: first a small, well-tested core and CLI (v0.1, complete), then a browser interface (v0.2). A server, legally binding signatures, and enterprise integrations are out of scope for the first releases.
 
 ## What DocSeal proves
 
@@ -44,7 +44,7 @@ The project is intended as a complete, portfolio-grade open-source project: firs
 ## Command line
 
 ```bash
-npm install -g @docseal/cli                    # Node.js ≥ 22
+npm install -g @docseal/cli                    # Node.js ≥ 22, once 0.1.0 is published
 ```
 
 ```bash
@@ -85,7 +85,7 @@ All clients share one TypeScript core. Concrete mechanisms for signing, key stor
 
 ```mermaid
 flowchart LR
-    WEB["Web UI"] --> CORE["DocSeal Core"]
+    WEB["Web UI (v0.2)"] -.-> CORE["DocSeal Core"]
     CLI["CLI"] --> CORE
     SDK["TypeScript SDK"] --> CORE
     CORE --> SIG["SignatureSuite"]
@@ -112,7 +112,7 @@ A package can never bring its own executable plugin. The application registers t
 | Canonicalization | RFC 8785 JCS |
 | Container | ZIP via `fflate` |
 | CLI | Node.js ≥ 22, Commander |
-| Web | SvelteKit, Web Workers |
+| Web (v0.2, planned) | SvelteKit, Web Workers |
 | Timestamp anchor | OpenTimestamps |
 | CI and releases | GitHub Actions, GitHub Releases |
 
@@ -120,13 +120,13 @@ DocSeal does not implement cryptographic primitives itself. The core defines the
 
 ## Status
 
-The project is in the `v0.1` design stage. Implementation starts with a vertical prototype:
+v0.1 is complete: the core library, the Ed25519 and OpenTimestamps plugins, and the CLI. The [format specification v0.1](docs/FORMAT-v0.1.md) is final and frozen. The packages are not on npm yet; the first publication waits for the public repository (see [releasing](docs/RELEASING.md)). Until then, build from source (see [Development](#development)).
 
-```text
-one file → manifest → statement → Ed25519 → .dseal → verify
-```
+There is no web verifier yet: the browser interface is the next milestone, v0.2.
 
-Changing a single byte must produce a negative verification result. After that come multiple files, the Merkle tree, OpenTimestamps, the CLI, and the web interface.
+`pnpm demo` shows the main promise without any network: it seals a folder, verifies it, changes one word in a sealed document, and verifies again, which gives `INVALID`.
+
+The format is pinned by 44 golden packages that an independent Python verifier also checks, and the code by property tests, differential fuzzing against that verifier, and mutation testing (see [testing](docs/TESTING.md)).
 
 See the [roadmap](ROADMAP.md), [architecture](ARCHITECTURE.md), [format specification](docs/FORMAT-v0.1.md), [decisions](docs/DECISIONS.md), [threat model](THREAT_MODEL.md), and [security policy](SECURITY.md).
 
