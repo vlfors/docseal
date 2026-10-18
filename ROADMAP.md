@@ -30,12 +30,21 @@ Explicitly deferred from v0.1: selective disclosure (only the proof-building fun
 
 ## v0.2 — Browser interface
 
+The same core in the browser; the `.dseal` format does not change.
+
 - [ ] Create a package from selected files or a folder.
 - [ ] Verify `.dseal` locally without uploading documents to a server.
 - [ ] Drag-and-drop.
 - [ ] Web Workers and streaming processing of large files.
 - [ ] Clear human-readable report.
 - [ ] Static demo application.
+
+## v0.3 — Instant timestamps (RFC 3161)
+
+- [ ] Format v0.2: an RFC 3161 receipt as a second anchor next to OpenTimestamps, so a package gets a time from a trusted timestamp authority within seconds and independent confirmation in Bitcoin a few hours later. Packages in format v0.1 stay valid.
+- [ ] Pinned timestamp authorities, like pinned signer keys, and a report that keeps an authority's time apart from Bitcoin's.
+- [ ] Verification through a vetted CMS/ASN.1 library, in TypeScript and in the Python verifier, with vectors, fuzzing, and a dedicated security review.
+- [ ] Decide how the browser reaches timestamp authorities that do not allow cross-origin requests, without a server holding documents.
 
 ## Future exploration
 
@@ -44,12 +53,11 @@ These directions are not promised for a specific release:
 - thin packages without embedded documents;
 - selective disclosure of a single file with a Merkle proof;
 - package version history;
-- multiple independent signatures and M-of-N policies;
+- M-of-N signature policies (several signers per package already work, under `any-valid`);
 - WebAuthn;
-- RFC 3161;
 - X.509/CMS;
 - package passport in JSON/PDF;
-- an independent verifier in Rust or Python;
+- an independent verifier in Rust (one in Python exists since v0.1);
 - a server for background `upgrade`, batching, and webhooks.
 
 ## Experimental integrations
