@@ -14,7 +14,7 @@ All packages are released together, with one version, by pushing a tag. The work
 
 1. **Repository.** The project lives at [github.com/vlfors/docseal](https://github.com/vlfors/docseal). Each published `package.json` names it in `repository`, with `directory` set to the package's folder; npm provenance links each package to it, and `scripts/check-release.mjs` refuses a release without it.
 2. **npm.** Create the `docseal` organization on npmjs.com. For each package, configure *trusted publishing* for the GitHub repository, workflow `release.yml`, and environment `npm` — then no token is stored anywhere. Until that is configured (it needs the package to exist), add an automation token as the `NPM_TOKEN` secret of the `npm` environment and remove it afterwards.
-3. **GitHub.**
+3. **GitHub.** *Configured on 2026-10-18; kept here in case it must be redone.*
    - Create the environment `npm` (Settings → Environments) with a **required reviewer**, so a pushed tag waits for approval before anything is published, and **deployment branches and tags** restricted to the tag pattern `v*`.
    - Add a tag ruleset (Settings → Rules → Rulesets) for `refs/tags/v*` that restricts creation, update, and deletion to maintainers: otherwise anyone who can push can start a release, and a published tag could be moved.
    - Protect `main` with required CI checks.

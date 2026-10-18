@@ -8,7 +8,9 @@ Until the first stable release, security fixes are released only for the latest 
 
 Do not disclose a potential vulnerability in a public issue.
 
-Until a dedicated security contact is set up, use GitHub Private Vulnerability Reporting in the repository. If it is unavailable, open a neutral issue without technical details asking to be contacted privately.
+Report it privately through GitHub: on the repository's **Security** tab, choose **Report a vulnerability**, or open [this form](https://github.com/vlfors/docseal/security/advisories/new) directly. Only you and the maintainers can see the report. We work on the fix with you there, publish the fixed version, and then the advisory, crediting you if you wish.
+
+If you cannot use GitHub, open a neutral issue without technical details asking to be contacted privately.
 
 A useful report includes:
 
