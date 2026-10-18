@@ -49,9 +49,17 @@ describe("packages", () => {
             completeness: "incomplete",
           });
         }
-        // Nothing but an untouched package may verify cleanly on integrity and signature.
+        // Nothing but an untouched package may verify cleanly on integrity and signature. One
+        // exception: with several signers, an unsupported envelope does not spoil a valid one
+        // (any-valid), but it leaves the report incomplete.
         if (report.axes.integrity === "valid" && report.axes.signature === "valid") {
-          expect(report.issues.filter((i) => i.axis === "integrity" || i.axis === "signature")).toEqual([]);
+          const unsupported = new Set(report.signatures.filter((r) => r.check === "unsupported").map((r) => r.entry));
+          const problems = report.issues.filter((i) => i.axis === "integrity" || i.axis === "signature");
+          expect(problems.filter((i) => i.axis !== "signature" || !unsupported.has(i.subject ?? ""))).toEqual([]);
+          if (problems.length > 0) {
+            expect(report.axes.completeness).toBe("incomplete");
+            expect(report.overall).not.toBe("valid");
+          }
         }
       }),
       { numRuns: runs },
