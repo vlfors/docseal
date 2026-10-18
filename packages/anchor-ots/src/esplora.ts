@@ -7,6 +7,8 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { HttpError, request, type HttpOptions } from "./http.js";
 
 export const DEFAULT_ESPLORA_URL = "https://mempool.space/api";
+/** Public Esplora instances, tried in this order (see firstAvailableChainReader). */
+export const DEFAULT_ESPLORA_URLS = [DEFAULT_ESPLORA_URL, "https://blockstream.info/api"];
 
 const HEADER_LENGTH = 80;
 

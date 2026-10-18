@@ -4,6 +4,7 @@ import {
   BITCOIN_MAINNET,
   attestations,
   esploraChainReader,
+  firstAvailableChainReader,
   isAllowed,
   openTimestamps,
   parseDetached,
@@ -289,5 +290,48 @@ describe("esploraChainReader", () => {
     await expect(esploraChainReader("https://esplora.test", { fetch }).bitcoinBlockHeader?.(358391)).rejects.toThrow(
       /does not hash/,
     );
+  });
+});
+
+describe("firstAvailableChainReader", () => {
+  const header = { height: 7, merkleRoot: new Uint8Array(32), time: 1_700_000_000 };
+  /** A reader that answers, or fails, and counts how often it was asked. */
+  function reader(source: string, works: boolean) {
+    const calls = { count: 0 };
+    const answer = <T>(value: T) => {
+      calls.count++;
+      return works ? Promise.resolve(value) : Promise.reject(new Error("unreachable"));
+    };
+    return { calls, reader: { source, bitcoinTipHeight: () => answer(10), bitcoinBlockHeader: () => answer(header) } as ChainReader };
+  }
+
+  it("falls back to the next source and keeps using the one that answered", async () => {
+    const down = reader("down", false);
+    const up = reader("up", true);
+    const chain = firstAvailableChainReader([down.reader, up.reader]);
+    expect(chain.source).toBe("down, up");
+    expect(await chain.bitcoinTipHeight?.()).toBe(10);
+    expect(await chain.bitcoinBlockHeader?.(7)).toEqual(header);
+    expect(down.calls.count).toBe(1);
+    expect(up.calls.count).toBe(2);
+    expect(chain.source).toBe("up");
+  });
+
+  it("prefers the first source while it answers", async () => {
+    const first = reader("first", true);
+    const second = reader("second", true);
+    const chain = firstAvailableChainReader([first.reader, second.reader]);
+    await chain.bitcoinTipHeight?.();
+    expect([first.calls.count, second.calls.count]).toEqual([1, 0]);
+    expect(chain.source).toBe("first");
+  });
+
+  it("reports every failure when no source answers", async () => {
+    const chain = firstAvailableChainReader([reader("a", false).reader, { source: "b" }]);
+    await expect(chain.bitcoinTipHeight?.()).rejects.toThrow("a: unreachable; b: cannot read Bitcoin headers");
+  });
+
+  it("needs at least one source", () => {
+    expect(() => firstAvailableChainReader([])).toThrow(RangeError);
   });
 });

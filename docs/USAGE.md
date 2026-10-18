@@ -96,6 +96,8 @@ docseal verify contract.dseal --trust trusted-keys.json
 
 `--offline` checks without network access: integrity, signature, and trust are checked; time stays unconfirmed. `--json` prints the machine-readable report.
 
+To check the time, DocSeal reads Bitcoin block headers from mempool.space, or from blockstream.info if mempool.space does not answer. If neither is reachable from your network, name another Esplora source, for example your own: `--chain https://your-node.example/api` (repeat `--chain` for fallbacks).
+
 ## Reading the verdict
 
 | Verdict | Meaning | Exit code |

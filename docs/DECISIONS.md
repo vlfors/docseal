@@ -42,7 +42,7 @@ The value of the project lies in an open format, independent verification, a cle
 | OpenTimestamps implementation | Own parser/executor for the `.ots` serialization format (not a cryptographic primitive) instead of the legacy `javascript-opentimestamps`, so it is portable to the browser. |
 | Hash functions in timestamp paths | SHA-256, RIPEMD-160, and Keccak-256 are executed; SHA-1 paths are ignored. RIPEMD-160 is required by real 2015–2016 Bitcoin proofs. |
 | Calendar quorum | A seal must be accepted by at least two calendars when sealing. |
-| Default chain source (CLI) | mempool.space Esplora API, named in every report; `--chain` for a self-hosted Esplora, `--offline` to skip. A Bitcoin Core RPC reader is future work. |
+| Default chain source (CLI) | mempool.space Esplora API, then blockstream.info if it does not answer (`firstAvailableChainReader`); the source used is named in every report. `--chain` (repeatable) for a self-hosted Esplora, `--offline` to skip. A Bitcoin Core RPC reader is future work. |
 | Independent verifier | Python, in `verifiers/python/`, written from the specification and checked in CI against the shared vectors. |
 | Path case collisions | Compared both lowercased and uppercased; either match is a collision (found while writing the vectors: lowercasing alone misses `ΟΔΟΣ`/`οδος`). |
 | CLI exit codes | `0` valid, `1` invalid, `2` indeterminate, `3` error. |

@@ -148,6 +148,13 @@ describe("docseal CLI", () => {
     expect(valid.stdout).toContain("3 of 3 files match");
     expect(valid.stdout).toContain("10 confirmations via esplora https://esplora.test");
 
+    // An unreachable first source is skipped once; the report names the source that answered.
+    const before = network.requests.length;
+    const fallback = await run(["verify", path("p.dseal"), "--trust", path("trusted-keys.json"), "--chain", "https://down.test", "--chain", "https://esplora.test"]);
+    expect(fallback.code).toBe(ExitCode.Valid);
+    expect(fallback.stdout).toContain("10 confirmations via esplora https://esplora.test");
+    expect(network.requests.slice(before).filter((r) => r.includes("down.test"))).toHaveLength(1);
+
     const json = await run(verifyArgs("--json"));
     const report = JSON.parse(json.stdout) as VerificationReport;
     expect(report.overall).toBe("valid");

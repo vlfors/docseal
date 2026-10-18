@@ -1,4 +1,10 @@
-import { esploraChainReader, openTimestamps, DEFAULT_ESPLORA_URL, DEFAULT_MIN_CONFIRMATIONS } from "@docseal/anchor-ots";
+import {
+  esploraChainReader,
+  firstAvailableChainReader,
+  openTimestamps,
+  DEFAULT_ESPLORA_URLS,
+  DEFAULT_MIN_CONFIRMATIONS,
+} from "@docseal/anchor-ots";
 import {
   DocSeal,
   FORMAT_VERSION,
@@ -139,13 +145,18 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
     .argument("<package>")
     .option("-t, --trust <file>", "trusted-keys.json listing the signers you accept")
     .option("--json", "print the machine-readable report")
-    .option("--chain <url>", "Esplora API used to read Bitcoin block headers", DEFAULT_ESPLORA_URL)
+    .option(
+      "--chain <url>",
+      "Esplora API used to read Bitcoin block headers; repeat for fallbacks, tried in order",
+      collectUrls,
+      DEFAULT_ESPLORA_URLS,
+    )
     .option("--offline", "do not contact the chain source; time proofs stay unchecked")
     .option("--min-confirmations <n>", "Bitcoin confirmations required", integer, DEFAULT_MIN_CONFIRMATIONS)
     .action(
       async (
         path: string,
-        options: { trust?: string; json?: boolean; chain: string; offline?: boolean; minConfirmations: number },
+        options: { trust?: string; json?: boolean; chain: string[]; offline?: boolean; minConfirmations: number },
       ) => {
         const trust = options.trust
           ? pinnedKeys(parseTrustedKeys(await readInput(options.trust, "trusted keys file")).keys)
@@ -154,7 +165,9 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
           signatures: [ed25519Suite()],
           anchors: [anchorProvider(io, { minConfirmations: options.minConfirmations })],
           ...(trust ? { trust } : {}),
-          ...(options.offline ? {} : { chain: esploraChainReader(options.chain, httpOptions(io)) }),
+          ...(options.offline
+            ? {}
+            : { chain: firstAvailableChainReader(options.chain.map((url) => esploraChainReader(url, httpOptions(io)))) }),
           sha256: nodeSha256,
         });
         const source = await openFileSource(path, "package");
@@ -294,4 +307,9 @@ function integer(value: string): number {
     throw new InvalidArgumentError("Expected a non-negative integer");
   }
   return n;
+}
+
+/** A repeatable --chain: the first one given replaces the defaults, later ones are fallbacks. */
+function collectUrls(value: string, previous: string[]): string[] {
+  return previous === DEFAULT_ESPLORA_URLS ? [value] : [...previous, value];
 }

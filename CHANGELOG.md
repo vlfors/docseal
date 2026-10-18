@@ -26,6 +26,7 @@ The first release: the `.dseal` format v0.1, a TypeScript library, and the `docs
 ### CLI
 
 - `docseal keygen`, `pubkey`, `seal`, `verify`, and `upgrade`, with human and JSON reports and distinct exit codes (0 valid, 1 invalid, 2 indeterminate, 3 error).
+- `verify` reads block headers from mempool.space and falls back to blockstream.info; `--chain` is repeatable for your own sources.
 
 ### Security
 

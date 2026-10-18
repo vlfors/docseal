@@ -21,7 +21,8 @@ import {
   type Timestamp,
 } from "./ots.js";
 
-export { DEFAULT_ESPLORA_URL, esploraChainReader, parseBlockHeader } from "./esplora.js";
+export { firstAvailableChainReader } from "./chain.js";
+export { DEFAULT_ESPLORA_URL, DEFAULT_ESPLORA_URLS, esploraChainReader, parseBlockHeader } from "./esplora.js";
 export type { Fetch, HttpOptions } from "./http.js";
 export * from "./ots.js";
 

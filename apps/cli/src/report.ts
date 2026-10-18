@@ -87,7 +87,7 @@ function hintsFor(report: VerificationReport): string[] {
     hints.push("The package has no time proof: it was sealed with --no-anchor.");
   }
   if (report.axes.time === "unsupported") {
-    hints.push("The time proof could not be checked here: check network access or the --chain URL.");
+    hints.push("The time proof could not be checked here: check network access, or name another source with --chain.");
   }
   return hints;
 }

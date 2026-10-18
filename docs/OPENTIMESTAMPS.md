@@ -128,6 +128,7 @@ Integers are unsigned LEB128 (`varuint`). Byte strings are a varuint length foll
 | `ots.ts` | Parse, serialize, execute, and merge proofs. Pure functions, no I/O. |
 | `http.ts` | `fetch` wrapper with timeout (30 s), redirects refused, a response size cap (10 kB for calendars, 1 kB for Esplora) enforced while reading, and an injectable `fetch` for tests. |
 | `esplora.ts` | `ChainReader` over an Esplora API (mempool.space by default, or a self-hosted instance). |
+| `chain.ts` | `firstAvailableChainReader`: several sources tried in order; one that fails is skipped. |
 | `index.ts` | `openTimestamps()`: the `AnchorProvider` with `submit`, `upgrade`, and `verify`. |
 
 ### Why our own parser
@@ -192,7 +193,7 @@ The proven time (`attestedAt`) is passed to the `TrustPolicy`. That is why verif
 
 ## Trust assumptions and limitations
 
-- **The chain source is trusted for block headers.** The Esplora reader checks that the header hashes to the block hash the source named, so the merkle root and time cannot be swapped on their own. It does not check proof of work or the chain itself. The source is always named in the report (`esplora https://mempool.space/api`). A Bitcoin Core RPC reader is future work.
+- **The chain source is trusted for block headers.** The Esplora reader checks that the header hashes to the block hash the source named, so the merkle root and time cannot be swapped on their own. It does not check proof of work or the chain itself. The source is always named in the report (`esplora https://mempool.space/api`). With several sources, the next is used when one fails; all are trusted alike, so this is no weaker than any one of them. A Bitcoin Core RPC reader is future work.
 - **Block time is accurate only to about ±2 hours.** That is a Bitcoin property.
 - **Calendars can delay or withhold proofs, but cannot backdate them.** The two-calendar quorum limits the impact of one calendar disappearing.
 - **The default of 6 confirmations** protects against short chain reorganizations. It is configurable through `minConfirmations`.
