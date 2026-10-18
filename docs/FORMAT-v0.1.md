@@ -98,7 +98,7 @@ Writers SHOULD use ZIP64 fields only where a value needs them, so that small pac
 
 ### Writing
 
-This part is informative. Since sizes and CRC-32 must precede the data, a writer has to know them before writing an entry. The reference implementation therefore reads every document twice when sealing: once to compute SHA-256 and CRC-32, once to write it, and sealing fails if the size or CRC-32 differs on the second read. Documents up to 8 MiB are deflated in memory when that makes them smaller; larger documents are stored uncompressed and streamed, so their size never matters for memory. Entries are written as `mimetype`, `manifest.json`, `statement.json`, documents in manifest order, signatures, anchors.
+This part is informative. Since sizes and CRC-32 must precede the data, a writer has to know them before writing an entry. The reference implementation therefore reads every document twice when sealing: once to compute SHA-256 and CRC-32, once to write it, and sealing fails if the size or CRC-32 differs on the second read. Documents up to 8 MiB are deflated in memory when that makes them smaller; larger documents are stored uncompressed and streamed, so their size never matters for memory. Entries are written as `mimetype`, `manifest.json`, `statement.json`, documents in manifest order, signatures, anchors. The central directory names Unix as the host system, with the mode of a regular file (0644): Info-ZIP `unzip` 6.0 converts names from the DOS code page whenever the host is MS-DOS, even when the UTF-8 flag is set.
 
 ## Paths
 

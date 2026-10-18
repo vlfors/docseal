@@ -43,6 +43,11 @@ interface WrittenEntry extends EntryHeader {
 
 const VERSION = 20;
 const VERSION_ZIP64 = 45;
+// "Made by" Unix, with the mode of a regular file (0644) in the external attributes. Info-ZIP
+// unzip 6.0 converts names from the DOS code page whenever the host is MS-DOS, even with the
+// UTF-8 flag set, which garbles every non-ASCII name; with a Unix host it keeps them as they are.
+const MADE_BY_UNIX = 3 << 8;
+const REGULAR_FILE_ATTRIBUTES = 0o100644 * 0x10000;
 // Entries are timestamped with the DOS epoch (1980-01-01 00:00) so the same contents give
 // the same container bytes.
 const DOS_TIME = 0;
@@ -205,7 +210,7 @@ export class ZipWriter {
     const view = new DataView(out.buffer);
     const version = overflowing.length > 0 ? VERSION_ZIP64 : VERSION;
     view.setUint32(0, CENTRAL_HEADER, true);
-    view.setUint16(4, version, true);
+    view.setUint16(4, MADE_BY_UNIX | version, true);
     view.setUint16(6, version, true);
     view.setUint16(8, FLAG_UTF8, true);
     view.setUint16(10, entry.method, true);
@@ -216,6 +221,7 @@ export class ZipWriter {
     view.setUint32(24, fields[0]?.overflows ? MARKER_32 : entry.size, true);
     view.setUint16(28, entry.nameBytes.length, true);
     view.setUint16(30, extraLength, true);
+    view.setUint32(38, REGULAR_FILE_ATTRIBUTES, true);
     view.setUint32(42, fields[2]?.overflows ? MARKER_32 : entry.localOffset, true);
     out.set(entry.nameBytes, 46);
     if (extraLength > 0) {

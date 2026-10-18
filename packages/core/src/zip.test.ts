@@ -157,7 +157,7 @@ describe("ZIP64 at the boundary", () => {
 });
 
 describe("headers written", () => {
-  it("carry the version needed, UTF-8 flag, and a fixed 1980-01-01 timestamp", async () => {
+  it("carry the version needed, UTF-8 flag, a Unix host with a regular file mode, and a fixed 1980-01-01 timestamp", async () => {
     for (const [forceZip64, version] of [
       [false, 20],
       [true, 45],
@@ -173,7 +173,15 @@ describe("headers written", () => {
           break;
         }
       }
-      expect([v.getUint16(pos + 4, true), v.getUint16(pos + 6, true), v.getUint16(pos + 8, true), v.getUint16(pos + 12, true), v.getUint16(pos + 14, true)]).toEqual([version, version, 0x0800, 0, 0x21]);
+      expect([v.getUint16(pos + 4, true), v.getUint16(pos + 6, true), v.getUint16(pos + 8, true), v.getUint16(pos + 12, true), v.getUint16(pos + 14, true)]).toEqual([
+        0x0300 | version,
+        version,
+        0x0800,
+        0,
+        0x21,
+      ]);
+      // Without a Unix host, Info-ZIP unzip reads non-ASCII names in the DOS code page.
+      expect(v.getUint32(pos + 38, true)).toBe(0o100644 * 0x10000);
     }
   });
 });
