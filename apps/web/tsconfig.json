@@ -1,0 +1,12 @@
+{
+  "extends": ["$app/tsconfig", "../../tsconfig.base.json"],
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "declaration": false,
+    "allowJs": true,
+    "checkJs": true
+  },
+  "include": ["src", "*.ts", "*.js"],
+  "exclude": ["src/service-worker"]
+}

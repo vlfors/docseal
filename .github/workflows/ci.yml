@@ -24,6 +24,9 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm build
+      # The browser app is a static site whose security policy lives in a <meta> tag.
+      - name: The web build carries its Content Security Policy
+        run: grep -q 'http-equiv="content-security-policy"' apps/web/build/index.html
       - run: pnpm test
 
   # Coverage floor, and the packed tarballs installed with npm and run as a user would.

@@ -21,3 +21,7 @@ apps/cli/NOTICE
 *.tgz
 dist-packages/
 release/
+
+# SvelteKit
+apps/web/.svelte-kit/
+apps/web/build/

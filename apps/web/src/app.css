@@ -1,0 +1,13 @@
+/* SvelteKit's route announcer is allowed its inline style by hash (csp.js); this hides it too,
+   for a browser that does not support 'unsafe-hashes'. */
+#svelte-announcer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+  width: 1px;
+  height: 1px;
+}

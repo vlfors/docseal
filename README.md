@@ -142,6 +142,7 @@ pnpm check    # lint, typecheck, test
 pnpm build
 node apps/cli/dist/index.js --help
 pnpm demo     # seal → verify → change a word → invalid
+pnpm --filter @docseal/web dev   # the browser app (v0.2, in progress)
 ```
 
 | Path | Contents |
@@ -151,6 +152,7 @@ pnpm demo     # seal → verify → change a word → invalid
 | `packages/sig-ed25519` | Ed25519 signature suite and development key provider |
 | `packages/anchor-ots` | OpenTimestamps anchor provider |
 | `apps/cli` | `docseal` command-line interface |
+| `apps/web` | Browser app (v0.2, in progress): a static SvelteKit site |
 | `verifiers/python` | Independent verifier used to cross-check the vectors |
 | `examples` | Library example and the CLI demo |
 | `scripts` | Packing, smoke test, release checks |
