@@ -1,1 +1,2 @@
 cryptography>=44
+pynacl>=1.5

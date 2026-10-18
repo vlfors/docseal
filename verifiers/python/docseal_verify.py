@@ -12,7 +12,8 @@ Usage:
 
 Exit codes for `verify`: 0 valid, 1 invalid, 2 indeterminate, 3 error.
 
-Requires the `cryptography` package for Ed25519. No other cryptography is implemented here.
+Requires `cryptography` (OpenSSL) for Ed25519 signatures and `pynacl` (libsodium) for
+Ed25519 point validation. No cryptography is implemented here.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from typing import Any
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from nacl.bindings import crypto_core_ed25519_is_valid_point as is_valid_point
 
 MEDIA_TYPE = b"application/vnd.docseal+zip"
 SUITE = "ed25519"
@@ -345,23 +347,6 @@ def seal_digest(statement_hash: bytes, set_hash: bytes) -> bytes:
 # ---------------------------------------------------------------------------
 # Ed25519, profile docseal-ed25519-v1
 
-# y-coordinates (sign bit cleared) of every point of order dividing 8, including the
-# non-canonical encodings p and p + 1. Same list as libsodium's has_small_order().
-# OpenSSL, behind `cryptography`, accepts some of these keys, and with them a single
-# signature verifies any message, so they are rejected before calling it.
-SMALL_ORDER_Y = {
-    bytes.fromhex(y)
-    for y in (
-        "0000000000000000000000000000000000000000000000000000000000000000",
-        "0100000000000000000000000000000000000000000000000000000000000000",
-        "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
-        "c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
-        "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
-        "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
-        "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
-    )
-}
-
 
 def did_to_public_key(did: str) -> bytes:
     # An Ed25519 did:key has 48 base58 characters; check first, since decoding is quadratic.
@@ -373,59 +358,11 @@ def did_to_public_key(did: str) -> bytes:
     return data[2:]
 
 
-# Just enough Edwards25519 arithmetic (RFC 8032 §5.1) to check subgroup membership.
-# Signature verification itself is left to OpenSSL.
-ED_P = 2**255 - 19
-ED_L = 2**252 + 27742317777372353535851937790883648493
-ED_D = -121665 * pow(121666, ED_P - 2, ED_P) % ED_P
-ED_SQRT_M1 = pow(2, (ED_P - 1) // 4, ED_P)
-
-
-def ed_decode(encoding: bytes) -> tuple[int, int, int, int] | None:
-    """RFC 8032 §5.1.3 point decoding in extended coordinates; None if not a canonical point."""
-    y = int.from_bytes(encoding, "little") & ((1 << 255) - 1)
-    sign = encoding[31] >> 7
-    if y >= ED_P:
-        return None
-    u = (y * y - 1) % ED_P
-    v = (ED_D * y * y + 1) % ED_P
-    x = u * pow(v, 3, ED_P) * pow(u * pow(v, 7, ED_P), (ED_P - 5) // 8, ED_P) % ED_P
-    if (v * x * x - u) % ED_P != 0:
-        if (v * x * x + u) % ED_P != 0:
-            return None
-        x = x * ED_SQRT_M1 % ED_P
-    if x == 0 and sign:
-        return None
-    if x & 1 != sign:
-        x = ED_P - x
-    return (x, y, 1, x * y % ED_P)
-
-
-def ed_add(p: tuple[int, int, int, int], q: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
-    x1, y1, z1, t1 = p
-    x2, y2, z2, t2 = q
-    a = (y1 - x1) * (y2 - x2) % ED_P
-    b = (y1 + x1) * (y2 + x2) % ED_P
-    c = t1 * 2 * ED_D * t2 % ED_P
-    d = z1 * 2 * z2 % ED_P
-    e, f, g, h = b - a, d - c, d + c, b + a
-    return (e * f % ED_P, g * h % ED_P, f * g % ED_P, e * h % ED_P)
-
-
-def in_prime_order_subgroup(encoding: bytes) -> bool:
-    """[L]P is the identity: P has no small-order component."""
-    point = ed_decode(encoding)
-    if point is None:
-        return False
-    result = (0, 1, 1, 0)
-    scalar = ED_L
-    while scalar:
-        if scalar & 1:
-            result = ed_add(result, point)
-        point = ed_add(point, point)
-        scalar >>= 1
-    x, y, z, _ = result
-    return x % ED_P == 0 and (y - z) % ED_P == 0
+# OpenSSL, behind `cryptography`, verifies the signature but accepts small-order keys and
+# points with a small-order component, and checks the cofactorless equation. libsodium's
+# point validation rejects those points: canonical, on the curve, not of small order, and in
+# the prime-order subgroup. R may also be the identity (nonce r = 0), which RFC 8032 allows.
+ED_IDENTITY = bytes([1]) + bytes(31)
 
 
 def verify_ed25519(signer: str, message: bytes, signature: bytes) -> bool:
@@ -435,10 +372,9 @@ def verify_ed25519(signer: str, message: bytes, signature: bytes) -> bool:
         return False
     if len(signature) != 64:
         return False
-    if public_key[:31] + bytes([public_key[31] & 0x7F]) in SMALL_ORDER_Y:
-        return False
     # A and R in the prime-order subgroup: then cofactored and cofactorless checks agree.
-    if not in_prime_order_subgroup(public_key) or not in_prime_order_subgroup(signature[:32]):
+    r = signature[:32]
+    if not is_valid_point(public_key) or not (r == ED_IDENTITY or is_valid_point(r)):
         return False
     try:
         Ed25519PublicKey.from_public_bytes(public_key).verify(signature, message)
@@ -1118,7 +1054,10 @@ def run_vectors(directory: Path) -> int:
     check(json_hash(example["protected"]).hex() == example["protectedHash"], "signature example hash")
     check(signed_bytes(example["protected"]).hex() == example["signedBytes"], "signature example signed bytes")
     check(did_to_public_key(signatures["did"]).hex() == signatures["publicKey"], "did:key decoding")
-    check({bytes.fromhex(y) for y in signatures["smallOrderY"]} == SMALL_ORDER_Y, "small-order list")
+    for y in signatures["smallOrderY"]:
+        for sign in (0, 0x80):
+            point = bytes.fromhex(y)[:31] + bytes([bytes.fromhex(y)[31] | sign])
+            check(not is_valid_point(point), f"small-order point rejected: {point.hex()}")
     for case in signatures["cases"]:
         result = verify_ed25519(case["signer"], signed_bytes(case["protected"]), from_base64url(case["signature"]))
         check(result == case["valid"], f"signature: {case['name']}")
