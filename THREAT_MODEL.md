@@ -49,6 +49,7 @@ DocSeal does not prove that a document is true, the signer's identity without an
 | Package text (file names, roles, error details) with terminal escape sequences or bidi marks that redraw the verdict | The CLI escapes control, bidirectional, and zero-width characters in every printed line |
 | Calendar date that some parsers accept and others reject (`2026-02-30`) | Timestamps checked field by field against the calendar, not with a platform date parser |
 | Partial verification shown as complete | Separate `completeness` and `overall` verdicts |
+| A file being sealed swapped for a link or another file between listing and reading, to put a file the attacker cannot read into the package (TOCTOU) | The CLI refuses links when collecting, pins each file by device, inode, and size, opens it without following a final link, and checks the open descriptor against the pinned identity on every read; a directory must keep its identity across listing |
 | Theft of a local key | Encrypted key file; production HSM/KMS providers |
 | Removal of a signature or anchor | Signed policy and a report of missing required proofs |
 | Brute-forcing a short hidden file | Random per-file leaf salt (see below) |

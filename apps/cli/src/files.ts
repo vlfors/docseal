@@ -1,3 +1,4 @@
+import { constants, type BigIntStats } from "node:fs";
 import { lstat, open, readdir, readFile, rename, rm, type FileHandle } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
 import type { ByteSink, ByteSource, SealFile } from "@docseal/core";
@@ -8,6 +9,11 @@ import { CliError } from "./io.js";
  * argument contributes its contents, with paths relative to that directory.
  * Symlinks are refused rather than followed, so the package holds exactly what was named.
  * Contents are not loaded: each file is read in chunks while sealing.
+ *
+ * The files are named now and read later, so each one is pinned by identity (device and
+ * inode) and size. Every read opens it without following a final symlink and checks the
+ * open descriptor against that identity: a file replaced in between, by a link or anything
+ * else, is reported instead of read.
  */
 export async function collectFiles(paths: readonly string[]): Promise<SealFile[]> {
   const files: SealFile[] = [];
@@ -17,9 +23,9 @@ export async function collectFiles(paths: readonly string[]): Promise<SealFile[]
       throw new CliError(`${path} is a symbolic link; pass the target instead`);
     }
     if (stats.isFile()) {
-      files.push({ path: basename(path), source: pathSource(path, stats.size) });
+      files.push({ path: basename(path), source: pathSource(path, stats) });
     } else if (stats.isDirectory()) {
-      await walk(path, path, files);
+      await walk(path, path, stats, files);
     } else {
       throw new CliError(`${path} is not a regular file or directory`);
     }
@@ -30,43 +36,71 @@ export async function collectFiles(paths: readonly string[]): Promise<SealFile[]
   return files;
 }
 
-async function walk(root: string, dir: string, files: SealFile[]): Promise<void> {
+async function walk(root: string, dir: string, identity: BigIntStats, files: SealFile[]): Promise<void> {
   const entries = await readdir(dir, { withFileTypes: true });
+  // readdir follows a link: the directory must still be the one examined before it.
+  const after = await statOrFail(dir);
+  if (!after.isDirectory() || !sameFile(after, identity)) {
+    throw changed(dir);
+  }
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isSymbolicLink()) {
       throw new CliError(`${full} is a symbolic link; DocSeal does not follow links`);
     }
     if (entry.isDirectory()) {
-      await walk(root, full, files);
+      const stats = await statOrFail(full);
+      if (!stats.isDirectory()) {
+        throw changed(full);
+      }
+      await walk(root, full, stats, files);
     } else if (entry.isFile()) {
-      files.push({ path: relative(root, full).split(sep).join("/"), source: pathSource(full, (await statOrFail(full)).size) });
+      const stats = await statOrFail(full);
+      if (!stats.isFile()) {
+        throw changed(full);
+      }
+      files.push({ path: relative(root, full).split(sep).join("/"), source: pathSource(full, stats) });
     } else {
       throw new CliError(`${full} is not a regular file`);
     }
   }
 }
 
-async function statOrFail(path: string) {
+async function statOrFail(path: string): Promise<BigIntStats> {
   try {
-    return await lstat(path);
+    return await lstat(path, { bigint: true });
   } catch {
     throw new CliError(`Cannot read ${path}`);
   }
 }
 
+function sameFile(a: BigIntStats, b: BigIntStats): boolean {
+  return a.dev === b.dev && a.ino === b.ino;
+}
+
+function changed(path: string): CliError {
+  return new CliError(`${path} changed while it was being read`);
+}
+
+// Not defined on Windows; there the identity check alone catches a replaced file.
+const READ_NO_FOLLOW = constants.O_RDONLY | ("O_NOFOLLOW" in constants ? constants.O_NOFOLLOW : 0);
+
 /**
  * A file read by path. Each read opens the file anew, so sealing thousands of files never
- * holds thousands of descriptors; a file that shrinks or grows meanwhile is reported.
+ * holds thousands of descriptors; the descriptor must be the file collected, at its size.
  */
-function pathSource(path: string, size: number): ByteSource {
+function pathSource(path: string, identity: BigIntStats): ByteSource {
   return {
-    size,
+    size: Number(identity.size),
     async read(offset, length) {
-      const handle = await open(path, "r").catch(() => {
+      const handle = await open(path, READ_NO_FOLLOW).catch(() => {
         throw new CliError(`Cannot read ${path}`);
       });
       try {
+        const stats = await handle.stat({ bigint: true });
+        if (!stats.isFile() || !sameFile(stats, identity) || stats.size !== identity.size) {
+          throw changed(path);
+        }
         return await readExactly(handle, offset, length, path);
       } finally {
         await handle.close();
@@ -101,7 +135,7 @@ async function readExactly(handle: FileHandle, offset: number, length: number, p
   while (filled < length) {
     const { bytesRead } = await handle.read(buffer, filled, length - filled, offset + filled);
     if (bytesRead === 0) {
-      throw new CliError(`${path} changed while it was being read`);
+      throw changed(path);
     }
     filled += bytesRead;
   }
