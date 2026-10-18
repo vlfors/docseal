@@ -80,7 +80,7 @@ Each file listed in the manifest is stored at `files/<path>`. Signature envelope
 - Directory entries MUST be empty.
 - Extra fields MUST be well formed: a sequence of blocks, none truncated and no block ID repeated. Unknown blocks (timestamps, Unix IDs) are ignored. The Info-ZIP Unicode Path block (`0x7075`) MUST be rejected, because some tools extract the entry under the name it carries instead of the header name.
 - Contents are never executed and never loaded as plugins.
-- Entries are stored (method 0) or deflated (method 8); any other method is invalid in v0.1. Deflated data MUST be exactly one complete raw deflate stream (RFC 1951): a stream that never reaches its final block, and bytes after the end of the stream, are both invalid. (Some libraries accept either silently.)
+- Entries are stored (method 0) or deflated (method 8); any other method is invalid in v0.1. Deflated data MUST be exactly one complete raw deflate stream (RFC 1951): a stream that never reaches its final block, and bytes after the end of the stream, are both invalid. (Some libraries accept either silently, and so does the platform `DecompressionStream` of Node.js 22 for bytes after the end; a verifier that relies on its platform checks this itself.)
 - Encrypted entries and multi-disk archives are rejected: every disk number is 0, and the starting disk of every entry is 0.
 
 ### ZIP64

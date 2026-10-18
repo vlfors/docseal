@@ -6,12 +6,14 @@
  * (symlinks), overlapping entries, and declared sizes before anything is inflated.
  * Local headers must agree with the central directory and entries must be contiguous,
  * so that a streaming unzip tool, which reads local headers, sees exactly the bytes
- * DocSeal verified. Deflate data is inflated with the platform's DecompressionStream, which,
- * unlike some libraries, rejects both an unfinished stream and bytes after its end.
+ * DocSeal verified. Deflate data is inflated with the platform's DecompressionStream and must
+ * be exactly one complete stream. The Compression Streams standard rejects both an unfinished
+ * stream and bytes after its end, but not every platform follows it (Node.js 22 ignores bytes
+ * after the end), so that case is checked independently where the platform does not.
  */
 import { equalBytes } from "./bytes.js";
 import { FormatError } from "./errors.js";
-import { READ_CHUNK_SIZE, readChunks, type ByteSource } from "./io.js";
+import { READ_CHUNK_SIZE, bytesSource, readChunks, type ByteSource } from "./io.js";
 
 export const LOCAL_HEADER = 0x04034b50;
 export const CENTRAL_HEADER = 0x02014b50;
@@ -408,6 +410,9 @@ export async function* entryChunks(source: ByteSource, entry: ZipEntry): AsyncGe
       check(chunk);
       yield chunk;
     }
+    if (!(await platformRejectsTrailingData())) {
+      await requireEndInLastByte(source, entry);
+    }
   }
   if (size !== entry.size) {
     throw invalid("zip", `Entry ${where} does not match its declared size`);
@@ -481,6 +486,59 @@ async function* inflate(input: AsyncIterable<Uint8Array>, where: string): AsyncG
     await reader.cancel().catch(() => undefined);
     await feeding;
   }
+}
+
+let trailingDataProbe: { for: typeof DecompressionStream; result: Promise<boolean> } | undefined;
+
+/**
+ * Whether the platform's DecompressionStream rejects bytes after the end of a deflate stream,
+ * as the Compression Streams standard requires. Probed once per implementation (a polyfill may
+ * replace it), with an empty stream and one byte.
+ */
+export function platformRejectsTrailingData(): Promise<boolean> {
+  if (trailingDataProbe?.for === DecompressionStream) {
+    return trailingDataProbe.result;
+  }
+  const result = (async () => {
+    // 03 00: a final fixed-Huffman block with only its end-of-block code; then one more byte.
+    const output = inflate(readChunks(bytesSource(new Uint8Array([0x03, 0x00, 0x00]))), "probe");
+    try {
+      while (!(await output.next()).done) {
+        // An empty stream: nothing to read.
+      }
+      return false;
+    } catch {
+      return true;
+    }
+  })();
+  trailingDataProbe = { for: DecompressionStream, result };
+  return result;
+}
+
+/**
+ * Proves, on a platform that ignores bytes after the end of a deflate stream, that an entry's
+ * deflate data has none. A deflate stream ends inside its last byte, so the data without that
+ * byte must be an unfinished stream; if it still inflates completely, the stream ended earlier
+ * and the remaining bytes are trailing data. Call it after a successful inflate.
+ */
+async function requireEndInLastByte(source: ByteSource, entry: ZipEntry): Promise<void> {
+  const where = JSON.stringify(entry.name);
+  const shorter = readChunks(source, entry.dataOffset, entry.compressedSize - 1, INFLATE_CHUNK_SIZE);
+  let size = 0;
+  try {
+    for await (const chunk of inflate(shorter, where)) {
+      size += chunk.length;
+      if (size > entry.size) {
+        break;
+      }
+    }
+  } catch (error) {
+    if (error instanceof FormatError) {
+      return;
+    }
+    throw error;
+  }
+  throw invalid("zip", `Entry ${where} is not one complete deflate stream`);
 }
 
 /** The whole uncompressed contents of a small entry, checked like {@link entryChunks}. */

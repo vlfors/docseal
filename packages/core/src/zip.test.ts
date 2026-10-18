@@ -1,11 +1,11 @@
-import { deflateSync } from "fflate";
-import { describe, expect, it } from "vitest";
+import { deflateSync, inflateSync } from "fflate";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { utf8 } from "./bytes.js";
 import { MEDIA_TYPE } from "./constants.js";
 import { DEFAULT_LIMITS, openContainer, readContainer, writeContainer, type PackageContents } from "./container.js";
 import { FormatError } from "./errors.js";
 import { memorySink, type ByteSink, type ByteSource } from "./io.js";
-import { MARKER_16, MARKER_32, crc32 } from "./zip.js";
+import { MARKER_16, MARKER_32, crc32, platformRejectsTrailingData } from "./zip.js";
 import { ZipWriter } from "./zip-writer.js";
 
 const contents = (): PackageContents => ({
@@ -321,6 +321,57 @@ describe("deflate data", () => {
 
   it("rejects bytes after the end of the stream", async () => {
     await expectRejected(await withDeflate(new Uint8Array([...stream, 0, 1, 2]), content), /one complete deflate stream/);
+  });
+
+  it("probes the platform once per DecompressionStream implementation", async () => {
+    const first = platformRejectsTrailingData();
+    expect(platformRejectsTrailingData()).toBe(first);
+    expect(typeof (await first)).toBe("boolean");
+  });
+
+  // Node.js 22 ignores bytes after the end of the stream, as fflate does; the Compression Streams
+  // standard and Node.js 24 reject them. The rule must hold on both.
+  describe("on a platform that ignores bytes after the end", () => {
+    class IgnoresTrailingData extends TransformStream<Uint8Array, Uint8Array> {
+      constructor() {
+        const chunks: number[] = [];
+        super({
+          transform: (chunk) => {
+            chunks.push(...chunk);
+          },
+          flush: (controller) => {
+            controller.enqueue(inflateSync(new Uint8Array(chunks)));
+          },
+        });
+      }
+    }
+    beforeEach(() => {
+      vi.stubGlobal("DecompressionStream", IgnoresTrailingData);
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("is detected", async () => {
+      expect(await platformRejectsTrailingData()).toBe(false);
+    });
+
+    it("accepts a stream that ends in its last byte", async () => {
+      expect((await readContainer(await withDeflate(stream, content))).files.get("a.txt")).toEqual(content);
+      // A stored block ends with its data, not with a Huffman code.
+      const stored = new Uint8Array([0x01, 0x05, 0x00, 0xfa, 0xff, ...utf8("hello")]);
+      expect((await readContainer(await withDeflate(stored, utf8("hello")))).files.get("a.txt")).toEqual(utf8("hello"));
+      expect((await readContainer(await withDeflate(new Uint8Array([0x03, 0x00]), new Uint8Array()))).files.get("a.txt")).toEqual(new Uint8Array());
+    });
+
+    it.each([1, 2, 100])("rejects %i byte(s) after the end", async (extra) => {
+      const raw = new Uint8Array([...stream, ...new Uint8Array(extra).fill(0xaa)]);
+      await expectRejected(await withDeflate(raw, content), /one complete deflate stream/);
+    });
+
+    it("still rejects an unfinished stream", async () => {
+      await expectRejected(await withDeflate(stream.subarray(0, stream.length - 1), content), /one complete deflate stream/);
+    });
   });
 
   it("rejects a stream that never reaches its final block", async () => {
