@@ -30,7 +30,7 @@ import { CliError, ExitCode, type Io } from "./io.js";
 import { formatReport } from "./report.js";
 import { sanitize } from "./sanitize.js";
 
-export const VERSION = "0.0.0";
+export const VERSION = "0.1.0";
 const PASSPHRASE_ENV = "DOCSEAL_PASSPHRASE";
 
 /** Runs the CLI and returns the exit code. Never calls process.exit. */

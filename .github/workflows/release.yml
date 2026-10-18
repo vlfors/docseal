@@ -1,0 +1,84 @@
+name: Release
+
+# Pushing a tag v<version> publishes that version. The tarballs are built once, attested
+# (GitHub build provenance), published to npm with npm provenance, and attached to the
+# GitHub release together with their SHA-256 sums.
+#
+# Everything that runs project or dependency code (install, checks, build, pack) happens in
+# `build`, which holds no credentials. `publish` holds them and runs no project code: no
+# checkout, no install; it only publishes the tarballs `build` handed over.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/check-release.mjs "$GITHUB_REF_NAME"
+      - run: pnpm check
+      - run: pip install --require-hashes -r verifiers/python/requirements.txt
+      - run: python -I verifiers/python/docseal_verify.py vectors spec/vectors
+      - run: scripts/smoke-test.sh
+      - run: scripts/pack.sh release
+      - run: node scripts/check-release.mjs "$GITHUB_REF_NAME" --notes > release/release-notes.md
+      - run: cd release && sha256sum *.tgz > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release
+          path: release/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: write # the GitHub release
+      id-token: write # npm provenance and trusted publishing, build attestations
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release
+          path: release
+      - run: cd release && sha256sum --check --strict SHA256SUMS
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: release/*.tgz
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      # In dependency order. Trusted publishing (OIDC) needs no token; NPM_TOKEN is the
+      # fallback while it is not configured on npmjs.com. --ignore-scripts: a tarball's
+      # lifecycle scripts must not run where the credentials are.
+      - name: Publish to npm
+        run: |
+          for name in core sig-ed25519 anchor-ots cli; do
+            npm publish "release/docseal-$name-${GITHUB_REF_NAME#v}.tgz" --provenance --access public --ignore-scripts
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create the GitHub release
+        run: >-
+          gh release create "$GITHUB_REF_NAME" release/*.tgz release/SHA256SUMS
+          --repo "$GITHUB_REPOSITORY" --verify-tag
+          --title "DocSeal $GITHUB_REF_NAME" --notes-file release/release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}

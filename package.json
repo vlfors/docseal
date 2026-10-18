@@ -12,13 +12,16 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage",
+    "coverage": "vitest run --coverage --testTimeout=60000",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "vectors:update": "UPDATE_VECTORS=1 vitest run tests/vectors.test.ts",
     "vectors:python": "verifiers/python/.venv/bin/python -I verifiers/python/docseal_verify.py vectors spec/vectors",
     "fuzz": "FUZZ_RUNS=5000 vitest run tests/fuzz.test.ts tests/properties.test.ts",
     "fuzz:differential": "FUZZ_RUNS=3000 vitest run tests/differential.test.ts",
-    "mutation": "stryker run"
+    "mutation": "stryker run",
+    "pack": "scripts/pack.sh",
+    "smoke": "scripts/smoke-test.sh",
+    "demo": "pnpm build && DOCSEAL='node apps/cli/dist/index.js' examples/demo.sh"
   },
   "devDependencies": {
     "@docseal/anchor-ots": "workspace:*",

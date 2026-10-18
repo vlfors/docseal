@@ -1,6 +1,6 @@
-# `.dseal` Format v0.1 — Release Candidate 1
+# `.dseal` Format v0.1
 
-Status: release candidate. The format is complete and cross-checked by two independent implementations against the published JSON Schemas and test vectors. It will be frozen as v0.1 with the first release, after parser fuzzing; until then a change is still possible, and any change comes with new test vectors and a new release candidate number. After the freeze, any change that alters what a verifier accepts requires a new format version.
+Status: **final**, frozen with DocSeal 0.1.0. The format is cross-checked by two independent implementations (TypeScript and Python) against the published JSON Schemas and test vectors, and by differential fuzzing of both. Any change that alters the verdict for some package requires a new format version; see [Changes](#changes).
 
 The key words MUST, MUST NOT, SHOULD, and MAY are to be interpreted as described in RFC 2119.
 
@@ -370,6 +370,16 @@ The key is derived with scrypt from the passphrase in Unicode NFC, UTF-8 encoded
 ## Crypto agility
 
 v0.1 is effectively fixed to SHA-256 and the `docseal-ed25519-v1` profile. Algorithm identifiers are kept in the data, but changing an algorithm happens through a new profile or specification version with its own test vectors, not through an arbitrary string.
+
+## Changes
+
+v0.1 does not change. Errata may clarify the text where it is ambiguous, but only towards the behavior both reference implementations already share and the vectors already pin; each erratum is listed here with its date. Anything else — a new rule, a relaxed rule, a new algorithm — goes into a new format version with its own `version` numbers in the documents, and verifiers keep accepting v0.1 packages.
+
+Since release candidate 1 (2026-10-17), fuzzing led to three rules, each with vectors, before the freeze:
+
+- paths are compared after case mapping **followed by NFC** ([Paths](#paths));
+- deflated data is exactly one complete stream: no unfinished stream, no bytes after its end ([Container](#container));
+- the format verdict is `invalid` whenever any check is invalid, `unsupported` only otherwise, whatever the order of checks.
 
 ## Test vectors
 

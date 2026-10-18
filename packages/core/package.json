@@ -1,8 +1,20 @@
 {
   "name": "@docseal/core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "DocSeal core: package format, hashing, Merkle tree, verification pipeline, and plugin interfaces",
   "license": "Apache-2.0",
+  "keywords": [
+    "document",
+    "signature",
+    "integrity",
+    "merkle",
+    "verification",
+    "opentimestamps",
+    "dseal"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -13,15 +25,29 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --sourcemap",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "cp ../../LICENSE ../../NOTICE ."
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",
     "canonicalize": "^5.1.0",
     "fflate": "^0.8.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
   }
 }

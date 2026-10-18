@@ -1,0 +1,48 @@
+/** Versions that must move together; the release workflow checks the same for the tag. */
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import { VERSION } from "../apps/cli/src/main.js";
+
+const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const PACKAGES = ["packages/core", "packages/sig-ed25519", "packages/anchor-ots", "apps/cli"];
+
+describe("release metadata", () => {
+  const manifests = PACKAGES.map((dir) => JSON.parse(read(`${dir}/package.json`)) as { name: string; version: string; publishConfig?: { exports?: unknown } });
+
+  it("gives every published package, and the CLI, the same version", () => {
+    expect(new Set(manifests.map((m) => m.version))).toEqual(new Set([VERSION]));
+  });
+
+  it("has a changelog section for that version", () => {
+    expect(read("CHANGELOG.md")).toMatch(new RegExp(`^## \\[${VERSION.replace(/\./g, "\\.")}\\]`, "m"));
+  });
+
+  it("pins every GitHub Action to a full commit SHA", () => {
+    // A tag can be moved to other code; the release job holds publishing credentials.
+    for (const workflow of ["ci.yml", "release.yml"]) {
+      const uses = [...read(`.github/workflows/${workflow}`).matchAll(/^\s*-?\s*uses:\s*(\S+)/gm)].map((m) => m[1]);
+      expect(uses.length, workflow).toBeGreaterThan(0);
+      for (const ref of uses) {
+        expect(ref, workflow).toMatch(/^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/);
+      }
+    }
+  });
+
+  it("keeps credentials and project code in separate release jobs", () => {
+    const workflow = read(".github/workflows/release.yml");
+    const publish = workflow.slice(workflow.indexOf("\n  publish:"));
+    const build = workflow.slice(workflow.indexOf("\n  build:"), workflow.indexOf("\n  publish:"));
+    // The job that can publish never checks out or installs anything, and runs no package scripts.
+    expect(publish).not.toMatch(/actions\/checkout|pnpm|pip install|scripts\//);
+    expect(publish).toContain("--ignore-scripts");
+    // The job that runs project and dependency code gets no secrets and no write access.
+    expect(build).not.toMatch(/secrets\.|permissions:|environment:/);
+    expect(workflow).toMatch(/^permissions:\n {2}contents: read\n/m);
+  });
+
+  it("publishes no export that points at the sources", () => {
+    for (const manifest of manifests) {
+      expect(JSON.stringify(manifest.publishConfig?.exports ?? {}), manifest.name).not.toContain("src/");
+    }
+  });
+});

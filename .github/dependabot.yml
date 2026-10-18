@@ -1,0 +1,11 @@
+# Proposes updates to the pinned action SHAs (and their version comments) as pull requests.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /verifiers/python
+    schedule:
+      interval: weekly

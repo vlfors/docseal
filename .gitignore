@@ -12,3 +12,12 @@ verifiers/python/.venv/
 __pycache__/
 reports/
 .stryker-tmp/
+
+# copied from the root by `prepack`
+packages/*/LICENSE
+packages/*/NOTICE
+apps/cli/LICENSE
+apps/cli/NOTICE
+*.tgz
+dist-packages/
+release/

@@ -44,6 +44,10 @@ The project is intended as a complete, portfolio-grade open-source project: firs
 ## Command line
 
 ```bash
+npm install -g @docseal/cli                    # Node.js ≥ 22
+```
+
+```bash
 docseal keygen -o me.key                       # encrypted Ed25519 key (development use)
 docseal pubkey me.key                          # did:key to put in recipients' trusted-keys.json
 docseal seal contract/ -k me.key -o contract.dseal
@@ -137,6 +141,7 @@ pnpm install
 pnpm check    # lint, typecheck, test
 pnpm build
 node apps/cli/dist/index.js --help
+pnpm demo     # seal → verify → change a word → invalid
 ```
 
 | Path | Contents |
@@ -146,6 +151,9 @@ node apps/cli/dist/index.js --help
 | `packages/sig-ed25519` | Ed25519 signature suite and development key provider |
 | `packages/anchor-ots` | OpenTimestamps anchor provider |
 | `apps/cli` | `docseal` command-line interface |
+| `verifiers/python` | Independent verifier used to cross-check the vectors |
+| `examples` | Library example and the CLI demo |
+| `scripts` | Packing, smoke test, release checks |
 
 ## Security and legal notice
 

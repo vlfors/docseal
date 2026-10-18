@@ -1,8 +1,17 @@
 {
   "name": "@docseal/anchor-ots",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "DocSeal OpenTimestamps anchor provider",
   "license": "Apache-2.0",
+  "keywords": [
+    "docseal",
+    "opentimestamps",
+    "bitcoin",
+    "timestamp"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -13,14 +22,28 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --sourcemap",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "cp ../../LICENSE ../../NOTICE ."
   },
   "dependencies": {
     "@docseal/core": "workspace:*",
     "@noble/hashes": "^2.4.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
   }
 }

@@ -1,23 +1,42 @@
 {
   "name": "@docseal/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "DocSeal command-line interface",
   "license": "Apache-2.0",
+  "keywords": [
+    "docseal",
+    "document",
+    "signature",
+    "integrity",
+    "opentimestamps",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "bin": {
     "docseal": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --clean --sourcemap",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "cp ../../LICENSE ../../NOTICE ."
   },
   "dependencies": {
     "@docseal/anchor-ots": "workspace:*",
     "@docseal/core": "workspace:*",
     "@docseal/sig-ed25519": "workspace:*",
     "commander": "^15.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

@@ -4,7 +4,7 @@ This roadmap describes the current direction of the project. It is not a commitm
 
 ## v0.1 — Core and CLI
 
-- [ ] Freeze the versioned `.dseal` specification. *Release candidate 1 published ([FORMAT-v0.1.md](docs/FORMAT-v0.1.md)); frozen with the first release, after fuzzing.*
+- [x] Freeze the versioned `.dseal` specification. *[FORMAT-v0.1.md](docs/FORMAT-v0.1.md) is final.*
 - [x] Implement a safe fat package with documents inside.
 - [x] Add `manifest.json`, `statement.json`, and JSON Schemas.
 - [x] Implement streaming SHA-256 hashing, streaming container I/O, and ZIP64.
@@ -15,7 +15,7 @@ This roadmap describes the current direction of the project. It is not a commitm
 - [x] Implement the CLI: `keygen`, `seal`, `verify`, `upgrade`.
 - [x] Return a machine-readable report with separate verification axes.
 - [x] Add mutation tests, property tests, and parser fuzzing. *See [TESTING.md](docs/TESTING.md).*
-- [ ] Set up CI, signed releases, and documentation.
+- [x] Set up CI, signed releases, and documentation. *CI with coverage floor and package smoke test; tag-driven releases with npm provenance and attested tarballs ([RELEASING.md](docs/RELEASING.md)); [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md), demo. The first publication waits for the public repository.*
 
 ### Implementation order
 
@@ -24,7 +24,7 @@ This roadmap describes the current direction of the project. It is not a commitm
 3. **Multiple files and policies:** plugin registry, pinned-keys `TrustPolicy`, `any-valid` signature policy, missing/modified/extra file detection, `unsupported` for unknown suites and critical extensions. *Done.*
 4. **OpenTimestamps:** `.ots` parser and executor, calendar submission, `upgrade`, Bitcoin header check through a configurable `ChainReader`. Tests use recorded proofs, no network in CI. *Done; checked live against public calendars and mempool.space.*
 5. **CLI:** `keygen`, `seal`, `verify --trust --json`, `upgrade`; distinct exit codes; human and JSON reports with the same content. *Done; also `pubkey`. Demonstrated against the public calendars and mempool.space.*
-6. **Quality and release:** test vectors cross-checked by an independent script, negative tests for every threat-model row, fast-check properties, parser fuzzing, ≥ 90 % core coverage, `CHANGELOG.md`, `CONTRIBUTING.md`, npm provenance, demo `seal → verify → mutate → invalid`.
+6. **Quality and release:** test vectors cross-checked by an independent script, negative tests for every threat-model row, fast-check properties, parser fuzzing, ≥ 90 % core coverage, `CHANGELOG.md`, `CONTRIBUTING.md`, npm provenance, demo `seal → verify → mutate → invalid`. *Done; core line coverage is about 97 %.*
 
 Explicitly deferred from v0.1: selective disclosure (only the proof-building function and `merkleRoot` in the statement are in place), co-signing and M-of-N, `previous` versions, the package passport, RFC 3161, WebAuthn, any server, standalone binaries.
 

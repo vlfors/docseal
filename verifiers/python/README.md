@@ -5,10 +5,12 @@
 It checks format, integrity, signatures, pinned-key trust, and that an anchor is bound to the package. It does not contact Bitcoin, so a bound time proof is reported as `unsupported`.
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 .venv/bin/python docseal_verify.py vectors ../../spec/vectors
 .venv/bin/python docseal_verify.py verify contract.dseal --trust trusted-keys.json [--json]
 ```
+
+`requirements.in` names the dependencies; `requirements.txt` pins their exact versions with hashes, so pip refuses any other file. Regenerate it with `pip-compile --generate-hashes --allow-unsafe --strip-extras --no-emit-index-url requirements.in`.
 
 Exit codes for `verify` match the CLI: `0` valid, `1` invalid, `2` indeterminate, `3` error.
 
