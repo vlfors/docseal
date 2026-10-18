@@ -7,9 +7,14 @@ name: Release
 # Everything that runs project or dependency code (install, checks, build, pack) happens in
 # `build`, which holds no credentials. `publish` holds them and runs no project code: no
 # checkout, no install; it only publishes the tarballs `build` handed over.
+#
+# Run by hand (Actions → Release → Run workflow), it is a rehearsal: `build` runs in full for
+# the version in package.json, and `rehearse` checks the tarballs and runs `npm publish
+# --dry-run` without any credentials. Nothing is published, attested, or released.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,14 +34,23 @@ jobs:
           python-version: "3.12"
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
-      - run: node scripts/check-release.mjs "$GITHUB_REF_NAME"
+      - name: Choose the tag and mode
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+            echo "CHECK_FLAGS=" >> "$GITHUB_ENV"
+          else
+            echo "TAG=v$(node -p 'require("./packages/core/package.json").version')" >> "$GITHUB_ENV"
+            echo "CHECK_FLAGS=--dry-run" >> "$GITHUB_ENV"
+          fi
+      - run: node scripts/check-release.mjs "$TAG" $CHECK_FLAGS
       - run: pnpm check
       - run: pip install --require-hashes -r verifiers/python/requirements.txt
       - run: python -I verifiers/python/docseal_verify.py vectors spec/vectors
       - run: scripts/smoke-test.sh
       - run: scripts/pack.sh release
-      - run: node scripts/check-release.mjs "$GITHUB_REF_NAME" --notes > release/release-notes.md
-      - run: cd release && sha256sum *.tgz > SHA256SUMS
+      - run: node scripts/check-release.mjs "$TAG" --notes $CHECK_FLAGS > release/release-notes.md
+      - run: cd release && sha256sum *.tgz > SHA256SUMS && echo "$TAG" > tag
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release
@@ -45,6 +59,7 @@ jobs:
           retention-days: 7
 
   publish:
+    if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     environment: npm
@@ -71,7 +86,7 @@ jobs:
       - name: Publish to npm
         run: |
           for name in core sig-ed25519 anchor-ots cli; do
-            npm publish "release/docseal-$name-${GITHUB_REF_NAME#v}.tgz" --provenance --access public --ignore-scripts
+            npm publish "./release/docseal-$name-${GITHUB_REF_NAME#v}.tgz" --provenance --access public --ignore-scripts
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -82,3 +97,30 @@ jobs:
           --title "DocSeal $GITHUB_REF_NAME" --notes-file release/release-notes.md
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # The same steps as `publish` where they can run without credentials: no environment, no
+  # secrets, read-only permissions. npm checks each tarball and the registry, uploads nothing.
+  rehearse:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release
+          path: release
+      - run: cd release && sha256sum --check --strict SHA256SUMS
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - name: Publish to npm (dry run)
+        run: |
+          tag=$(cat release/tag)
+          for name in core sig-ed25519 anchor-ots cli; do
+            npm publish "./release/docseal-$name-${tag#v}.tgz" --access public --ignore-scripts --dry-run
+          done
+      - name: The GitHub release that would be created
+        run: |
+          echo "Title: DocSeal $(cat release/tag)"
+          echo "Assets:"; ls -l release/*.tgz release/SHA256SUMS
+          echo "Notes:"; cat release/release-notes.md

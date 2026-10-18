@@ -30,8 +30,9 @@ All packages are released together, with one version, by pushing a tag. The work
    node scripts/check-release.mjs v0.1.0
    pnpm check && pnpm vectors:python && pnpm smoke
    ```
-4. Tag and push: `git tag -s v0.1.0 -m "DocSeal 0.1.0" && git push origin main v0.1.0`.
-5. Approve the `npm` environment when the checks have passed.
+4. Rehearse: Actions → Release → Run workflow (on `main`). It runs the whole build for the version in `package.json`, hands the tarballs over, checks `SHA256SUMS`, and runs `npm publish --dry-run` without any credentials; nothing is published, attested, or released. An unreleased CHANGELOG section is only a warning there.
+5. Tag and push: `git tag -s v0.1.0 -m "DocSeal 0.1.0" && git push origin main v0.1.0`.
+6. Approve the `npm` environment when the checks have passed.
 
 ## Verifying a release
 

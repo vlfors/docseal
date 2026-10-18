@@ -30,8 +30,22 @@ describe("release metadata", () => {
 
   it("keeps credentials and project code in separate release jobs", () => {
     const workflow = read(".github/workflows/release.yml");
-    const publish = workflow.slice(workflow.indexOf("\n  publish:"));
-    const build = workflow.slice(workflow.indexOf("\n  build:"), workflow.indexOf("\n  publish:"));
+    const job = (name: string, next?: string) =>
+      workflow.slice(workflow.indexOf(`\n  ${name}:`), next ? workflow.indexOf(`\n  ${next}:`) : undefined);
+    const build = job("build", "publish");
+    const publish = job("publish", "rehearse");
+    const rehearse = job("rehearse");
+    // Only a pushed tag publishes; a manual run rehearses without any credentials.
+    expect(publish).toContain("if: github.event_name == 'push'");
+    expect(rehearse).toContain("if: github.event_name == 'workflow_dispatch'");
+    expect(rehearse).not.toMatch(/secrets\.|permissions:|environment:|registry-url|--provenance/);
+    expect(rehearse).toContain("--dry-run");
+    // npm reads "release/x.tgz" as the GitHub repository release/x.tgz; a tarball path needs "./".
+    const tarballs = [...workflow.matchAll(/npm publish "([^"]+)"/g)].map((m) => m[1]);
+    expect(tarballs).toHaveLength(2);
+    for (const tarball of tarballs) {
+      expect(tarball).toMatch(/^\.\//);
+    }
     // The job that can publish never checks out or installs anything, and runs no package scripts.
     expect(publish).not.toMatch(/actions\/checkout|pnpm|pip install|scripts\//);
     expect(publish).toContain("--ignore-scripts");
