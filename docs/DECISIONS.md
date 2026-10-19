@@ -50,6 +50,25 @@ The value of the project lies in an open format, independent verification, a cle
 
 See [FORMAT-v0.1.md](FORMAT-v0.1.md) for the normative details.
 
+### Decided on 2026-10-18 for v0.2 (browser interface)
+
+| Question | Decision |
+|---|---|
+| Framework | SvelteKit with `adapter-static`: every page is prerendered as a static shell and runs in the browser only. No server code, and nothing about a user's documents or keys ever reaches a server. |
+| Hosting | GitHub Pages, built and deployed by CI from a release tag; the page shows the commit it was built from. The same static site is attached to each GitHub Release, attested like the npm tarballs, so anyone can serve it locally instead of trusting the hosted copy. |
+| Content Security Policy | GitHub Pages cannot set response headers, so the CSP is a `<meta>` tag with hashes of SvelteKit's inline scripts (`kit.csp`): scripts and workers from the site only, `connect-src` limited to the calendars and chain sources, no third-party resources of any kind (no CDN, fonts, or analytics). |
+| Framing | A `<meta>` CSP cannot carry `frame-ancestors`, so the page refuses to work inside a frame and offers a link to open it directly; this stops another site from overlaying its own buttons or verdict. |
+| Supported browsers | Current desktop Chrome, Edge, Firefox, and Safari, each tested in CI (Chromium, Firefox, WebKit). Mobile browsers on a best-effort basis. |
+| Where the work runs | Verifying, sealing, and opening a key file (scrypt) run in Web Workers. Documents and key material stay in the worker; only reports and progress reach the page. |
+| Keys | A key can be generated in the browser; it is downloaded at once as an encrypted key file in the same format as `docseal keygen`, so the CLI opens it too. A key file can be opened with its passphrase. The page never stores a secret key: it lives in worker memory for one sealing. Same scrypt parameters as the CLI. |
+| Trusted keys | Kept in the viewer's browser storage only, with import and export as `trusted-keys.json`; the page says so. |
+| Saving a sealed package | Streamed to disk through the File System Access API where it exists (Chrome, Edge). Elsewhere (Firefox, Safari) the package is built in memory and downloaded, up to a limit measured per browser before release (about 1 GiB expected); above it, the page refuses and explains why. No service-worker download tricks. |
+| Calendars from the browser | The default calendars that allow cross-origin requests (three of the four as of 2026-10-18; `ots.btc.catallaxy.com` does not); the quorum of two still applies. |
+| Bitcoin in the browser | The same Esplora sources with fallback as the CLI (`firstAvailableChainReader`). The report names the source that answered and says what it is trusted for: which block is at a height. Users can name their own Esplora instance, and verify offline. |
+| Languages | English and Russian from the start, chosen from the browser language with a switch. Strings live in a typed dictionary per language, without an i18n library; a missing translation fails the type check. |
+
+This answers the open question of how to verify Bitcoin in the browser and show the trust in the data source.
+
 ## Why `PackageStatement` exists
 
 A signature only over the hash of the full manifest prevents selective disclosure: without the manifest, the disclosed Merkle root cannot be linked to the signature, and the full manifest reveals the list of files. Therefore the root is included directly in a small signed statement that can be transferred together with a separate Merkle proof.
@@ -82,4 +101,3 @@ For a single developer:
 ## Open questions
 
 - final project name and domain;
-- how to verify Bitcoin in the browser and how to display the level of trust in the data source (v0.2);
