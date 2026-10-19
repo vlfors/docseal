@@ -10,8 +10,36 @@ DocSeal is verification software: its job is to say "no" correctly. Besides unit
 | Robustness fuzzing | `tests/fuzz.test.ts` | Hostile input only ever produces the parser's own error | `pnpm test`, deeper: `pnpm fuzz` |
 | Differential fuzzing | `tests/differential.test.ts` | The TypeScript and Python verifiers agree on every mutated package | `pnpm fuzz:differential` |
 | Mutation testing | `stryker.config.json` | The tests notice when the code is changed | `pnpm mutation` |
+| Browser engines | `tests/browser/*.browser.test.ts` | The golden packages get their verdicts in Chromium, Firefox, and WebKit | `pnpm test:browser` |
 
 `FUZZ_RUNS` sets the number of generated cases per property (defaults: 100 for properties, 200 for robustness, 300 for differential); `FUZZ_SEED` fixes the seed of the differential run so a failure can be reproduced.
+
+## Browser engines
+
+The web app runs the same packages in the browser, where the platform differs from Node.js in what decides a verdict: the `DecompressionStream` that inflates entries, and files read as `Blob` slices. `vitest.browser.config.ts` runs `tests/browser/` in Chromium, Firefox, and WebKit through Playwright. Every golden package must get the verdicts in `spec/vectors/packages/expected.json`, read from memory and from a `Blob`, and again with a `DecompressionStream` that ignores bytes after the end of a deflate stream, so the fallback check gives the same verdicts. CI runs all three engines on every push.
+
+```bash
+pnpm exec playwright install chromium firefox webkit
+pnpm test:browser                       # all three engines
+DOCSEAL_BENCHMARK=1 pnpm test:browser   # also hash 1 GiB in each engine
+```
+
+Playwright's WebKit build needs the libraries of Ubuntu 24.04. On another Linux, run it in Playwright's image:
+
+```bash
+podman run --rm -v "$PWD":/work:Z -w /work mcr.microsoft.com/playwright:v1.64.1-noble \
+  npx vitest run --config vitest.browser.config.ts --project webkit
+```
+
+Measured on 2026-10-19 (Playwright 1.64.1, headless, one x86-64 laptop; WebKit in the container):
+
+| Engine | `DecompressionStream` and bytes after the end | Streaming SHA-256 of 1 GiB from a `Blob` |
+|---|---|---|
+| Chromium | rejects them | 24.5 s, 42 MiB/s |
+| Firefox | rejects them | 37.1 s, 28 MiB/s |
+| WebKit | rejects them | 16.3 s, 63 MiB/s |
+
+All three engines follow the Compression Streams standard, so the fallback check runs only on Node.js 22 and in the test that forces it. Hashing uses the portable SHA-256 of `@noble/hashes`, since Web Crypto has no incremental digest; at these speeds a 2 GiB package takes half a minute to over a minute to verify.
 
 ## Property tests
 

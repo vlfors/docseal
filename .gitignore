@@ -25,3 +25,6 @@ release/
 # SvelteKit
 apps/web/.svelte-kit/
 apps/web/build/
+
+# Vitest browser mode
+.vitest/

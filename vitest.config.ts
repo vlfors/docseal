@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -6,6 +6,8 @@ export default defineConfig({
   },
   test: {
     include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts", "tests/**/*.test.ts"],
+    // Run in real browser engines: vitest.browser.config.ts.
+    exclude: [...configDefaults.exclude, "tests/browser/**"],
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.ts"],
