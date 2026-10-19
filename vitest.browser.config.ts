@@ -38,7 +38,7 @@ export default defineConfig({
       benchmark: process.env.DOCSEAL_BENCHMARK === "1",
       largePackage: largeDir ? join(largeDir, "large.dseal") : "",
     },
-    globalSetup: ["tests/browser/large-package.ts"],
+    globalSetup: ["tests/browser/large-package.ts", "tests/browser/sealed-reference.ts"],
     testTimeout: 60_000,
     // The tests print what they measure in each engine.
     silent: false,

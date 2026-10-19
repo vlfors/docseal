@@ -2,6 +2,7 @@
   import { onDestroy } from "svelte";
   import FilePicker from "../../lib/components/FilePicker.svelte";
   import KeyPanel from "../../lib/components/KeyPanel.svelte";
+  import SealPanel from "../../lib/components/SealPanel.svelte";
   import { t } from "../../lib/i18n/state.svelte";
   import { planFiles, type ChosenFile } from "../../lib/seal/files";
   import type { OpenKey } from "../../lib/signer/client";
@@ -34,4 +35,5 @@
 
   <FilePicker bind:chosen {planned} />
   <KeyPanel bind:key />
+  <SealPanel {planned} bind:key />
 </main>

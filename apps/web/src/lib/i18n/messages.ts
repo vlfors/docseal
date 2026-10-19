@@ -32,6 +32,31 @@ export interface Messages {
     empty: string;
   };
 
+  sealing: {
+    title: string;
+    role: string;
+    roleNote: string;
+    seal: string;
+    needFiles: string;
+    needKey: string;
+    fixPaths: string;
+    progress: (percent: number) => string;
+    cancel: string;
+    cancelled: string;
+    done: string;
+    savedTo: (name: string) => string;
+    downloaded: (name: string) => string;
+    keyClosed: string;
+    verifyIt: string;
+    changed: string;
+    tooLarge: (limit: string) => string;
+    tooLargeHint: string;
+    memoryNote: (limit: string) => string;
+    failed: string;
+    seal_: string;
+    size: string;
+  };
+
   key: {
     title: string;
     note: string;

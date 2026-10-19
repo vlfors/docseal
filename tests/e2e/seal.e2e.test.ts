@@ -8,28 +8,24 @@ import type { Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readContainer } from "@docseal/core";
 import { collectFiles } from "../../apps/cli/src/files";
-import type { Io } from "../../apps/cli/src/io";
-import { main } from "../../apps/cli/src/main";
 import { ENGINE_NAMES, launch, Site } from "./site";
+import { cli, hasPython, PASSPHRASE, verifyWithCli, verifyWithPython } from "./verifiers";
 
-const PASSPHRASE = "correct horse battery";
-
-/** Runs the CLI in-process with the passphrase in the environment. */
-async function cli(args: string[]): Promise<{ code: number; stdout: string }> {
-  let stdout = "";
-  const io: Io = {
-    stdout: (text) => {
-      stdout += text;
-    },
-    stderr: () => undefined,
-    env: { DOCSEAL_PASSPHRASE: PASSPHRASE },
-    readSecret: () => Promise.reject(new Error("no terminal in tests")),
+/**
+ * Playwright cannot answer the native save dialog, so in Chromium it is replaced by one that
+ * picks a file in the origin private file system: a real FileSystemFileHandle, written by the
+ * worker through createWritable, as a file on disk would be.
+ */
+const PICK_IN_OPFS = `
+  window.showSaveFilePicker = async (options) => {
+    const root = await navigator.storage.getDirectory();
+    return root.getFileHandle(options.suggestedName, { create: true });
   };
-  return { code: await main(args, io), stdout };
-}
+`;
 
 let dir: string;
 let cliKeyDid: string;
+let fastKeyDid: string;
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), "docseal-e2e-seal-"));
   await mkdir(join(dir, "contract", "annex", "deep"), { recursive: true });
@@ -43,6 +39,11 @@ beforeAll(async () => {
   // The default scrypt cost, as a user's key would have.
   const made = await cli(["keygen", "-o", join(dir, "cli.key")]);
   cliKeyDid = /Public key: (did:key:\S+)/.exec(made.stdout)?.[1] ?? "";
+  // A cheap key for the sealing tests, and recipients who trust it.
+  const fast = await cli(["keygen", "-o", join(dir, "fast.key"), "--scrypt-n", "1024"]);
+  fastKeyDid = /Public key: (did:key:\S+)/.exec(fast.stdout)?.[1] ?? "";
+  await writeFile(join(dir, "trusted-keys.json"), JSON.stringify({ type: "docseal-trusted-keys", version: 1, keys: [{ id: fastKeyDid }] }));
+  await writeFile(join(dir, "large.bin"), new Uint8Array(96 * 1024 * 1024).map((_, i) => i % 251));
 }, 60_000);
 afterAll(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -130,6 +131,92 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     const container = await readContainer(new Uint8Array(await readFile(out)));
     const envelope = JSON.parse(new TextDecoder().decode([...container.signatures.values()][0])) as { protected: { signer: string } };
     expect(envelope.protected.signer).toBe(did);
+    await site.expectClean(page);
+    await context.close();
+  });
+
+  /** The seal page with the cheap key open and `files` chosen; downloads accepted. */
+  async function ready(files: string[]) {
+    const context = await site.browser.newContext({ acceptDownloads: true });
+    if (name === "chromium") {
+      await context.addInitScript(PICK_IN_OPFS);
+    }
+    const page = await site.open("seal/", "[data-testid=files-input]", context);
+    expect(await page.locator("[data-testid=seal-button]").isDisabled()).toBe(true);
+    await page.locator("[data-testid=files-input]").setInputFiles(files);
+    expect(await page.locator("[data-testid=seal-blocked]").innerText()).toMatch(/signing key/);
+    await page.locator("[data-testid=key-file-input]").setInputFiles(join(dir, "fast.key"));
+    await page.locator("input[name=passphrase]").fill(PASSPHRASE);
+    await page.getByRole("button", { name: "Open the key" }).click();
+    await page.locator("[data-testid=signing-as]").waitFor();
+    return { context, page };
+  }
+
+  /** The bytes of the package the page saved: from the private file system, or the download. */
+  async function savedPackage(page: Page, download: Promise<import("playwright").Download> | undefined, file: string): Promise<Uint8Array> {
+    if (download) {
+      await (await download).saveAs(file);
+      return new Uint8Array(await readFile(file));
+    }
+    const base64 = await page.evaluate(async () => {
+      const root = await navigator.storage.getDirectory();
+      const handle = await root.getFileHandle("package.dseal");
+      const bytes = new Uint8Array(await (await handle.getFile()).arrayBuffer());
+      let text = "";
+      for (const byte of bytes) text += String.fromCharCode(byte);
+      return btoa(text);
+    });
+    const bytes = Uint8Array.from(Buffer.from(base64, "base64"));
+    await writeFile(file, bytes);
+    return bytes;
+  }
+
+  it("seals and saves a package that the CLI and the Python verifier accept", { timeout: 120_000 }, async () => {
+    const { context, page } = await ready([join(dir, "contract", "main.pdf"), join(dir, "contract", "annex", "приложение.txt")]);
+    await page.locator("input[name=role]").fill("approver");
+    const download = name === "chromium" ? undefined : page.waitForEvent("download");
+    await page.locator("[data-testid=seal-button]").click();
+    await page.locator("[data-testid=sealed]").waitFor();
+    // One key, one sealing: the key is closed.
+    expect(await page.locator("[data-testid=signing-as]").count()).toBe(0);
+
+    const file = join(dir, `sealed-${name}.dseal`);
+    const bytes = await savedPackage(page, download, file);
+    const accepted = { format: "valid", integrity: "valid", signature: "valid", trust: "trusted", time: "missing", completeness: "full" };
+    expect(await verifyWithCli(file, join(dir, "trusted-keys.json"))).toEqual(accepted);
+    if (hasPython) {
+      expect(await verifyWithPython(file, join(dir, "trusted-keys.json"))).toEqual(accepted);
+    }
+    const container = await readContainer(bytes);
+    const envelope = JSON.parse(new TextDecoder().decode([...container.signatures.values()][0])) as { protected: { role: string; signer: string } };
+    expect(envelope.protected).toMatchObject({ role: "approver", signer: fastKeyDid });
+    expect(await page.locator("[data-testid=sealed]").getAttribute("data-seal")).toMatch(/^[0-9a-f]{64}$/);
+    await site.expectClean(page);
+    await context.close();
+  });
+
+  it("cancels sealing at once and leaves no package", { timeout: 120_000 }, async () => {
+    const { context, page } = await ready([join(dir, "large.bin")]);
+    let downloaded = false;
+    page.on("download", () => {
+      downloaded = true;
+    });
+    await page.locator("[data-testid=seal-button]").click();
+    await page.locator("[data-state=sealing]").waitFor();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    expect(await page.locator("[data-testid=seal-message]").innerText()).toMatch(/cancelled/);
+    expect(await page.locator("[data-testid=signing-as]").count()).toBe(0);
+    await page.waitForTimeout(1000);
+    expect(downloaded).toBe(false);
+    if (name === "chromium") {
+      const left = await page.evaluate(async () => {
+        const root = await navigator.storage.getDirectory();
+        const names: string[] = [];
+        for await (const key of (root as unknown as { keys(): AsyncIterable<string> }).keys()) names.push(key);
+        return names;
+      });
+      expect(left).toEqual([]);
+    }
     await site.expectClean(page);
     await context.close();
   });

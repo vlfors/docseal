@@ -53,6 +53,12 @@ jobs:
           node-version: 24
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      # Packages sealed in the browser are also checked by the independent Python verifier.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - run: python -m venv verifiers/python/.venv
+      - run: verifiers/python/.venv/bin/pip install --require-hashes -r verifiers/python/requirements.txt
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm test:browser
       - run: pnpm test:e2e

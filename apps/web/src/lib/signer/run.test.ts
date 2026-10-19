@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Io } from "../../../../cli/src/io";
 import { main } from "../../../../cli/src/main";
 import type { SignerMessage } from "./protocol";
+import { hasPython, verifyWithCli, verifyWithPython } from "../../../../../tests/e2e/verifiers";
 import { Signer } from "./run";
 
 const PASSPHRASE = "correct horse battery";
@@ -88,5 +89,74 @@ describe("Signer", () => {
     s.forget();
     expect(s.secretKey).toBeUndefined();
     expect(seed?.every((byte) => byte === 0)).toBe(true);
+  });
+
+  async function openSigner() {
+    const made = await cli(["keygen", "-o", join(dir, "me.key"), "--scrypt-n", "1024"]);
+    const did = /Public key: (did:key:\S+)/.exec(made.stdout)?.[1] ?? "";
+    const { messages, signer: s } = signer();
+    await s.handle({ type: "open", keyFile: new Uint8Array(await readFile(join(dir, "me.key"))), passphrase: PASSPHRASE });
+    await writeFile(join(dir, "trusted-keys.json"), JSON.stringify({ type: "docseal-trusted-keys", version: 1, keys: [{ id: did }] }));
+    return { messages, s, did };
+  }
+
+  it("seals once with the key it holds; the CLI and the Python verifier accept the package", async () => {
+    const { messages, s } = await openSigner();
+    const files = [
+      { path: "contract.pdf", file: new File(["%PDF contract"], "contract.pdf") },
+      { path: "annex/приложение.txt", file: new File(["приложение"], "приложение.txt") },
+    ];
+    await s.handle({ type: "seal", files, role: "author", output: { kind: "memory", limit: 1024 * 1024 } });
+    const sealed = messages.at(-1);
+    if (sealed?.type !== "sealed" || !sealed.blob) {
+      throw new Error(JSON.stringify(sealed));
+    }
+    expect(sealed.size).toBe(sealed.blob.size);
+    const progress = messages.flatMap((m) => (m.type === "seal-progress" ? [m] : []));
+    expect(progress.at(-1)).toMatchObject({ read: 2 * (13 + 20), total: 2 * (13 + 20) });
+    // One key, one sealing: the key is gone.
+    expect(s.secretKey).toBeUndefined();
+
+    const path = join(dir, "p.dseal");
+    await writeFile(path, new Uint8Array(await sealed.blob.arrayBuffer()));
+    const accepted = { format: "valid", integrity: "valid", signature: "valid", trust: "trusted" };
+    expect(await verifyWithCli(path, join(dir, "trusted-keys.json"))).toMatchObject(accepted);
+    if (hasPython) {
+      expect(await verifyWithPython(path, join(dir, "trusted-keys.json"))).toMatchObject(accepted);
+    }
+    const container = await readContainer(new Uint8Array(await sealed.blob.arrayBuffer()));
+    expect(new TextDecoder().decode(container.manifest)).toContain('"generator": "docseal-web/');
+
+    await s.handle({ type: "seal", files, role: "author", output: { kind: "memory", limit: 1024 * 1024 } });
+    expect(messages.at(-1)).toEqual({ type: "failed", reason: "other", message: "No key is open" });
+  });
+
+  it("reports a document that changed between its two reads, and erases the key", async () => {
+    const { messages, s } = await openSigner();
+    let reads = 0;
+    // Hashed as "aaaa", then written as "bbbb": what a file edited during sealing looks like.
+    const changing = {
+      size: 4,
+      slice: () => ({ arrayBuffer: () => Promise.resolve(new TextEncoder().encode(reads++ === 0 ? "aaaa" : "bbbb").buffer) }),
+    } as unknown as Blob;
+    await s.handle({ type: "seal", files: [{ path: "a.txt", file: changing }], role: "author", output: { kind: "memory", limit: 1024 * 1024 } });
+    expect(messages.at(-1)).toMatchObject({ type: "failed", reason: "changed" });
+    expect(s.secretKey).toBeUndefined();
+  });
+
+  it("stops sealing when cancelled, and erases the key", async () => {
+    const { messages, s } = await openSigner();
+    const big = new File([new Uint8Array(64 * 1024 * 1024)], "big.bin");
+    const sealing = s.handle({ type: "seal", files: [{ path: "big.bin", file: big }], role: "author", output: { kind: "memory", limit: 1024 ** 3 } });
+    await s.handle({ type: "cancel" });
+    await sealing;
+    expect(messages.at(-1)).toMatchObject({ type: "failed", reason: "cancelled" });
+    expect(s.secretKey).toBeUndefined();
+  });
+
+  it("refuses a package over the memory limit", async () => {
+    const { messages, s } = await openSigner();
+    await s.handle({ type: "seal", files: [{ path: "a.bin", file: new File([new Uint8Array(4096)], "a.bin") }], role: "author", output: { kind: "memory", limit: 1000 } });
+    expect(messages.at(-1)).toMatchObject({ type: "failed", reason: "too-large" });
   });
 });
