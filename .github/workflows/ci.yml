@@ -42,7 +42,8 @@ jobs:
       - run: pnpm coverage
       - run: scripts/smoke-test.sh
 
-  # The core in Chromium, Firefox, and WebKit: every golden package gets its required verdicts.
+  # The core and the built site in Chromium, Firefox, and WebKit: every golden package gets its
+  # required verdicts, in the core and on the verify page.
   browsers:
     runs-on: ubuntu-latest
     steps:
@@ -54,6 +55,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm test:browser
+      - run: pnpm test:e2e
 
   python-verifier:
     runs-on: ubuntu-latest

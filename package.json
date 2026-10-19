@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "vitest run --config vitest.browser.config.ts",
+    "test:e2e": "pnpm --filter @docseal/web build && vitest run --config vitest.e2e.config.ts",
     "coverage": "vitest run --coverage --testTimeout=60000",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "vectors:update": "UPDATE_VECTORS=1 vitest run tests/vectors.test.ts",

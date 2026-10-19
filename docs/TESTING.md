@@ -11,6 +11,7 @@ DocSeal is verification software: its job is to say "no" correctly. Besides unit
 | Differential fuzzing | `tests/differential.test.ts` | The TypeScript and Python verifiers agree on every mutated package | `pnpm fuzz:differential` |
 | Mutation testing | `stryker.config.json` | The tests notice when the code is changed | `pnpm mutation` |
 | Browser engines | `**/*.browser.test.ts` | The golden packages get their verdicts in Chromium, Firefox, and WebKit; verification in a Web Worker | `pnpm test:browser` |
+| The built site | `tests/e2e/*.e2e.test.ts` | The verify page shows each golden package's verdicts and reasons; package text cannot disguise itself; trusted keys; no CSP violations | `pnpm test:e2e` |
 
 `FUZZ_RUNS` sets the number of generated cases per property (defaults: 100 for properties, 200 for robustness, 300 for differential); `FUZZ_SEED` fixes the seed of the differential run so a failure can be reproduced.
 
@@ -25,11 +26,15 @@ DOCSEAL_BENCHMARK=1 pnpm test:browser   # also hash 1 GiB in each engine
 DOCSEAL_LARGE_TESTS=1 pnpm test:browser --project chromium apps/web   # a 2 GiB package in a worker
 ```
 
+`pnpm test:e2e` builds the site and serves `apps/web/build` as static files, as GitHub Pages does, so the page's `<meta>` policy is the only one; Playwright drives it from Node.js. In each engine every golden package must show the verdicts its vector requires, an invalid one must show its issues, a file name with a bidirectional override must show the override as a code (`U+202E`), trusted keys must be added, imported, exported, and kept across pages, and the page must refuse to work inside a frame. A CSP violation fails the run, with one exception: WebKit does not apply `'unsafe-hashes'` to style attributes and refuses the inline style of SvelteKit's route announcer, which `app.css` hides anyway; the test then checks that no other element has an inline style. `DOCSEAL_E2E_BROWSERS=chromium,firefox` limits the engines.
+
 Playwright's WebKit build needs the libraries of Ubuntu 24.04. On another Linux, run it in Playwright's image:
 
 ```bash
 podman run --rm -v "$PWD":/work:Z -w /work mcr.microsoft.com/playwright:v1.64.1-noble \
   npx vitest run --config vitest.browser.config.ts --project webkit
+podman run --rm -e DOCSEAL_E2E_BROWSERS=webkit -v "$PWD":/work:Z -w /work mcr.microsoft.com/playwright:v1.64.1-noble \
+  npx vitest run --config vitest.e2e.config.ts   # after pnpm --filter @docseal/web build
 ```
 
 Measured on 2026-10-19 (Playwright 1.64.1, headless, one x86-64 laptop; WebKit in the container):

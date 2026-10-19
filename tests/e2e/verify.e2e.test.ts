@@ -1,0 +1,188 @@
+/**
+ * The verify page of the built site in Chromium, Firefox, and WebKit: every golden package
+ * shows the verdicts its vector requires, package text cannot disguise itself, and trusted keys
+ * are kept, imported, and exported. Run with `pnpm test:e2e` (builds the site first).
+ * DOCSEAL_E2E_BROWSERS limits the engines, e.g. "chromium,firefox".
+ */
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { sealPackage, utf8, type AxisVerdicts } from "@docseal/core";
+import { memoryKeyProvider, publicKeyToDid } from "@docseal/sig-ed25519";
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { chromium, firefox, webkit, type Browser, type BrowserType, type Page } from "playwright";
+import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+
+const PACKAGES = new URL("../../spec/vectors/packages/", import.meta.url);
+const index = JSON.parse(await readFile(new URL("expected.json", PACKAGES), "utf8")) as {
+  packages: { file: string; expected: { axes: AxisVerdicts; overall: string } }[];
+};
+const goldenPath = (file: string) => decodeURIComponent(new URL(file, PACKAGES).pathname);
+
+// The golden packages' signer: the RFC 8032 test 1 key (tests/vectors.test.ts).
+const GOLDEN_SIGNER = publicKeyToDid(ed25519.getPublicKey(Uint8Array.from(Buffer.from("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60", "hex"))));
+
+const ENGINES: Record<string, BrowserType> = { chromium, firefox, webkit };
+const names = (process.env.DOCSEAL_E2E_BROWSERS ?? "chromium,firefox,webkit").split(",");
+
+let dir: string;
+beforeAll(async () => {
+  dir = await mkdtemp(join(tmpdir(), "docseal-e2e-"));
+});
+afterAll(async () => {
+  await rm(dir, { recursive: true, force: true });
+});
+
+describe.each(names)("%s", (name) => {
+  let browser: Browser;
+  const violations: string[] = [];
+  const styled: Page[] = [];
+
+  beforeAll(async () => {
+    const engine = ENGINES[name];
+    if (!engine) {
+      throw new Error(`unknown engine ${name}`);
+    }
+    browser = await engine.launch();
+  });
+  afterAll(async () => {
+    await browser.close();
+  });
+
+  /**
+   * A fresh page with the site open and CSP violations recorded. WebKit does not apply
+   * 'unsafe-hashes' to style attributes, so it refuses the one inline style SvelteKit puts on its
+   * route announcer (app.css hides the announcer anyway); a refused style is accepted there only
+   * while the announcer is the one element with a style attribute.
+   */
+  async function open(context: { newPage(): Promise<Page> } = browser): Promise<Page> {
+    const page = await context.newPage();
+    page.on("console", (message) => {
+      const text = message.text();
+      if (!/content.security.policy|refused to/i.test(text)) {
+        return;
+      }
+      if (name === "webkit" && /refused to apply a stylesheet/i.test(text)) {
+        styled.push(page);
+        return;
+      }
+      violations.push(text);
+    });
+    await page.goto(inject("siteUrl"));
+    await page.locator("[data-testid=package-input]").waitFor({ state: "attached" });
+    return page;
+  }
+
+  /** Every page that had a style refused carries no inline style but the announcer's. */
+  async function expectOnlyAnnouncerStyled(page: Page) {
+    if (styled.includes(page)) {
+      expect(await page.locator("[style]:not(#svelte-announcer)").count()).toBe(0);
+    }
+  }
+
+  /** Chooses `path` and waits for its report; returns what the page shows. */
+  async function check(page: Page, path: string) {
+    await page.locator("[data-testid=package-input]").setInputFiles(path);
+    const report = page.locator(".report");
+    await report.waitFor();
+    const axes: Record<string, string | null> = {};
+    for (const row of await report.locator("[data-axis]").all()) {
+      axes[(await row.getAttribute("data-axis")) ?? ""] = await row.getAttribute("data-verdict");
+    }
+    return { overall: await report.getAttribute("data-overall"), axes, text: await report.innerText() };
+  }
+
+  it("shows every golden package with the verdicts its vector requires", { timeout: 300_000 }, async () => {
+    for (const { file, expected } of index.packages) {
+      const page = await open();
+      const shown = await check(page, goldenPath(file));
+      expect({ overall: shown.overall, axes: shown.axes }, file).toEqual(expected);
+      if (expected.overall === "invalid") {
+        // The reasons are on the page, not only the verdict.
+        expect(await page.locator(".report [data-issue]").count(), `${file} shows its issues`).toBeGreaterThan(0);
+      }
+      if (file === "tampered-content.dseal") {
+        // Words from the page and from the package stay apart (Svelte trims spaces at block edges).
+        expect(shown.text).toMatch(/contract\.pdf:\s+File contents do not match/);
+        expect(shown.text).toMatch(/…\w{6}\s\(author\)/);
+      }
+      await expectOnlyAnnouncerStyled(page);
+      await page.close();
+    }
+    expect(violations).toEqual([]);
+  });
+
+  it("shows a bidirectional override in a file name as a visible code", async () => {
+    const sealed = await sealPackage({
+      files: [
+        { path: "invoice‮txt.exe", data: utf8("not a text file") },
+        { path: "readme.txt", data: utf8("hello") },
+      ],
+      signer: memoryKeyProvider(new Uint8Array(32).fill(9)),
+    });
+    const path = join(dir, `bidi-${name}.dseal`);
+    await writeFile(path, sealed.container);
+    const page = await open();
+    await check(page, path);
+    await page.locator(".report details summary").first().click();
+    const entry = page.locator(".files.all li").filter({ hasText: "invoice" });
+    const text = await entry.innerText();
+    expect(text).toContain("invoiceU+202Etxt.exe");
+    expect(text).not.toContain("‮");
+    await page.close();
+  });
+
+  it("evaluates trust with the viewer's keys, keeps them, and exports them", async () => {
+    const context = await browser.newContext({ acceptDownloads: true });
+    const page = await open(context);
+    let shown = await check(page, goldenPath("valid-basic.dseal"));
+    expect(shown.axes.trust).toBe("not-evaluated");
+    expect(await page.locator("[data-hint=trustNotEvaluated]").count()).toBe(1);
+
+    await page.locator("input[name=did]").fill(GOLDEN_SIGNER);
+    await page.locator("input[name=label]").fill("RFC 8032 test key");
+    await page.locator("form.add-key button[type=submit]").click();
+    // Adding a key verifies the open package again.
+    await page.locator("[data-axis=trust][data-verdict=trusted]").waitFor();
+
+    // Kept in this browser: a new page of the same context still has the key.
+    const again = await open(context);
+    shown = await check(again, goldenPath("valid-basic.dseal"));
+    expect(shown.axes.trust).toBe("trusted");
+
+    const download = again.waitForEvent("download");
+    await again.locator(".file-actions button").click();
+    const exported = JSON.parse(await readFile(await (await download).path(), "utf8")) as { keys: { id: string; label?: string }[] };
+    expect(exported.keys).toEqual([{ id: GOLDEN_SIGNER, label: "RFC 8032 test key" }]);
+    await context.close();
+  });
+
+  it("imports a trusted-keys.json", async () => {
+    const path = join(dir, `trusted-${name}.json`);
+    await writeFile(path, JSON.stringify({ type: "docseal-trusted-keys", version: 1, keys: [{ id: GOLDEN_SIGNER, label: "Imported" }] }));
+    const page = await open();
+    await page.locator(".trusted-keys input[type=file]").setInputFiles(path);
+    await page.locator(`[data-key="${GOLDEN_SIGNER}"]`).waitFor();
+    expect((await check(page, goldenPath("valid-basic.dseal"))).axes.trust).toBe("trusted");
+    await page.close();
+  });
+
+  it("switches to Russian and remembers it", async () => {
+    const page = await open();
+    await page.getByRole("combobox", { name: /Language/ }).selectOption("ru");
+    expect(await page.locator("html").getAttribute("lang")).toBe("ru");
+    expect((await check(page, goldenPath("tampered-content.dseal"))).text).toContain("Недействителен");
+    await page.reload();
+    await page.locator("html[lang=ru]").waitFor({ state: "attached" });
+    await page.close();
+  });
+
+  it("refuses to work inside a frame", async () => {
+    const page = await browser.newPage();
+    await page.setContent(`<iframe src="${inject("siteUrl")}"></iframe>`);
+    const frame = page.frameLocator("iframe");
+    await frame.locator("main p").first().waitFor();
+    expect(await frame.locator("[data-testid=package-input]").count()).toBe(0);
+    await page.close();
+  });
+});

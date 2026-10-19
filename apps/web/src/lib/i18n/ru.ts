@@ -1,0 +1,98 @@
+import type { Messages } from "./messages";
+
+export const ru: Messages = {
+  languageName: "Русский",
+  tagline: "Запечатывайте и проверяйте документы в браузере. Ничего не загружается на сервер.",
+  framed: "Эта страница не работает внутри другого сайта. Откройте её напрямую в отдельной вкладке.",
+  footer: "DocSeal проверяет пакеты на этом устройстве. Файлы и ключи не покидают браузер.",
+
+  verify: {
+    title: "Проверить пакет",
+    choose: "Выбрать файл .dseal",
+    dropHint: "или перетащите его сюда",
+    privacy: "Файл читается на этом устройстве и никуда не отправляется.",
+    checking: "Проверка",
+    progress: (percent) => `прочитано ${String(percent)} %`,
+    cancel: "Отменить",
+    another: "Проверить другой пакет",
+    failed: "Не удалось прочитать файл",
+    notDseal: "Это не похоже на пакет .dseal, но он всё равно проверяется.",
+  },
+
+  overall: {
+    valid: { headline: "Действителен", explanation: "Все проверки пройдены." },
+    invalid: { headline: "Недействителен", explanation: "Пакет изменён, или доказательство в нём ложно." },
+    indeterminate: { headline: "Не определено", explanation: "Ошибок нет, но подтвердить удалось не всё." },
+  },
+  axes: {
+    format: { name: "Формат", question: "Пакет составлен правильно?" },
+    integrity: { name: "Целостность", question: "Файлы не изменены?" },
+    signature: { name: "Подпись", question: "Подписи верны?" },
+    trust: { name: "Доверие", question: "Подписавшие — ключи, которым вы доверяете?" },
+    time: { name: "Время", question: "Есть ли доказательство, когда он существовал?" },
+    completeness: { name: "Полнота", question: "Все ли проверки удалось выполнить?" },
+  },
+  verdicts: {
+    format: { valid: "верен", invalid: "неверен", unsupported: "не поддерживается" },
+    integrity: { valid: "сохранена", invalid: "нарушена", "not-checked": "не проверялась" },
+    signature: { valid: "верна", invalid: "неверна", unsupported: "не поддерживается", missing: "нет" },
+    trust: { trusted: "доверенный", untrusted: "недоверенный", unknown: "неизвестно", "not-evaluated": "не оценивалось" },
+    time: { confirmed: "подтверждено", pending: "ожидает", invalid: "неверно", unsupported: "здесь не проверить", missing: "нет" },
+    completeness: { full: "полная", partial: "частичная", incomplete: "неполная" },
+  },
+  details: {
+    filesMatch: (ok, total) => `совпадают ${String(ok)} из ${String(total)} файлов`,
+    noLaterThan: (time) => `существовал не позднее ${time}`,
+    confirmations: (count) => `Bitcoin, подтверждений: ${String(count)}`,
+    via: "через",
+  },
+
+  sections: {
+    files: "Файлы с проблемами",
+    allFiles: (count) => `Все файлы (${String(count)})`,
+    signatures: "Подписи",
+    anchors: "Доказательства времени",
+    issues: "Замечания",
+    nextSteps: "Что дальше",
+    technical: "Технические подробности",
+  },
+  fileStatus: { valid: "не изменён", modified: "изменён", missing: "отсутствует", extra: "лишний" },
+  signature: {
+    signer: "Подписавший",
+    role: "Роль",
+    claimedAt: "Время подписи",
+    claimedAtNote: "по часам подписавшего, не доказательство времени",
+    check: "Подпись",
+    trust: "Доверие",
+    entry: "Запись",
+  },
+  anchor: { provider: "Сервис", verdict: "Результат", attestedAt: "Доказанное время", source: "Проверено по" },
+  technical: { packageId: "ID пакета", seal: "Печать", merkleRoot: "Корень Меркла", statementHash: "Хеш заявления" },
+  issueNote: "Сообщения выдаёт верификатор, они на английском.",
+  hints: {
+    trustNotEvaluated: "Доверие не оценивалось: добавьте ключи, которым доверяете, в разделе «Доверенные ключи» ниже.",
+    timePending: "Доказательство времени ожидает: Bitcoin подтверждает его в течение нескольких часов. Позже обновите пакет через DocSeal CLI (docseal upgrade).",
+    timeMissing: "В пакете нет доказательства времени: его запечатали без него.",
+    timeUnsupported: "Доказательство времени здесь не проверить: пока страница проверяет без сети. Проверьте его через DocSeal CLI.",
+  },
+  disclaimer:
+    "DocSeal доказывает, что файлы не изменены, что их подписал показанный ключ и что подписанное состояние существовало не позднее подтверждённого времени. Кому принадлежит ключ, он не доказывает.",
+  unsafeCharacter: (code) => `Невидимый или переставляющий текст символ ${code}, показан его код`,
+
+  trusted: {
+    title: "Доверенные ключи",
+    note: "Хранится только в этом браузере. Список никто не видит; очистка данных сайта его удаляет. Экспортируйте, чтобы сохранить копию.",
+    empty: "Доверенных ключей пока нет. Без них доверие не оценивается.",
+    did: "Подписавший (did:key)",
+    label: "Имя (необязательно)",
+    add: "Добавить",
+    remove: (label) => `Удалить ${label}`,
+    import: "Импортировать trusted-keys.json",
+    export: "Экспортировать trusted-keys.json",
+    imported: (added, skipped) => `Импортировано ключей: ${String(added)}${skipped > 0 ? `; уже были в списке: ${String(skipped)}` : ""}.`,
+    invalidDid: "Это не did:key для Ed25519.",
+    duplicate: "Этот ключ уже есть в списке.",
+    invalidFile: (reason) => `Это не файл доверенных ключей: ${reason}`,
+    storageUnavailable: "Браузер не разрешает странице хранить данные: список сохранится только до закрытия вкладки.",
+  },
+};

@@ -1,0 +1,98 @@
+import type { Messages } from "./messages";
+
+export const en: Messages = {
+  languageName: "English",
+  tagline: "Seal and verify documents in your browser. Nothing is uploaded.",
+  framed: "This page does not work inside another site. Open it directly in its own tab.",
+  footer: "DocSeal checks packages on this device. Files and keys never leave the browser.",
+
+  verify: {
+    title: "Verify a package",
+    choose: "Choose a .dseal file",
+    dropHint: "or drop it here",
+    privacy: "The file is read on this device; nothing is sent anywhere.",
+    checking: "Checking",
+    progress: (percent) => `${String(percent)} % read`,
+    cancel: "Cancel",
+    another: "Verify another package",
+    failed: "The file could not be read",
+    notDseal: "This does not look like a .dseal package, but it is checked anyway.",
+  },
+
+  overall: {
+    valid: { headline: "Valid", explanation: "Every check passed." },
+    invalid: { headline: "Invalid", explanation: "The package was modified, or a proof in it is false." },
+    indeterminate: { headline: "Indeterminate", explanation: "Nothing is wrong, but not everything could be confirmed." },
+  },
+  axes: {
+    format: { name: "Format", question: "Is it a well-formed package?" },
+    integrity: { name: "Integrity", question: "Are the files unchanged?" },
+    signature: { name: "Signature", question: "Do the signatures verify?" },
+    trust: { name: "Trust", question: "Are the signers keys you trust?" },
+    time: { name: "Time", question: "Is there a proof of when it existed?" },
+    completeness: { name: "Completeness", question: "Could every check run?" },
+  },
+  verdicts: {
+    format: { valid: "valid", invalid: "invalid", unsupported: "unsupported" },
+    integrity: { valid: "valid", invalid: "invalid", "not-checked": "not checked" },
+    signature: { valid: "valid", invalid: "invalid", unsupported: "unsupported", missing: "missing" },
+    trust: { trusted: "trusted", untrusted: "untrusted", unknown: "unknown", "not-evaluated": "not evaluated" },
+    time: { confirmed: "confirmed", pending: "pending", invalid: "invalid", unsupported: "not checked here", missing: "missing" },
+    completeness: { full: "full", partial: "partial", incomplete: "incomplete" },
+  },
+  details: {
+    filesMatch: (ok, total) => `${String(ok)} of ${String(total)} files match`,
+    noLaterThan: (time) => `existed no later than ${time}`,
+    confirmations: (count) => `Bitcoin, ${String(count)} confirmations`,
+    via: "via",
+  },
+
+  sections: {
+    files: "Files with problems",
+    allFiles: (count) => `All files (${String(count)})`,
+    signatures: "Signatures",
+    anchors: "Time proofs",
+    issues: "Issues",
+    nextSteps: "Next steps",
+    technical: "Technical details",
+  },
+  fileStatus: { valid: "unchanged", modified: "modified", missing: "missing", extra: "extra" },
+  signature: {
+    signer: "Signer",
+    role: "Role",
+    claimedAt: "Signed at",
+    claimedAtNote: "the signer's own clock, not a proof of time",
+    check: "Signature",
+    trust: "Trust",
+    entry: "Entry",
+  },
+  anchor: { provider: "Provider", verdict: "Result", attestedAt: "Proven time", source: "Checked against" },
+  technical: { packageId: "Package ID", seal: "Seal", merkleRoot: "Merkle root", statementHash: "Statement hash" },
+  issueNote: "Messages come from the verifier and are in English.",
+  hints: {
+    trustNotEvaluated: "Trust was not evaluated: add the keys you accept under Trusted keys below.",
+    timePending: "The time proof is pending: Bitcoin confirms it within a few hours. Upgrade the package later with the DocSeal CLI (docseal upgrade).",
+    timeMissing: "The package has no time proof: it was sealed without one.",
+    timeUnsupported: "The time proof could not be checked here: this page verifies offline for now. Check it with the DocSeal CLI.",
+  },
+  disclaimer:
+    "DocSeal proves that the files are unchanged, that they were signed by the key shown, and that the signed state existed no later than the confirmed time. It does not prove who owns the key.",
+  unsafeCharacter: (code) => `Invisible or reordering character ${code}, shown as its code`,
+
+  trusted: {
+    title: "Trusted keys",
+    note: "Kept in this browser only. Nobody else sees the list; clearing the site's data removes it. Export it to keep a copy.",
+    empty: "No trusted keys yet. Without any, trust is not evaluated.",
+    did: "Signer (did:key)",
+    label: "Name (optional)",
+    add: "Add",
+    remove: (label) => `Remove ${label}`,
+    import: "Import trusted-keys.json",
+    export: "Export trusted-keys.json",
+    imported: (added, skipped) => `Imported ${String(added)} key(s)${skipped > 0 ? `; ${String(skipped)} already in the list` : ""}.`,
+    invalidDid: "That is not an Ed25519 did:key.",
+    duplicate: "That key is already in the list.",
+    invalidFile: (reason) => `Not a trusted keys file: ${reason}`,
+    storageUnavailable: "This browser does not allow the page to store data: the list lasts until the tab is closed.",
+  },
+};
