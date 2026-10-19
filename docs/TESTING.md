@@ -10,18 +10,19 @@ DocSeal is verification software: its job is to say "no" correctly. Besides unit
 | Robustness fuzzing | `tests/fuzz.test.ts` | Hostile input only ever produces the parser's own error | `pnpm test`, deeper: `pnpm fuzz` |
 | Differential fuzzing | `tests/differential.test.ts` | The TypeScript and Python verifiers agree on every mutated package | `pnpm fuzz:differential` |
 | Mutation testing | `stryker.config.json` | The tests notice when the code is changed | `pnpm mutation` |
-| Browser engines | `tests/browser/*.browser.test.ts` | The golden packages get their verdicts in Chromium, Firefox, and WebKit | `pnpm test:browser` |
+| Browser engines | `**/*.browser.test.ts` | The golden packages get their verdicts in Chromium, Firefox, and WebKit; verification in a Web Worker | `pnpm test:browser` |
 
 `FUZZ_RUNS` sets the number of generated cases per property (defaults: 100 for properties, 200 for robustness, 300 for differential); `FUZZ_SEED` fixes the seed of the differential run so a failure can be reproduced.
 
 ## Browser engines
 
-The web app runs the same packages in the browser, where the platform differs from Node.js in what decides a verdict: the `DecompressionStream` that inflates entries, and files read as `Blob` slices. `vitest.browser.config.ts` runs `tests/browser/` in Chromium, Firefox, and WebKit through Playwright. Every golden package must get the verdicts in `spec/vectors/packages/expected.json`, read from memory and from a `Blob`, and again with a `DecompressionStream` that ignores bytes after the end of a deflate stream, so the fallback check gives the same verdicts. CI runs all three engines on every push.
+The web app runs the same packages in the browser, where the platform differs from Node.js in what decides a verdict: the `DecompressionStream` that inflates entries, and files read as `Blob` slices. `vitest.browser.config.ts` runs `tests/browser/` in Chromium, Firefox, and WebKit through Playwright. Every golden package must get the verdicts in `spec/vectors/packages/expected.json`, read from memory and from a `Blob`, and again with a `DecompressionStream` that ignores bytes after the end of a deflate stream, so the fallback check gives the same verdicts. `apps/web/src/**/*.browser.test.ts` run the web app's Web Workers in the same engines: a package verifies in a worker while a timer on the page shows the page's thread stays free, progress arrives, and cancelling stops the work. CI runs all three engines on every push.
 
 ```bash
 pnpm exec playwright install chromium firefox webkit
 pnpm test:browser                       # all three engines
 DOCSEAL_BENCHMARK=1 pnpm test:browser   # also hash 1 GiB in each engine
+DOCSEAL_LARGE_TESTS=1 pnpm test:browser --project chromium apps/web   # a 2 GiB package in a worker
 ```
 
 Playwright's WebKit build needs the libraries of Ubuntu 24.04. On another Linux, run it in Playwright's image:

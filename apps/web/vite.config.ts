@@ -17,6 +17,8 @@ export default defineConfig({
       csp: { mode: "hash", directives: CSP_DIRECTIVES },
     }),
   ],
+  // Workers are started as module workers (`{ type: "module" }`), so they are built as modules too.
+  worker: { format: "es" },
   resolve: {
     // The workspace packages are built from their sources, in development and in production
     // builds alike, so the site never depends on stale dist/ output. (Not via the "development"

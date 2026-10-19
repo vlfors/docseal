@@ -1,9 +1,14 @@
 import { readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 const source = (path: string) => fileURLToPath(new URL(path, import.meta.url));
+
+/** With DOCSEAL_LARGE_TESTS=1, the global setup writes a 2 GiB package here. */
+const largeDir = process.env.DOCSEAL_LARGE_TESTS === "1" ? join(tmpdir(), "docseal-browser-large") : undefined;
 
 /**
  * The core in real browser engines: Chromium, Firefox, and WebKit through Playwright.
@@ -11,7 +16,8 @@ const source = (path: string) => fileURLToPath(new URL(path, import.meta.url));
  *   pnpm exec playwright install chromium firefox webkit
  *   pnpm test:browser
  *
- * DOCSEAL_BENCHMARK=1 also hashes 1 GiB in each engine and prints the speed.
+ * DOCSEAL_BENCHMARK=1 also hashes 1 GiB in each engine and prints the speed; DOCSEAL_LARGE_TESTS=1
+ * verifies a 2 GiB package in a worker instead of 64 MiB.
  */
 export default defineConfig({
   resolve: {
@@ -22,13 +28,17 @@ export default defineConfig({
       "@docseal/anchor-ots": source("./packages/anchor-ots/src/index.ts"),
     },
   },
+  // The browser opens the large package as a file through the dev server, outside the project.
+  ...(largeDir && { server: { fs: { allow: [source("."), largeDir] } } }),
   test: {
-    include: ["tests/browser/**/*.browser.test.ts"],
+    include: ["tests/browser/**/*.browser.test.ts", "apps/web/src/**/*.browser.test.ts"],
     provide: {
       // The page cannot list a directory: the test is told which golden packages exist.
       goldenPackages: readdirSync(source("./spec/vectors/packages")).filter((name) => name.endsWith(".dseal")),
       benchmark: process.env.DOCSEAL_BENCHMARK === "1",
+      largePackage: largeDir ? join(largeDir, "large.dseal") : "",
     },
+    globalSetup: ["tests/browser/large-package.ts"],
     testTimeout: 60_000,
     // The tests print what they measure in each engine.
     silent: false,

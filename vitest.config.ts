@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts", "tests/**/*.test.ts"],
     // Run in real browser engines: vitest.browser.config.ts.
-    exclude: [...configDefaults.exclude, "tests/browser/**"],
+    exclude: [...configDefaults.exclude, "**/*.browser.test.ts"],
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.ts"],
