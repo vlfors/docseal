@@ -2,28 +2,15 @@
  * The verify page of the built site in Chromium, Firefox, and WebKit: every golden package
  * shows the verdicts its vector requires, package text cannot disguise itself, and trusted keys
  * are kept, imported, and exported. Run with `pnpm test:e2e` (builds the site first).
- * DOCSEAL_E2E_BROWSERS limits the engines, e.g. "chromium,firefox".
  */
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sealPackage, utf8, type AxisVerdicts } from "@docseal/core";
-import { memoryKeyProvider, publicKeyToDid } from "@docseal/sig-ed25519";
-import { ed25519 } from "@noble/curves/ed25519.js";
-import { chromium, firefox, webkit, type Browser, type BrowserType, type Page } from "playwright";
+import { sealPackage, utf8 } from "@docseal/core";
+import { memoryKeyProvider } from "@docseal/sig-ed25519";
+import type { Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
-
-const PACKAGES = new URL("../../spec/vectors/packages/", import.meta.url);
-const index = JSON.parse(await readFile(new URL("expected.json", PACKAGES), "utf8")) as {
-  packages: { file: string; expected: { axes: AxisVerdicts; overall: string } }[];
-};
-const goldenPath = (file: string) => decodeURIComponent(new URL(file, PACKAGES).pathname);
-
-// The golden packages' signer: the RFC 8032 test 1 key (tests/vectors.test.ts).
-const GOLDEN_SIGNER = publicKeyToDid(ed25519.getPublicKey(Uint8Array.from(Buffer.from("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60", "hex"))));
-
-const ENGINES: Record<string, BrowserType> = { chromium, firefox, webkit };
-const names = (process.env.DOCSEAL_E2E_BROWSERS ?? "chromium,firefox,webkit").split(",");
+import { ENGINE_NAMES, golden, GOLDEN_SIGNER, goldenPath, launch, Site } from "./site";
 
 let dir: string;
 beforeAll(async () => {
@@ -33,52 +20,17 @@ afterAll(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-describe.each(names)("%s", (name) => {
-  let browser: Browser;
-  const violations: string[] = [];
-  const styled: Page[] = [];
+describe.each(ENGINE_NAMES)("%s", (name) => {
+  let site: Site;
 
   beforeAll(async () => {
-    const engine = ENGINES[name];
-    if (!engine) {
-      throw new Error(`unknown engine ${name}`);
-    }
-    browser = await engine.launch();
+    site = new Site(name, await launch(name));
   });
   afterAll(async () => {
-    await browser.close();
+    await site.browser.close();
   });
 
-  /**
-   * A fresh page with the site open and CSP violations recorded. WebKit does not apply
-   * 'unsafe-hashes' to style attributes, so it refuses the one inline style SvelteKit puts on its
-   * route announcer (app.css hides the announcer anyway); a refused style is accepted there only
-   * while the announcer is the one element with a style attribute.
-   */
-  async function open(context: { newPage(): Promise<Page> } = browser): Promise<Page> {
-    const page = await context.newPage();
-    page.on("console", (message) => {
-      const text = message.text();
-      if (!/content.security.policy|refused to/i.test(text)) {
-        return;
-      }
-      if (name === "webkit" && /refused to apply a stylesheet/i.test(text)) {
-        styled.push(page);
-        return;
-      }
-      violations.push(text);
-    });
-    await page.goto(inject("siteUrl"));
-    await page.locator("[data-testid=package-input]").waitFor({ state: "attached" });
-    return page;
-  }
-
-  /** Every page that had a style refused carries no inline style but the announcer's. */
-  async function expectOnlyAnnouncerStyled(page: Page) {
-    if (styled.includes(page)) {
-      expect(await page.locator("[style]:not(#svelte-announcer)").count()).toBe(0);
-    }
-  }
+  const open = (context?: { newPage(): Promise<Page> }) => site.open("", "[data-testid=package-input]", context);
 
   /** Chooses `path` and waits for its report; returns what the page shows. */
   async function check(page: Page, path: string) {
@@ -93,7 +45,7 @@ describe.each(names)("%s", (name) => {
   }
 
   it("shows every golden package with the verdicts its vector requires", { timeout: 300_000 }, async () => {
-    for (const { file, expected } of index.packages) {
+    for (const { file, expected } of golden.packages) {
       const page = await open();
       const shown = await check(page, goldenPath(file));
       expect({ overall: shown.overall, axes: shown.axes }, file).toEqual(expected);
@@ -106,10 +58,9 @@ describe.each(names)("%s", (name) => {
         expect(shown.text).toMatch(/contract\.pdf:\s+File contents do not match/);
         expect(shown.text).toMatch(/…\w{6}\s\(author\)/);
       }
-      await expectOnlyAnnouncerStyled(page);
+      await site.expectClean(page);
       await page.close();
     }
-    expect(violations).toEqual([]);
   });
 
   it("shows a bidirectional override in a file name as a visible code", async () => {
@@ -133,7 +84,7 @@ describe.each(names)("%s", (name) => {
   });
 
   it("evaluates trust with the viewer's keys, keeps them, and exports them", async () => {
-    const context = await browser.newContext({ acceptDownloads: true });
+    const context = await site.browser.newContext({ acceptDownloads: true });
     const page = await open(context);
     let shown = await check(page, goldenPath("valid-basic.dseal"));
     expect(shown.axes.trust).toBe("not-evaluated");
@@ -178,7 +129,7 @@ describe.each(names)("%s", (name) => {
   });
 
   it("refuses to work inside a frame", async () => {
-    const page = await browser.newPage();
+    const page = await site.browser.newPage();
     await page.setContent(`<iframe src="${inject("siteUrl")}"></iframe>`);
     const frame = page.frameLocator("iframe");
     await frame.locator("main p").first().waitFor();

@@ -81,6 +81,23 @@ header.site {
 header.site .brand {
   font-weight: 700;
   font-size: 1.2rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+header.site nav {
+  display: flex;
+  gap: 1rem;
+}
+
+header.site nav a {
+  color: var(--accent);
+}
+
+header.site nav a[aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
 }
 
 header.site .tagline {
@@ -356,6 +373,48 @@ summary {
 .disclaimer {
   margin-top: 1.5rem;
   color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Documents to seal. */
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.planned {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planned li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.planned .size {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.planned .remove {
+  padding: 0 0.5rem;
+}
+
+.planned li.bad .path {
+  color: var(--bad);
+}
+
+.planned .problem {
+  grid-column: 1 / -1;
+  color: var(--bad);
   font-size: 0.9rem;
 }
 

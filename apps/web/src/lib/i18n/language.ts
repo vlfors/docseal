@@ -11,6 +11,18 @@ export function chooseLanguage(saved: string | null, preferred: readonly string[
   return (saved && known(saved)) || preferred.map(known).find((language) => language !== undefined) || "en";
 }
 
+/** A size for people: 3 bytes, 1.4 MB, 2.1 GB (decimal units, as file managers show them). */
+export function formatSize(bytes: number, language: Language): string {
+  const units = ["byte", "kilobyte", "megabyte", "gigabyte", "terabyte"] as const;
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000;
+    unit++;
+  }
+  return new Intl.NumberFormat(language, { style: "unit", unit: units[unit], unitDisplay: unit === 0 ? "long" : "short", maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value);
+}
+
 /** A proven time in UTC, written out for `language`; the zone is always named. */
 export function formatTime(iso: string, language: Language): string {
   const date = new Date(iso);

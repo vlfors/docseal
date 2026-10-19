@@ -13,6 +13,24 @@ export interface Messages {
   tagline: string;
   framed: string;
   footer: string;
+  nav: { verify: string; seal: string };
+
+  seal: {
+    title: string;
+    intro: string;
+    filesTitle: string;
+    chooseFiles: string;
+    chooseFolder: string;
+    dropHint: string;
+    folderNote: string;
+    clear: string;
+    remove: (path: string) => string;
+    summary: (count: number, size: string) => string;
+    problems: (count: number) => string;
+    collision: string;
+    readingFolder: string;
+    empty: string;
+  };
 
   verify: {
     title: string;

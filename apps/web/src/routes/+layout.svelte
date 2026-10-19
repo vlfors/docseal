@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { resolve } from "$app/paths";
+  import { page } from "$app/state";
   import { FORMAT_VERSION } from "@docseal/core";
   import { onMount, type Snippet } from "svelte";
   import { isFramed } from "../lib/frame";
@@ -9,6 +11,9 @@
   import "../app.css";
 
   let { children }: { children: Snippet } = $props();
+
+  /** Marks the link of the page being shown (paths end in a slash: trailingSlash is "always"). */
+  const current = (route: "/" | "/seal") => (page.url.pathname.replace(/\/$/, "") === resolve(route).replace(/\/$/, "") ? "page" : undefined);
 
   // A <meta> CSP cannot forbid framing, so the page refuses to work inside a frame: another site
   // could otherwise lay its own buttons or verdict over ours.
@@ -27,7 +32,11 @@
   </main>
 {:else}
   <header class="site">
-    <span class="brand">DocSeal</span>
+    <a class="brand" href={resolve("/")}>DocSeal</a>
+    <nav>
+      <a href={resolve("/")} aria-current={current("/")}>{t().nav.verify}</a>
+      <a href={resolve("/seal")} aria-current={current("/seal")}>{t().nav.seal}</a>
+    </nav>
     <span class="tagline">{t().tagline}</span>
     <select
       aria-label="Language / Язык"

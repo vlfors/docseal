@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chooseLanguage, formatTime, MESSAGES } from "./language";
+import { chooseLanguage, formatSize, formatTime, MESSAGES } from "./language";
 
 describe("chooseLanguage", () => {
   it("prefers a saved choice, then the browser's languages, then English", () => {
@@ -33,5 +33,14 @@ describe("dictionaries", () => {
       expect(text.trim(), path).not.toBe("");
       expect(text === english.get(path) && /[a-z]{4}/i.test(text), `${path} is untranslated`).toBe(false);
     }
+  });
+});
+
+describe("formatSize", () => {
+  it("uses decimal units in the page's language", () => {
+    expect(formatSize(3, "en")).toBe("3 bytes");
+    expect(formatSize(3, "ru")).toBe("3 байта");
+    expect(formatSize(1_400_000, "en")).toBe("1.4 MB");
+    expect(formatSize(2 * 1024 ** 3, "ru")).toMatch(/^2,1\sГБ$/);
   });
 });

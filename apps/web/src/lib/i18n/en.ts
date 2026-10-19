@@ -5,6 +5,24 @@ export const en: Messages = {
   tagline: "Seal and verify documents in your browser. Nothing is uploaded.",
   framed: "This page does not work inside another site. Open it directly in its own tab.",
   footer: "DocSeal checks packages on this device. Files and keys never leave the browser.",
+  nav: { verify: "Verify", seal: "Seal" },
+
+  seal: {
+    title: "Seal documents",
+    intro: "Choose the documents, sign them with your key, and save the sealed package. Nothing leaves this device.",
+    filesTitle: "Documents",
+    chooseFiles: "Choose files",
+    chooseFolder: "Choose a folder",
+    dropHint: "or drop files or folders here",
+    folderNote: "A folder adds its contents, with paths relative to it, as docseal seal <folder> does.",
+    clear: "Remove all",
+    remove: (path) => `Remove ${path}`,
+    summary: (count, size) => `${String(count)} file(s), ${size}`,
+    problems: (count) => `${String(count)} path(s) cannot be sealed; remove or rename them.`,
+    collision: "Collides with another path (the same name ignoring case, a duplicate, or a file used as a folder)",
+    readingFolder: "Reading the folder…",
+    empty: "No documents chosen yet.",
+  },
 
   verify: {
     title: "Verify a package",
