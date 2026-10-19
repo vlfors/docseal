@@ -28,7 +28,12 @@ const MIN_SCRYPT_N = 2 ** 10;
 const MAX_SCRYPT_N = 2 ** 20;
 const SEED_LENGTH = 32;
 
-export interface CreateKeyFileOptions {
+export interface KeyFileProgress {
+  /** Called as scrypt runs, with the share done from 0 to 1. */
+  onProgress?: (progress: number) => void;
+}
+
+export interface CreateKeyFileOptions extends KeyFileProgress {
   scryptN?: number;
   randomBytes?: (length: number) => Uint8Array;
 }
@@ -55,17 +60,17 @@ export async function createKeyFile(
     kdf: { name: "scrypt", N, r: 8, p: 1, salt: toHex(random(16)) },
     cipher: { name: "xchacha20-poly1305", nonce: toHex(random(24)) },
   };
-  const key = await deriveKey(passphrase, header.kdf);
+  const key = await deriveKey(passphrase, header.kdf, options.onProgress);
   const ciphertext = xchacha20poly1305(key, fromHex(header.cipher.nonce), jcs(header)).encrypt(seed);
   key.fill(0);
   return { ...header, ciphertext: toBase64url(ciphertext) };
 }
 
 /** Decrypts the seed. Every header field is authenticated, so none can be swapped. */
-export async function openKeyFile(bytes: Uint8Array, passphrase: string): Promise<{ seed: Uint8Array; did: string }> {
+export async function openKeyFile(bytes: Uint8Array, passphrase: string, options: KeyFileProgress = {}): Promise<{ seed: Uint8Array; did: string }> {
   const file = parseKeyFile(bytes);
   const { ciphertext, ...header } = file;
-  const key = await deriveKey(passphrase, file.kdf);
+  const key = await deriveKey(passphrase, file.kdf, options.onProgress);
   let seed: Uint8Array;
   try {
     seed = xchacha20poly1305(key, fromHex(file.cipher.nonce), jcs(header)).decrypt(fromBase64url(ciphertext));
@@ -121,11 +126,12 @@ function checkCost(N: number): void {
   }
 }
 
-function deriveKey(passphrase: string, kdf: KeyFile["kdf"]): Promise<Uint8Array> {
+function deriveKey(passphrase: string, kdf: KeyFile["kdf"], onProgress?: (progress: number) => void): Promise<Uint8Array> {
   return scryptAsync(utf8(passphrase.normalize("NFC")), fromHex(kdf.salt), {
     N: kdf.N,
     r: kdf.r,
     p: kdf.p,
     dkLen: 32,
+    ...(onProgress && { onProgress }),
   });
 }

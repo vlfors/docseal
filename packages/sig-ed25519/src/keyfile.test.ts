@@ -22,6 +22,18 @@ describe("key file", () => {
     expect(text).not.toContain("07".repeat(8));
   });
 
+  it("reports the progress of scrypt when creating and opening", async () => {
+    const created: number[] = [];
+    const file = await createKeyFile(generateSecretKey(), "pw", { scryptN: 2 ** 14, onProgress: (p) => created.push(p) });
+    const opened: number[] = [];
+    await openKeyFile(encode(file), "pw", { onProgress: (p) => opened.push(p) });
+    for (const progress of [created, opened]) {
+      expect(progress.length).toBeGreaterThan(1);
+      expect(progress).toEqual([...progress].sort((a, b) => a - b));
+      expect(progress.at(-1)).toBe(1);
+    }
+  });
+
   it("rejects a wrong passphrase", async () => {
     const file = await createKeyFile(generateSecretKey(), "right", FAST);
     await expect(openKeyFile(encode(file), "wrong")).rejects.toThrow(/Wrong passphrase/);

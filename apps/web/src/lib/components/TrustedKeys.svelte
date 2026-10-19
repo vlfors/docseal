@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { saveBytes } from "../download";
   import { t } from "../i18n/state.svelte";
   import { addKey, exportKeys, importKeys, removeKey } from "../trust/keys";
   import { keysAreStored, setTrustedKeys, trustedKeys } from "../trust/state.svelte";
@@ -48,14 +49,7 @@
   }
 
   function exportFile() {
-    const url = URL.createObjectURL(new Blob([exportKeys(trustedKeys()) as Uint8Array<ArrayBuffer>], { type: "application/json" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "trusted-keys.json";
-    link.click();
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 0);
+    saveBytes(exportKeys(trustedKeys()), "trusted-keys.json", "application/json");
   }
 </script>
 

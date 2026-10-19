@@ -14,5 +14,7 @@ export default defineConfig({
     globalSetup: ["tests/e2e/server.ts"],
     testTimeout: 60_000,
     hookTimeout: 60_000,
+    // The tests print what they measure in each engine.
+    silent: false,
   },
 });

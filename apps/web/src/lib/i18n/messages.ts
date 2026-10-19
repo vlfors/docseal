@@ -32,6 +32,32 @@ export interface Messages {
     empty: string;
   };
 
+  key: {
+    title: string;
+    note: string;
+    openTab: string;
+    newTab: string;
+    keyFile: string;
+    chooseKeyFile: string;
+    passphrase: string;
+    repeat: string;
+    open: string;
+    create: string;
+    deriving: (percent: number) => string;
+    cancel: string;
+    wrongPassphrase: string;
+    notKeyFile: (reason: string) => string;
+    short: string;
+    mismatch: string;
+    ready: string;
+    close: string;
+    created: string;
+    keepPrivate: string;
+    shareTitle: string;
+    shareNote: string;
+    devOnly: string;
+  };
+
   verify: {
     title: string;
     choose: string;
