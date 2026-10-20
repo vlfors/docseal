@@ -19,7 +19,11 @@ export default defineConfig({
   ],
   // The commit the release workflow builds from, shown on every page so a viewer can tell which
   // code is running; a local build shows that it is one.
-  define: { __DOCSEAL_COMMIT__: JSON.stringify(process.env.DOCSEAL_COMMIT ?? "") },
+  // A preview (.github/workflows/preview.yml) says on every page that it is not a release.
+  define: {
+    __DOCSEAL_COMMIT__: JSON.stringify(process.env.DOCSEAL_COMMIT ?? ""),
+    __DOCSEAL_PREVIEW__: JSON.stringify(process.env.DOCSEAL_PREVIEW === "1"),
+  },
   // Workers are started as module workers (`{ type: "module" }`), so they are built as modules too.
   worker: { format: "es" },
   resolve: {

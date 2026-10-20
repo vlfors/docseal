@@ -14,6 +14,7 @@ export interface Messages {
   framed: string;
   footer: string;
   builtFrom: string;
+  preview: string;
   localBuild: string;
   nav: { verify: string; seal: string };
 

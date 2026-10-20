@@ -19,7 +19,7 @@ All packages are released together, with one version, by pushing a tag. The work
    - Add a tag ruleset (Settings → Rules → Rulesets) for `refs/tags/v*` that restricts creation, update, and deletion to maintainers: otherwise anyone who can push can start a release, and a published tag could be moved.
    - Protect `main` with required CI checks.
    - Enable private vulnerability reporting (see [SECURITY.md](../SECURITY.md)).
-4. **GitHub Pages**, for the web app. Settings → Pages → Build and deployment → Source: **GitHub Actions**. Then, in Settings → Environments → `github-pages`, restrict **deployment branches and tags** to the tag pattern `v*`, so only a release can change the site. The `pages` job of `release.yml` deploys after the `npm` approval; the site is served at `https://vlfors.github.io/docseal/`. On `vlfors.github.io` it shares an origin with every other Pages site of the account (see THREAT_MODEL.md, "The browser app"); a custom domain gives it its own: set it in Settings → Pages and build with `BASE_PATH` empty.
+4. **GitHub Pages**, for the web app. Settings → Pages → Build and deployment → Source: **GitHub Actions**. Then, in Settings → Environments → `github-pages`, restrict **deployment branches and tags** to the tag pattern `v*` and the branch `main`: a release deploys from its tag, a preview (below) from `main`. The `pages` job of `release.yml` deploys after the `npm` approval; the site is served at `https://vlfors.github.io/docseal/`. On `vlfors.github.io` it shares an origin with every other Pages site of the account (see THREAT_MODEL.md, "The browser app"); a custom domain gives it its own: set it in Settings → Pages and build with `BASE_PATH` empty.
 
 ## Each release
 
@@ -34,6 +34,10 @@ All packages are released together, with one version, by pushing a tag. The work
 4. Rehearse: Actions → Release → Run workflow (on `main`). It runs the whole build for the version in `package.json`, hands the tarballs over, checks `SHA256SUMS`, and runs `npm publish --dry-run` without any credentials; nothing is published, attested, or released. An unreleased CHANGELOG section is only a warning there.
 5. Tag and push: `git tag -s v0.2.0 -m "DocSeal 0.2.0" && git push origin main v0.2.0`.
 6. Approve the `npm` environment when the checks have passed.
+
+## A preview before a release
+
+To let people try the web app before anything is released: Actions → Preview → Run workflow, on `main`. [`preview.yml`](../.github/workflows/preview.yml) builds the site from `main` and deploys it to GitHub Pages; nothing goes to npm and no release is made. Every page carries a banner saying it is a preview, and its footer names the commit. The address is public to anyone who has it. The next release, or the next preview, replaces it.
 
 ## Verifying a release
 

@@ -37,6 +37,9 @@
     <p>{t().framed}</p>
   </main>
 {:else}
+  {#if __DOCSEAL_PREVIEW__}
+    <p class="preview-banner" role="note" data-testid="preview">{t().preview}</p>
+  {/if}
   <header class="site">
     <a class="brand" href={resolve("/")}>DocSeal</a>
     <nav>

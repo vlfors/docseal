@@ -31,8 +31,8 @@ export default tseslint.config(
   {
     files: ["apps/web/**/*.svelte", "apps/web/**/*.svelte.ts"],
     languageOptions: {
-      // __DOCSEAL_COMMIT__ is defined at build time (apps/web/vite.config.ts).
-      globals: { ...globals.browser, __DOCSEAL_COMMIT__: "readonly" },
+      // __DOCSEAL_COMMIT__ and __DOCSEAL_PREVIEW__ are defined at build time (apps/web/vite.config.ts).
+      globals: { ...globals.browser, __DOCSEAL_COMMIT__: "readonly", __DOCSEAL_PREVIEW__: "readonly" },
       parserOptions: {
         parser: tseslint.parser,
         extraFileExtensions: [".svelte"],

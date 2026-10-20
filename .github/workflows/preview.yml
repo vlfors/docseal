@@ -1,0 +1,49 @@
+name: Preview
+
+# Run by hand (Actions → Preview → Run workflow) on main: deploys the web app built from main
+# to GitHub Pages so people can try it before a release. Nothing is published to npm and no
+# release is made; every page says it is a preview. The next release replaces it.
+#
+# As in release.yml, the job that runs project and dependency code holds no credentials, and
+# the job that can deploy runs no code: it only deploys the artifact the build handed over.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint && pnpm typecheck
+      - name: Build the web app
+        run: pnpm --filter @docseal/web build
+        env:
+          BASE_PATH: /docseal
+          DOCSEAL_COMMIT: ${{ github.sha }}
+          DOCSEAL_PREVIEW: "1"
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        with:
+          path: apps/web/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

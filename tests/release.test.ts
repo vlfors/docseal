@@ -19,7 +19,7 @@ describe("release metadata", () => {
 
   it("pins every GitHub Action to a full commit SHA", () => {
     // A tag can be moved to other code; the release job holds publishing credentials.
-    for (const workflow of ["ci.yml", "release.yml"]) {
+    for (const workflow of ["ci.yml", "release.yml", "preview.yml"]) {
       const uses = [...read(`.github/workflows/${workflow}`).matchAll(/^\s*-?\s*uses:\s*(\S+)/gm)].map((m) => m[1]);
       expect(uses.length, workflow).toBeGreaterThan(0);
       for (const ref of uses) {
@@ -58,6 +58,19 @@ describe("release metadata", () => {
     expect(pages).toContain("needs: publish");
     expect(pages).not.toMatch(/actions\/checkout|pnpm|run:|secrets\./);
     expect(pages).toMatch(/permissions:\n {6}pages: write\n {6}id-token: write\n {4}steps:/);
+  });
+
+  it("deploys a preview by hand only, with no credentials where code runs", () => {
+    const workflow = read(".github/workflows/preview.yml");
+    const build = workflow.slice(workflow.indexOf("\n  build:"), workflow.indexOf("\n  deploy:"));
+    const deploy = workflow.slice(workflow.indexOf("\n  deploy:"));
+    expect(workflow).toMatch(/^on:\n {2}workflow_dispatch:\n\n/m);
+    expect(workflow).toMatch(/^permissions:\n {2}contents: read\n/m);
+    expect(workflow).not.toMatch(/npm publish|gh release|secrets\./);
+    expect(build).not.toMatch(/permissions:|environment:/);
+    expect(build).toContain('DOCSEAL_PREVIEW: "1"');
+    expect(deploy).not.toMatch(/actions\/checkout|pnpm|run:/);
+    expect(deploy).toMatch(/permissions:\n {6}pages: write\n {6}id-token: write\n {4}steps:/);
   });
 
   it("publishes no export that points at the sources", () => {

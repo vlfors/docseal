@@ -6,6 +6,7 @@ export const en: Messages = {
   framed: "This page does not work inside another site. Open it directly in its own tab.",
   footer: "DocSeal checks packages on this device. Files and keys never leave the browser.",
   builtFrom: "Built from commit",
+  preview: "Preview: a version for testing, not a release. Use it with test documents and keys.",
   localBuild: "A local build, not a release.",
   nav: { verify: "Verify", seal: "Seal" },
 

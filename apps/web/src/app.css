@@ -68,6 +68,15 @@ footer.site {
   padding: 0 1rem;
 }
 
+.preview-banner {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: var(--neutral-bg);
+  color: var(--neutral);
+  text-align: center;
+  font-weight: 600;
+}
+
 header.site {
   display: flex;
   flex-wrap: wrap;
