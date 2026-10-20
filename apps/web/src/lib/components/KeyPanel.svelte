@@ -95,8 +95,7 @@
   }
 </script>
 
-<section class="key-panel" aria-labelledby="key-title">
-  <h2 id="key-title">{t().key.title}</h2>
+<div class="key-panel">
   <p class="note">{t().key.note}</p>
 
   {#if key}
@@ -111,9 +110,9 @@
       <p class="note">{t().key.shareNote}</p>
       <pre class="share" data-testid="share-entry">{shareEntry}</pre>
     {/if}
-    <p class="note">{t().key.keepPrivate} {t().key.devOnly}</p>
+    <p class="note">{t().key.keepPrivate}</p>
   {:else}
-    <div class="tabs" role="tablist">
+    <div class="tabs segmented" role="tablist">
       <button type="button" role="tab" aria-selected={mode === "open"} onclick={() => (mode = "open")}>{t().key.openTab}</button>
       <button type="button" role="tab" aria-selected={mode === "new"} onclick={() => (mode = "new")}>{t().key.newTab}</button>
     </div>
@@ -163,4 +162,4 @@
     {/if}
     <p class="note">{t().key.devOnly}</p>
   {/if}
-</section>
+</div>

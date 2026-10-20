@@ -1,11 +1,29 @@
 <script lang="ts">
   import { formatTime } from "../i18n/language";
   import { language, t } from "../i18n/state.svelte";
-  import type { ReportView } from "../report/view";
+  import type { Snippet } from "svelte";
+  import type { Hint, ReportView } from "../report/view";
   import { clip, shortId } from "../text";
   import PackageText from "./PackageText.svelte";
 
-  let { view }: { view: ReportView } = $props();
+  let {
+    view,
+    onaction,
+    afterHints,
+  }: {
+    view: ReportView;
+    /** A hint's button: open the trusted keys, or the Bitcoin settings. */
+    onaction?: (action: "addKey" | "configure") => void;
+    /** Shown right after the next steps: completing a pending time proof. */
+    afterHints?: Snippet;
+  } = $props();
+
+  const ACTIONS: Partial<Record<Hint, "addKey" | "configure">> = {
+    trustNotEvaluated: "addKey",
+    timeOffline: "configure",
+    timeUnsupported: "configure",
+  };
+  const MARK = { good: "✓", bad: "✗", neutral: "•" } as const;
 
   const technical = $derived(
     (
@@ -25,6 +43,67 @@
     <p>{t().overall[view.overall].explanation}</p>
   </header>
 
+  <ul class="chips" aria-label={t().sections.checks}>
+    {#each view.axes as row (row.axis)}
+      <li class="chip {row.tone}" data-chip={row.axis}>
+        <span aria-hidden="true">{MARK[row.tone]}</span>
+        {t().axes[row.axis].name}: {(t().verdicts[row.axis] as Record<string, string>)[row.verdict]}
+      </li>
+    {/each}
+  </ul>
+
+  {#if view.problemFiles.length > 0}
+    <section>
+      <h3>{t().sections.files}</h3>
+      <ul class="files">
+        {#each view.problemFiles as file, i (i)}
+          <li data-status={file.status} class="bad"><span class="status">{t().fileStatus[file.status]}</span> <PackageText text={file.path} /></li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
+  {#if view.issues.length > 0}
+    <section>
+      <h3>{t().sections.issues}</h3>
+      {#if language() !== "en"}<p class="note">{t().issueNote}</p>{/if}
+      <ul class="issues">
+        {#each view.issues as issue, i (i)}
+          <li data-issue={issue.code}>
+            <span class="axis">{t().axes[issue.axis].name}</span>
+            {#if issue.subject !== undefined}<PackageText text={issue.subject} />:&nbsp;{/if}<PackageText text={issue.message} />
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+
+  {#if view.hints.length > 0}
+    <section class="hints">
+      <h3>{t().sections.nextSteps}</h3>
+      <ul>
+        {#each view.hints as hint (hint)}
+          {@const action = ACTIONS[hint]}
+          <li data-hint={hint}>
+            <span>{t().hints[hint]}</span>
+            {#if action && onaction}
+              <button
+                type="button"
+                class="small"
+                onclick={() => {
+                  onaction(action);
+                }}>{t().hintActions[action]}</button
+              >
+            {/if}
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+  {@render afterHints?.()}
+
+  <details class="axes-details">
+    <summary>{t().sections.checks}</summary>
   <table class="axes">
     <tbody>
       {#each view.axes as row (row.axis)}
@@ -56,43 +135,7 @@
       {/each}
     </tbody>
   </table>
-
-  {#if view.hints.length > 0}
-    <section class="hints">
-      <h3>{t().sections.nextSteps}</h3>
-      <ul>
-        {#each view.hints as hint (hint)}
-          <li data-hint={hint}>{t().hints[hint]}</li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
-
-  {#if view.problemFiles.length > 0}
-    <section>
-      <h3>{t().sections.files}</h3>
-      <ul class="files">
-        {#each view.problemFiles as file, i (i)}
-          <li data-status={file.status} class="bad"><span class="status">{t().fileStatus[file.status]}</span> <PackageText text={file.path} /></li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
-
-  {#if view.issues.length > 0}
-    <section>
-      <h3>{t().sections.issues}</h3>
-      {#if language() !== "en"}<p class="note">{t().issueNote}</p>{/if}
-      <ul class="issues">
-        {#each view.issues as issue, i (i)}
-          <li data-issue={issue.code}>
-            <span class="axis">{t().axes[issue.axis].name}</span>
-            {#if issue.subject !== undefined}<PackageText text={issue.subject} />:&nbsp;{/if}<PackageText text={issue.message} />
-          </li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
+  </details>
 
   {#if view.files.length > 0}
     <details>

@@ -10,7 +10,6 @@ export type Language = "en" | "ru";
 export interface Messages {
   /** The language's name in itself, for the switch. */
   languageName: string;
-  tagline: string;
   framed: string;
   footer: string;
   builtFrom: string;
@@ -94,6 +93,8 @@ export interface Messages {
 
   chain: {
     title: string;
+    source: string;
+    summary: (source: string) => string;
     publicSources: string;
     custom: string;
     customUrl: string;
@@ -125,9 +126,11 @@ export interface Messages {
     checking: string;
     progress: (percent: number) => string;
     cancel: string;
-    another: string;
     failed: string;
     notDseal: string;
+    chooseAnother: string;
+    settings: string;
+    settingsSummary: (keys: number, chain: string) => string;
   };
 
   overall: Record<OverallVerdict, { headline: string; explanation: string }>;
@@ -148,6 +151,7 @@ export interface Messages {
     issues: string;
     nextSteps: string;
     technical: string;
+    checks: string;
   };
   fileStatus: Record<FileResult["status"], string>;
   signature: {
@@ -178,6 +182,10 @@ export interface Messages {
     timeMissing: string;
     timeUnsupported: string;
     timeOffline: string;
+  };
+  hintActions: {
+    addKey: string;
+    configure: string;
   };
   disclaimer: string;
   unsafeCharacter: (code: string) => string;

@@ -80,10 +80,10 @@ footer.site {
 header.site {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.5rem 1rem;
-  padding-top: 1rem;
-  padding-bottom: 1rem;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
   border-bottom: 1px solid var(--border);
 }
 
@@ -94,24 +94,54 @@ header.site .brand {
   text-decoration: none;
 }
 
-header.site nav {
-  display: flex;
-  gap: 1rem;
+/* The two pages as a segmented control: the current one is filled. */
+.tabs-nav {
+  display: inline-flex;
+  flex: 1;
+  justify-content: center;
 }
 
-header.site nav a {
-  color: var(--accent);
-}
-
-header.site nav a[aria-current="page"] {
+.tabs-nav a {
+  padding: 0.45rem 1.4rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
   color: var(--text);
   font-weight: 600;
   text-decoration: none;
 }
 
-header.site .tagline {
-  color: var(--muted);
-  flex: 1;
+.tabs-nav a:first-child {
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+
+.tabs-nav a:last-child {
+  margin-left: -1px;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.tabs-nav a:hover {
+  background: var(--code-bg);
+}
+
+.tabs-nav a[aria-current="page"] {
+  position: relative;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.tabs-nav a:focus-visible {
+  position: relative;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+header.site .language {
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--text);
 }
 
 footer.site {
@@ -232,6 +262,18 @@ input {
   border-color: var(--accent);
 }
 
+/* Once a package is chosen, the drop zone is one line: its name and a way to choose another. */
+.dropzone.compact {
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-style: solid;
+}
+
+.dropzone .file-name {
+  margin: 0;
+  font-weight: 600;
+}
+
 .dropzone .note {
   flex-basis: 100%;
   margin: 0;
@@ -287,9 +329,69 @@ input {
   border-color: var(--neutral);
 }
 
+/* The six checks at a glance; the full table is folded below. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  font-size: 0.9rem;
+}
+
+.chip.good {
+  border-color: var(--good);
+  color: var(--good);
+}
+
+.chip.bad {
+  border-color: var(--bad);
+  background: var(--bad-bg);
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.chip.neutral {
+  border-color: var(--neutral);
+  color: var(--neutral);
+}
+
+.hints ul {
+  list-style: none;
+  padding: 0;
+}
+
+.hints li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0.4rem 0;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--neutral);
+  background: var(--surface);
+}
+
+.hints li span {
+  flex: 1 1 20rem;
+}
+
+button.small {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.9rem;
+}
+
 .axes {
   width: 100%;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
   border-collapse: collapse;
 }
 
@@ -334,7 +436,6 @@ input {
 
 .files,
 .issues,
-.hints ul,
 .keys {
   margin: 0;
   padding-left: 1.2rem;
@@ -428,9 +529,8 @@ summary {
 }
 
 /* The signing key. */
-.key-panel,
-.file-picker {
-  margin-top: 2rem;
+.key-panel .note:first-child {
+  margin-top: 0;
 }
 
 .tabs {
@@ -439,16 +539,43 @@ summary {
   margin: 0.75rem 0;
 }
 
+/* Two choices joined, the chosen one filled, like the page tabs. */
+.tabs.segmented {
+  gap: 0;
+}
+
+.tabs.segmented button {
+  border-radius: 0;
+}
+
+.tabs.segmented button:first-child {
+  border-radius: 0.5rem 0 0 0.5rem;
+}
+
+.tabs.segmented button:last-child {
+  margin-left: -1px;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
 .tabs [aria-selected="true"] {
+  position: relative;
   border-color: var(--accent);
+  background: var(--accent);
+  color: var(--bg);
   font-weight: 600;
 }
 
+/* One field under another, in the order they are filled. */
 .key-form {
   display: flex;
-  flex-wrap: wrap;
-  align-items: end;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 0.75rem;
+  max-width: 28rem;
+}
+
+.key-form label:not(.button) {
+  align-self: stretch;
 }
 
 .key-form label:not(.button) {
@@ -473,9 +600,70 @@ summary {
   font-size: 0.85rem;
 }
 
+/* The seal page's numbered steps. */
+.step {
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface);
+}
+
+.step.current {
+  border-color: var(--accent);
+}
+
+.step.waiting {
+  opacity: 0.6;
+}
+
+.step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.step-head h2 {
+  font-size: 1.15rem;
+}
+
+.step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--border);
+  font-weight: 700;
+}
+
+.step.current .step-number {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.step.done .step-number {
+  background: var(--good);
+  color: var(--bg);
+}
+
+.step-body {
+  margin-top: 0.75rem;
+}
+
+.step-waiting {
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+}
+
+.step .dropzone {
+  padding: 1rem;
+}
+
 /* Sealing. */
-.seal-panel {
-  margin-top: 2rem;
+.seal-panel .role {
+  margin-top: 0;
 }
 
 .seal-panel .role {
@@ -513,29 +701,22 @@ button.primary {
 }
 
 /* Bitcoin source and upgrades. */
-.chain-settings {
-  margin-top: 2rem;
-  padding: 1.25rem;
-  border: 1px solid var(--border);
-  border-radius: 0.6rem;
-  background: var(--surface);
-}
-
-.chain-settings fieldset {
+.field {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin: 0.75rem 0;
-  padding: 0;
-  border: 0;
-}
-
-.custom-url {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  margin-left: 1.6rem;
+  gap: 0.25rem;
+  max-width: 32rem;
+  margin: 0.5rem 0;
   font-size: 0.9rem;
+}
+
+.field select,
+.field input {
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .upgrade-panel {
@@ -550,13 +731,57 @@ button.primary {
   margin-top: 0;
 }
 
-/* Trusted keys. */
-.trusted-keys {
+/* Verification settings: folded away below the report. */
+.settings {
   margin-top: 2.5rem;
-  padding: 1.25rem;
   border: 1px solid var(--border);
   border-radius: 0.6rem;
   background: var(--surface);
+}
+
+.settings > summary {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  padding: 0.9rem 1.25rem;
+}
+
+.settings > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings > summary::before {
+  content: "▸";
+  color: var(--muted);
+}
+
+.settings[open] > summary::before {
+  content: "▾";
+}
+
+.settings-summary {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.settings[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.settings > :not(summary) {
+  margin-left: 1.25rem;
+  margin-right: 1.25rem;
+}
+
+.settings > .chain-settings {
+  margin-bottom: 1.25rem;
+}
+
+.trusted-keys h3 {
+  margin-top: 1rem;
 }
 
 .keys li {

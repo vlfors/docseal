@@ -63,7 +63,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     expect(network.requests).toContain("GET https://esplora.test/blocks/tip/height");
     expect(await page.locator(".report").getAttribute("data-overall")).toBe("valid");
     // The report names the source the worker asked, whose answers the fake network gave.
-    expect(await page.locator("[data-axis=time]").innerText()).toMatch(/via esplora https:\/\/mempool\.space\/api/);
+    expect(await page.locator("[data-axis=time]").textContent()).toMatch(/via\s+esplora https:\/\/mempool\.space\/api/);
     await site.expectClean(page);
     await context.close();
   });
@@ -87,7 +87,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
 
     const verify = await site.open("", "[data-testid=package-input]", context);
     await verify.locator("[data-testid=package-input]").setInputFiles(path);
-    await verify.locator("[data-axis=time][data-verdict=pending]").waitFor();
+    await verify.locator("[data-axis=time][data-verdict=pending]").waitFor({ state: "attached" });
     await verify.locator("[data-testid=upgrade-check]").click();
     await verify.locator("[data-testid=upgrade-not-yet]").waitFor();
 

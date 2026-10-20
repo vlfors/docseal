@@ -42,12 +42,12 @@
   {/if}
   <header class="site">
     <a class="brand" href={resolve("/")}>DocSeal</a>
-    <nav>
+    <nav class="tabs-nav" aria-label="DocSeal">
       <a href={resolve("/")} aria-current={current("/")}>{t().nav.verify}</a>
       <a href={resolve("/seal")} aria-current={current("/seal")}>{t().nav.seal}</a>
     </nav>
-    <span class="tagline">{t().tagline}</span>
     <select
+      class="language"
       aria-label="Language / Язык"
       value={language()}
       onchange={(event) => {

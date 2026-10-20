@@ -54,7 +54,7 @@
 </script>
 
 <section class="trusted-keys" aria-labelledby="trusted-keys-title">
-  <h2 id="trusted-keys-title">{t().trusted.title}</h2>
+  <h3 id="trusted-keys-title">{t().trusted.title}</h3>
   <p class="note">{keysAreStored() ? t().trusted.note : t().trusted.storageUnavailable}</p>
 
   {#if trustedKeys().length === 0}

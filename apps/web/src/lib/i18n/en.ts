@@ -2,7 +2,6 @@ import type { Messages } from "./messages";
 
 export const en: Messages = {
   languageName: "English",
-  tagline: "Seal and verify documents in your browser. Nothing is uploaded.",
   framed: "This page does not work inside another site. Open it directly in its own tab.",
   footer: "DocSeal checks packages on this device. Files and keys never leave the browser.",
   builtFrom: "Built from commit",
@@ -12,7 +11,7 @@ export const en: Messages = {
 
   seal: {
     title: "Seal documents",
-    intro: "Choose the documents, sign them with your key, and save the sealed package. Nothing leaves this device.",
+    intro: "Three steps: documents, your key, seal. Nothing leaves this device.",
     filesTitle: "Documents",
     chooseFiles: "Choose files",
     chooseFolder: "Choose a folder",
@@ -29,8 +28,8 @@ export const en: Messages = {
 
   sealing: {
     title: "Seal",
-    role: "Role",
-    roleNote: "Recorded in the signature, as the CLI's --role: for example author or approver.",
+    role: "Your role",
+    roleNote: "Written into the signature, for example author or approver.",
     seal: "Seal and save",
     needFiles: "Choose the documents first.",
     needKey: "Open or create a signing key first.",
@@ -61,7 +60,7 @@ export const en: Messages = {
 
   key: {
     title: "Signing key",
-    note: "The key is opened in a separate worker and kept only in its memory until the package is sealed. It is never stored by the page.",
+    note: "The key stays in memory only until the package is sealed; it is never stored.",
     openTab: "Use a key file",
     newTab: "Create a new key",
     keyFile: "Key file",
@@ -87,10 +86,12 @@ export const en: Messages = {
 
   chain: {
     title: "Bitcoin",
-    publicSources: "Check time proofs against Bitcoin through mempool.space, then blockstream.info",
-    custom: "Use my own Esplora instance",
+    source: "Check time proofs against Bitcoin through",
+    summary: (source) => `Bitcoin: ${source}`,
+    publicSources: "mempool.space, then blockstream.info",
+    custom: "my own Esplora server",
     customUrl: "Esplora API address",
-    offline: "Offline: do not check time proofs",
+    offline: "nothing (offline)",
     trustNote: "The source is trusted only to say which block is at a height; the proof itself is checked on this device, and the report names the source.",
     privacyNote: "Checking asks the source for block headers, so it learns the block heights you look up, never the documents.",
     invalidUrl: "Use an https:// address (or http://localhost for an instance on this computer).",
@@ -118,9 +119,11 @@ export const en: Messages = {
     checking: "Checking",
     progress: (percent) => `${String(percent)} % read`,
     cancel: "Cancel",
-    another: "Verify another package",
     failed: "The file could not be read",
     notDseal: "This does not look like a .dseal package, but it is checked anyway.",
+    chooseAnother: "Choose another",
+    settings: "Verification settings",
+    settingsSummary: (keys, chain) => `Trusted keys: ${String(keys)} · Bitcoin: ${chain}`,
   },
 
   overall: {
@@ -159,6 +162,7 @@ export const en: Messages = {
     issues: "Issues",
     nextSteps: "Next steps",
     technical: "Technical details",
+    checks: "Details of the six checks",
   },
   fileStatus: { valid: "unchanged", modified: "modified", missing: "missing", extra: "extra" },
   signature: {
@@ -174,12 +178,13 @@ export const en: Messages = {
   technical: { packageId: "Package ID", seal: "Seal", merkleRoot: "Merkle root", statementHash: "Statement hash" },
   issueNote: "Messages come from the verifier and are in English.",
   hints: {
-    trustNotEvaluated: "Trust was not evaluated: add the keys you accept under Trusted keys below.",
-    timePending: "The time proof is pending: Bitcoin confirms it within a few hours. Then complete it below.",
+    trustNotEvaluated: "Trust was not evaluated: you have not added the keys you trust. Add a signer's key only after confirming it with them.",
+    timePending: "The time proof is waiting for Bitcoin, which takes a few hours. Then complete it here.",
     timeMissing: "The package has no time proof: it was sealed without one.",
-    timeUnsupported: "The time proof could not be checked: no Bitcoin source answered (see the reason). Try again, or choose another source below.",
-    timeOffline: "The time proof was not checked: Bitcoin checking is off. Switch it on below.",
+    timeUnsupported: "The time proof could not be checked: no Bitcoin source answered (see the reason).",
+    timeOffline: "The time proof was not checked: Bitcoin checking is off.",
   },
+  hintActions: { addKey: "Add a trusted key", configure: "Bitcoin settings" },
   disclaimer:
     "DocSeal proves that the files are unchanged, that they were signed by the key shown, and that the signed state existed no later than the confirmed time. It does not prove who owns the key.",
   unsafeCharacter: (code) => `Invisible or reordering character ${code}, shown as its code`,

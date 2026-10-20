@@ -76,6 +76,9 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
 
   it("opens a key file made by docseal keygen", async () => {
     const page = await open();
+    // The key is step 2: it opens once documents are chosen.
+    expect(await page.locator("[data-step='2']").getAttribute("data-state")).toBe("waiting");
+    await page.locator("[data-testid=files-input]").setInputFiles(join(dir, "contract", "main.pdf"));
     await page.locator("[data-testid=key-file-input]").setInputFiles(join(dir, "cli.key"));
     await page.locator("input[name=passphrase]").fill("not the passphrase");
     await page.getByRole("button", { name: "Open the key" }).click();
@@ -97,6 +100,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
   it("creates a key, downloads it at once, and the CLI signs with it", async () => {
     const { context } = await site.context();
     const page = await site.open("seal/", "[data-testid=files-input]", context);
+    await page.locator("[data-testid=files-input]").setInputFiles(join(dir, "contract", "main.pdf"));
     await page.getByRole("tab", { name: "Create a new key" }).click();
     await page.locator("input[name=new-passphrase]").fill("short");
     await page.locator("input[name=repeat-passphrase]").fill("short");
@@ -128,9 +132,9 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
   async function ready(files: string[]) {
     const { context } = await site.context(name === "chromium" ? { initScript: PICK_IN_OPFS } : {});
     const page = await site.open("seal/", "[data-testid=files-input]", context);
-    expect(await page.locator("[data-testid=seal-button]").isDisabled()).toBe(true);
+    expect(await page.locator("[data-step='3']").getAttribute("data-state")).toBe("waiting");
     await page.locator("[data-testid=files-input]").setInputFiles(files);
-    expect(await page.locator("[data-testid=seal-blocked]").innerText()).toMatch(/signing key/);
+    expect(await page.locator("[data-step='3'] .step-waiting").innerText()).toMatch(/signing key/);
     await openKey(page, join(dir, "fast.key"));
     // These packages carry no time proof; tests/e2e/time.e2e.test.ts covers the calendars.
     await page.locator("input[name=timestamp]").uncheck();

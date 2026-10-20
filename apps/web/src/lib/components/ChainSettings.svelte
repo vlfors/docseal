@@ -1,16 +1,12 @@
 <script lang="ts">
   // Where time proofs are checked against Bitcoin: the public Esplora sources, the viewer's own
-  // instance, or nowhere.
+  // instance, or nowhere. One list; the address field appears only for an own instance.
   import { isEsploraUrl, type ChainMode } from "../chain/setting";
   import { chainChoice, setChainChoice } from "../chain/state.svelte";
   import { t } from "../i18n/state.svelte";
 
   let url = $state(chainChoice().url);
   const invalid = $derived(chainChoice().mode === "custom" && url !== "" && !isEsploraUrl(url));
-
-  function choose(mode: ChainMode) {
-    setChainChoice({ mode, url });
-  }
 
   function applyUrl() {
     if (isEsploraUrl(url)) {
@@ -19,36 +15,27 @@
   }
 </script>
 
-<section class="chain-settings" aria-labelledby="chain-title">
-  <h2 id="chain-title">{t().chain.title}</h2>
-  <fieldset>
-    <legend class="visually-hidden">{t().chain.title}</legend>
-    <label class="check">
-      <input type="radio" name="chain" value="public" checked={chainChoice().mode === "public"} onchange={() => {
-        choose("public");
-      }} />
-      {t().chain.publicSources}
+<div class="chain-settings">
+  <label class="field">
+    {t().chain.source}
+    <select
+      name="chain"
+      value={chainChoice().mode}
+      onchange={(event) => {
+        setChainChoice({ mode: event.currentTarget.value as ChainMode, url });
+      }}
+    >
+      <option value="public">{t().chain.publicSources}</option>
+      <option value="custom">{t().chain.custom}</option>
+      <option value="offline">{t().chain.offline}</option>
+    </select>
+  </label>
+  {#if chainChoice().mode === "custom"}
+    <label class="field">
+      {t().chain.customUrl}
+      <input name="esplora" bind:value={url} placeholder="https://…/api" autocomplete="off" spellcheck="false" onchange={applyUrl} />
     </label>
-    <label class="check">
-      <input type="radio" name="chain" value="custom" checked={chainChoice().mode === "custom"} onchange={() => {
-        choose("custom");
-      }} />
-      {t().chain.custom}
-    </label>
-    {#if chainChoice().mode === "custom"}
-      <label class="custom-url">
-        {t().chain.customUrl}
-        <input name="esplora" bind:value={url} placeholder="https://…/api" autocomplete="off" spellcheck="false" onchange={applyUrl} />
-      </label>
-      {#if invalid}<p class="message error" role="alert">{t().chain.invalidUrl}</p>{/if}
-    {/if}
-    <label class="check">
-      <input type="radio" name="chain" value="offline" checked={chainChoice().mode === "offline"} onchange={() => {
-        choose("offline");
-      }} />
-      {t().chain.offline}
-    </label>
-  </fieldset>
-  <p class="note">{t().chain.trustNote}</p>
-  <p class="note">{t().chain.privacyNote}</p>
-</section>
+    {#if invalid}<p class="message error" role="alert">{t().chain.invalidUrl}</p>{/if}
+  {/if}
+  <p class="note">{t().chain.trustNote} {t().chain.privacyNote}</p>
+</div>

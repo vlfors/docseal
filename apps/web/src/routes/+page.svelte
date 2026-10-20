@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  import { tick, untrack } from "svelte";
   import { toSetting } from "../lib/chain/setting";
   import { chainChoice } from "../lib/chain/state.svelte";
   import ChainSettings from "../lib/components/ChainSettings.svelte";
@@ -23,6 +23,20 @@
   let dragging = $state(false);
   let input: HTMLInputElement | undefined = $state();
   let task: VerificationTask | undefined;
+  let settingsOpen = $state(false);
+  let settings: HTMLDetailsElement | undefined = $state();
+
+  const chainLabel = $derived(
+    chainChoice().mode === "public" ? "mempool.space" : chainChoice().mode === "custom" ? chainChoice().url || t().chain.custom : t().chain.offline,
+  );
+
+  /** A hint's button: open the settings at the trusted keys or at the Bitcoin source. */
+  async function act(action: "addKey" | "configure") {
+    settingsOpen = true;
+    await tick();
+    settings?.scrollIntoView({ behavior: "smooth", block: "start" });
+    settings?.querySelector<HTMLElement>(action === "addKey" ? "input[name=did]" : "select[name=chain]")?.focus({ preventScroll: true });
+  }
 
   const percent = $derived(status.kind === "checking" && status.total > 0 ? Math.floor((status.read / status.total) * 100) : 0);
 
@@ -71,11 +85,6 @@
     status = { kind: "idle" };
   }
 
-  function another() {
-    cancel();
-    input?.click();
-  }
-
   // A change to the trusted keys or the Bitcoin source changes the verdict: verify again.
   $effect(() => {
     trustedKeys();
@@ -112,7 +121,7 @@
   <h1>{t().verify.title}</h1>
 
   <div
-    class={dragging ? "dropzone dragging" : "dropzone"}
+    class={[dragging ? "dropzone dragging" : "dropzone", file && status.kind !== "idle" ? "compact" : ""].join(" ")}
     role="region"
     aria-label={t().verify.title}
     ondragover={(event) => {
@@ -122,8 +131,11 @@
     ondragleave={() => (dragging = false)}
     ondrop={drop}
   >
-    <label class="button primary">
-      {t().verify.choose}
+    {#if file && status.kind !== "idle"}
+      <span class="file-name">{#if status.kind === "checking"}{`${t().verify.checking} `}{/if}<PackageText text={file.name} /></span>
+    {/if}
+    <label class={file && status.kind !== "idle" ? "button" : "button primary"}>
+      {file && status.kind !== "idle" ? t().verify.chooseAnother : t().verify.choose}
       <input
         type="file"
         class="visually-hidden"
@@ -136,17 +148,14 @@
         }}
       />
     </label>
-    <span class="hint">{t().verify.dropHint}</span>
-    <p class="note">{t().verify.privacy}</p>
+    {#if !(file && status.kind !== "idle")}
+      <span class="hint">{t().verify.dropHint}</span>
+      <p class="note">{t().verify.privacy}</p>
+    {/if}
   </div>
 
-  {#if file && status.kind !== "idle"}
-    <p class="file-name">
-      {#if status.kind === "checking"}{`${t().verify.checking} `}{/if}<PackageText text={file.name} />
-    </p>
-    {#if !file.name.toLowerCase().endsWith(".dseal")}
-      <p class="note">{t().verify.notDseal}</p>
-    {/if}
+  {#if file && status.kind !== "idle" && !file.name.toLowerCase().endsWith(".dseal")}
+    <p class="note">{t().verify.notDseal}</p>
   {/if}
 
   {#if status.kind === "checking"}
@@ -158,18 +167,27 @@
   {:else if status.kind === "failed"}
     <p class="message error" role="alert" data-state="failed">{t().verify.failed}: <PackageText text={status.message} /></p>
   {:else if status.kind === "done"}
-    <Report view={status.view} />
-    {#if status.view.pending && file}
-      <UpgradePanel
-        {file}
-        onupgraded={(upgraded: File) => {
-          choose(upgraded);
-        }}
-      />
-    {/if}
-    <button type="button" onclick={another}>{t().verify.another}</button>
+    <Report view={status.view} onaction={act}>
+      {#snippet afterHints()}
+        {#if status.kind === "done" && status.view.pending && file}
+          <UpgradePanel
+            {file}
+            onupgraded={(upgraded: File) => {
+              choose(upgraded);
+            }}
+          />
+        {/if}
+      {/snippet}
+    </Report>
   {/if}
 
-  <TrustedKeys />
-  <ChainSettings />
+  <details class="settings" id="settings" bind:open={settingsOpen} bind:this={settings}>
+    <summary>
+      <span class="settings-title">{t().verify.settings}</span>
+      <span class="settings-summary">{t().verify.settingsSummary(trustedKeys().length, chainLabel)}</span>
+    </summary>
+    <TrustedKeys />
+    <h3>{t().chain.title}</h3>
+    <ChainSettings />
+  </details>
 </main>

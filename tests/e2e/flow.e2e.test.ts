@@ -76,7 +76,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     const stranger = publicKeyToDid(new Uint8Array(32).fill(3));
     const untrusted = await verify(path, stranger);
     expect(await verdicts(untrusted)).toEqual({ overall: "indeterminate", integrity: "valid", trust: "untrusted" });
-    expect(await untrusted.locator("[data-axis=trust]").innerText()).toMatch(/not in the pinned key list/);
+    expect(await untrusted.locator("[data-axis=trust]").textContent()).toMatch(/not in the pinned key list/);
 
     // A document changed inside the package, the rest left as it was: invalid, and named.
     const contents = await readContainer(bytes);

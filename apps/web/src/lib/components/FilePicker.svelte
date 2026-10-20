@@ -38,8 +38,7 @@
   }
 </script>
 
-<section class="file-picker" aria-labelledby="files-title">
-  <h2 id="files-title">{t().seal.filesTitle}</h2>
+<div class="file-picker">
   <div
     class={dragging ? "dropzone dragging" : "dropzone"}
     role="region"
@@ -117,4 +116,4 @@
       {/each}
     </ul>
   {/if}
-</section>
+</div>

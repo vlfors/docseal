@@ -56,7 +56,8 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
       if (file === "tampered-content.dseal") {
         // Words from the page and from the package stay apart (Svelte trims spaces at block edges).
         expect(shown.text).toMatch(/contract\.pdf:\s+File contents do not match/);
-        expect(shown.text).toMatch(/…\w{6}\s\(author\)/);
+        // The signer and role are in the folded table of the six checks.
+        expect(await page.locator("[data-axis=signature]").textContent()).toMatch(/…\w{6}\s\(author\)/);
       }
       await site.expectClean(page);
       await page.close();
@@ -75,7 +76,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     await writeFile(path, sealed.container);
     const page = await open();
     await check(page, path);
-    await page.locator(".report details summary").first().click();
+    await page.locator(".report details summary").filter({ hasText: "All files" }).click();
     const entry = page.locator(".files.all li").filter({ hasText: "invoice" });
     const text = await entry.innerText();
     expect(text).toContain("invoiceU+202Etxt.exe");
@@ -90,17 +91,20 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     expect(shown.axes.trust).toBe("not-evaluated");
     expect(await page.locator("[data-hint=trustNotEvaluated]").count()).toBe(1);
 
+    // The hint's button opens the settings at the trusted keys.
+    await page.getByRole("button", { name: "Add a trusted key" }).click();
     await page.locator("input[name=did]").fill(GOLDEN_SIGNER);
     await page.locator("input[name=label]").fill("RFC 8032 test key");
     await page.locator("form.add-key button[type=submit]").click();
     // Adding a key verifies the open package again.
-    await page.locator("[data-axis=trust][data-verdict=trusted]").waitFor();
+    await page.locator("[data-axis=trust][data-verdict=trusted]").waitFor({ state: "attached" });
 
     // Kept in this browser: a new page of the same context still has the key.
     const again = await open(context);
     shown = await check(again, goldenPath("valid-basic.dseal"));
     expect(shown.axes.trust).toBe("trusted");
 
+    await again.locator(".settings > summary").click();
     const download = again.waitForEvent("download");
     await again.locator(".file-actions button").click();
     const exported = JSON.parse(await readFile(await (await download).path(), "utf8")) as { keys: { id: string; label?: string }[] };
@@ -113,7 +117,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     await writeFile(path, JSON.stringify({ type: "docseal-trusted-keys", version: 1, keys: [{ id: GOLDEN_SIGNER, label: "Imported" }] }));
     const page = await open();
     await page.locator(".trusted-keys input[type=file]").setInputFiles(path);
-    await page.locator(`[data-key="${GOLDEN_SIGNER}"]`).waitFor();
+    await page.locator(`[data-key="${GOLDEN_SIGNER}"]`).waitFor({ state: "attached" });
     expect((await check(page, goldenPath("valid-basic.dseal"))).axes.trust).toBe("trusted");
     await page.close();
   });

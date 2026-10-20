@@ -85,8 +85,7 @@
   }
 </script>
 
-<section class="seal-panel" aria-labelledby="seal-title">
-  <h2 id="seal-title">{t().sealing.title}</h2>
+<div class="seal-panel">
   <label class="role">
     {t().sealing.role}
     <input name="role" bind:value={role} autocomplete="off" />
@@ -138,4 +137,4 @@
       <p><a href={resolve("/")}>{t().sealing.verifyIt}</a></p>
     </div>
   {/if}
-</section>
+</div>
