@@ -17,6 +17,9 @@ export default defineConfig({
       csp: { mode: "hash", directives: CSP_DIRECTIVES },
     }),
   ],
+  // The commit the release workflow builds from, shown on every page so a viewer can tell which
+  // code is running; a local build shows that it is one.
+  define: { __DOCSEAL_COMMIT__: JSON.stringify(process.env.DOCSEAL_COMMIT ?? "") },
   // Workers are started as module workers (`{ type: "module" }`), so they are built as modules too.
   worker: { format: "es" },
   resolve: {

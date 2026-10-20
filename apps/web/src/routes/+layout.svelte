@@ -13,6 +13,8 @@
 
   let { children }: { children: Snippet } = $props();
 
+  const COMMIT = /^[0-9a-f]{40}$/.test(__DOCSEAL_COMMIT__) ? __DOCSEAL_COMMIT__ : "";
+
   /** Marks the link of the page being shown (paths end in a slash: trailingSlash is "always"). */
   const current = (route: "/" | "/seal") => (page.url.pathname.replace(/\/$/, "") === resolve(route).replace(/\/$/, "") ? "page" : undefined);
 
@@ -57,6 +59,14 @@
   {@render children()}
   <footer class="site">
     <p>{t().footer}</p>
-    <p class="meta">Format v{FORMAT_VERSION}</p>
+    <p class="meta" data-testid="build">
+      Format v{FORMAT_VERSION} ·
+      {#if COMMIT}
+        {t().builtFrom}
+        <a href="https://github.com/vlfors/docseal/commit/{COMMIT}" rel="noopener noreferrer"><code>{COMMIT.slice(0, 12)}</code></a>
+      {:else}
+        {t().localBuild}
+      {/if}
+    </p>
   </footer>
 {/if}

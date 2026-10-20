@@ -34,7 +34,8 @@ describe("release metadata", () => {
       workflow.slice(workflow.indexOf(`\n  ${name}:`), next ? workflow.indexOf(`\n  ${next}:`) : undefined);
     const build = job("build", "publish");
     const publish = job("publish", "rehearse");
-    const rehearse = job("rehearse");
+    const rehearse = job("rehearse", "pages");
+    const pages = job("pages");
     // Only a pushed tag publishes; a manual run rehearses without any credentials.
     expect(publish).toContain("if: github.event_name == 'push'");
     expect(rehearse).toContain("if: github.event_name == 'workflow_dispatch'");
@@ -52,6 +53,11 @@ describe("release metadata", () => {
     // The job that runs project and dependency code gets no secrets and no write access.
     expect(build).not.toMatch(/secrets\.|permissions:|environment:/);
     expect(workflow).toMatch(/^permissions:\n {2}contents: read\n/m);
+    // The site goes live only from a pushed tag, after the release, by a job that runs no code.
+    expect(pages).toContain("if: github.event_name == 'push'");
+    expect(pages).toContain("needs: publish");
+    expect(pages).not.toMatch(/actions\/checkout|pnpm|run:|secrets\./);
+    expect(pages).toMatch(/permissions:\n {6}pages: write\n {6}id-token: write\n {4}steps:/);
   });
 
   it("publishes no export that points at the sources", () => {

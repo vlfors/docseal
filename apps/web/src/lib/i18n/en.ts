@@ -5,6 +5,8 @@ export const en: Messages = {
   tagline: "Seal and verify documents in your browser. Nothing is uploaded.",
   framed: "This page does not work inside another site. Open it directly in its own tab.",
   footer: "DocSeal checks packages on this device. Files and keys never leave the browser.",
+  builtFrom: "Built from commit",
+  localBuild: "A local build, not a release.",
   nav: { verify: "Verify", seal: "Seal" },
 
   seal: {

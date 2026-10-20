@@ -19,6 +19,7 @@ All packages are released together, with one version, by pushing a tag. The work
    - Add a tag ruleset (Settings → Rules → Rulesets) for `refs/tags/v*` that restricts creation, update, and deletion to maintainers: otherwise anyone who can push can start a release, and a published tag could be moved.
    - Protect `main` with required CI checks.
    - Enable private vulnerability reporting (see [SECURITY.md](../SECURITY.md)).
+4. **GitHub Pages**, for the web app. Settings → Pages → Build and deployment → Source: **GitHub Actions**. Then, in Settings → Environments → `github-pages`, restrict **deployment branches and tags** to the tag pattern `v*`, so only a release can change the site. The `pages` job of `release.yml` deploys after the `npm` approval; the site is served at `https://vlfors.github.io/docseal/`. On `vlfors.github.io` it shares an origin with every other Pages site of the account (see THREAT_MODEL.md, "The browser app"); a custom domain gives it its own: set it in Settings → Pages and build with `BASE_PATH` empty.
 
 ## Each release
 
@@ -39,5 +40,13 @@ All packages are released together, with one version, by pushing a tag. The work
 ```bash
 npm audit signatures                     # in a project that installed @docseal/*: npm provenance
 gh attestation verify docseal-core-0.1.0.tgz --repo vlfors/docseal
+gh attestation verify docseal-web-0.1.0.tar.gz --repo vlfors/docseal
 sha256sum -c SHA256SUMS                  # next to the tarballs from the GitHub release
+```
+
+The web app's footer names the commit it was built from; it must be the commit of the release tag. To use exactly the attested site instead of the hosted one, serve the release's archive yourself. It is built for the path `/docseal/`:
+
+```bash
+mkdir -p site/docseal && tar -xzf docseal-web-0.1.0.tar.gz -C site/docseal
+python3 -m http.server --bind 127.0.0.1 --directory site 8000   # then open http://127.0.0.1:8000/docseal/
 ```

@@ -13,6 +13,8 @@ export interface Messages {
   tagline: string;
   framed: string;
   footer: string;
+  builtFrom: string;
+  localBuild: string;
   nav: { verify: string; seal: string };
 
   seal: {

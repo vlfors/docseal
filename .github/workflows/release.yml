@@ -2,7 +2,8 @@ name: Release
 
 # Pushing a tag v<version> publishes that version. The tarballs are built once, attested
 # (GitHub build provenance), published to npm with npm provenance, and attached to the
-# GitHub release together with their SHA-256 sums.
+# GitHub release together with their SHA-256 sums. The web app is built once too: the same
+# static site is attached to the release, attested, and then served by GitHub Pages.
 #
 # Everything that runs project or dependency code (install, checks, build, pack) happens in
 # `build`, which holds no credentials. `publish` holds them and runs no project code: no
@@ -49,14 +50,25 @@ jobs:
       - run: python -I verifiers/python/docseal_verify.py vectors spec/vectors
       - run: scripts/smoke-test.sh
       - run: scripts/pack.sh release
+      # The site shows the commit it was built from; GitHub Pages serves it under /docseal.
+      - name: Build the web app
+        run: pnpm --filter @docseal/web build
+        env:
+          BASE_PATH: /docseal
+          DOCSEAL_COMMIT: ${{ github.sha }}
+      - run: tar -czf "release/docseal-web-${TAG#v}.tar.gz" -C apps/web/build .
       - run: node scripts/check-release.mjs "$TAG" --notes $CHECK_FLAGS > release/release-notes.md
-      - run: cd release && sha256sum *.tgz > SHA256SUMS && echo "$TAG" > tag
+      - run: cd release && sha256sum *.tgz *.tar.gz > SHA256SUMS && echo "$TAG" > tag
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release
           path: release/
           if-no-files-found: error
           retention-days: 7
+      - if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        with:
+          path: apps/web/build
 
   publish:
     if: github.event_name == 'push'
@@ -75,7 +87,9 @@ jobs:
       - run: cd release && sha256sum --check --strict SHA256SUMS
       - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-path: release/*.tgz
+          subject-path: |
+            release/*.tgz
+            release/*.tar.gz
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
@@ -92,7 +106,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Create the GitHub release
         run: >-
-          gh release create "$GITHUB_REF_NAME" release/*.tgz release/SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" release/*.tgz release/*.tar.gz release/SHA256SUMS
           --repo "$GITHUB_REPOSITORY" --verify-tag
           --title "DocSeal $GITHUB_REF_NAME" --notes-file release/release-notes.md
         env:
@@ -122,5 +136,21 @@ jobs:
       - name: The GitHub release that would be created
         run: |
           echo "Title: DocSeal $(cat release/tag)"
-          echo "Assets:"; ls -l release/*.tgz release/SHA256SUMS
+          echo "Assets:"; ls -l release/*.tgz release/*.tar.gz release/SHA256SUMS
           echo "Notes:"; cat release/release-notes.md
+
+  # Serves the site the build job made, once the release is published (after its approval).
+  # It runs no project code: no checkout, no install; it only deploys the uploaded artifact.
+  pages:
+    if: github.event_name == 'push'
+    needs: publish
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
