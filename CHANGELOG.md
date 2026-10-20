@@ -22,17 +22,18 @@ The first release: the `.dseal` format v0.1, a TypeScript library, the `docseal`
 - `@docseal/sig-ed25519`: Ed25519 signatures with `did:key` signer identifiers, strict verification (canonical encodings, points in the prime-order subgroup), and a passphrase-encrypted key file for development use.
 - `@docseal/anchor-ots`: OpenTimestamps submission, upgrade, and verification against Bitcoin block headers from a configurable Esplora source.
 - A pinned-keys trust policy and its `trusted-keys.json` file format.
+- A report's time proofs name the Bitcoin block they were checked against (`blockHeight`, also for a proof with too few confirmations) and the submission time the package records (`submittedAt`, a claim, not evidence). `upgradePackageTo` returns the anchor files as upgraded, so a caller can check the new proofs without reading the package again.
 
 ### CLI
 
 - `docseal keygen`, `pubkey`, `seal`, `verify`, and `upgrade`, with human and JSON reports and distinct exit codes (0 valid, 1 invalid, 2 indeterminate, 3 error).
-- `verify` reads block headers from mempool.space and falls back to blockstream.info; `--chain` is repeatable for your own sources.
+- `verify` reads block headers from mempool.space and falls back to blockstream.info; `--chain` is repeatable for your own sources. The report names the block a proof is in, and for a pending one its confirmations so far.
 
 ### Browser app
 
 - A static site (`apps/web`) that verifies and seals packages on the device, served by GitHub Pages at [vlfors.github.io/docseal](https://vlfors.github.io/docseal/) and attached to the release as `docseal-web-0.2.0.tar.gz`, attested, to serve yourself. Every page names the commit it was built from.
-- Verify: drop a package; the report shows the verdict, the six axes, the files, signatures, time proofs, and issues, with next steps. Trusted keys are added as `did:key` or imported from `trusted-keys.json`, kept in the browser, and exported again. Time proofs are checked against Bitcoin through mempool.space then blockstream.info, your own Esplora instance, or not at all, and a pending proof can be completed and saved on the page.
-- Seal: choose files or a folder (paths as `docseal seal` gives them, every path problem shown before sealing), open a key file made by `docseal keygen` or create one the CLI opens, and save the package straight to disk in Chrome and Edge or as a download elsewhere (up to 2 GiB in Firefox, 1 GiB in Safari). The seal is submitted to the OpenTimestamps calendars that accept requests from a browser.
+- Verify: drop a package; the report shows the verdict, the six axes, the files, signatures, time proofs, and issues, with next steps. Trusted keys are added as `did:key` or imported from `trusted-keys.json`, kept in the browser, and exported again. Time proofs are checked against Bitcoin through mempool.space then blockstream.info, your own Esplora instance, or not at all. A pending proof shows its stage (sent to the calendars, in a block, confirmed) with the block and its confirmations out of 6, is checked again on request or every 10 minutes while the page is open, and can be completed and saved on the page.
+- Seal: choose files or a folder (paths as `docseal seal` gives them, every path problem shown before sealing), open a key file made by `docseal keygen` or create one the CLI opens, and save the package straight to disk in Chrome and Edge or as a download elsewhere (up to 2 GiB in Firefox, 1 GiB in Safari). The seal is submitted to the OpenTimestamps calendars that accept requests from a browser. A log shows each step as it happens, with each calendar's answer.
 - Verification and sealing run in Web Workers; the secret key lives in its worker for one sealing and never reaches the page. English and Russian.
 - `@docseal/sig-ed25519`: `openKeyFile` and `createKeyFile` take an optional `onProgress` for scrypt.
 

@@ -1,7 +1,7 @@
 // The page's side of verification: one Web Worker per package, so the page stays responsive.
 import type { TrustedKey, VerificationReport } from "@docseal/core";
 import type { PackageOutput } from "../output";
-import type { ChainSetting, VerifyMessage, VerifyRequest } from "./protocol";
+import type { ChainSetting, ProofProgress, VerifyMessage, VerifyRequest } from "./protocol";
 
 export class VerificationCancelled extends Error {
   override name = "VerificationCancelled";
@@ -29,6 +29,8 @@ export interface Upgraded {
   size?: number;
   /** The upgraded package, for memory output. */
   blob?: Blob;
+  /** How far the time proofs have come, when the seal and a chain were given. */
+  progress?: ProofProgress;
 }
 
 /** Runs `request` in a new worker, which is terminated when the result is in. */
@@ -100,15 +102,30 @@ export function verifyInWorker(file: Blob, options: VerifyInWorkerOptions = {}):
   return start(request, (message) => (message.type === "report" ? message.report : undefined), options.onProgress);
 }
 
+export interface UpgradeInWorkerOptions {
+  /** Where to write the upgraded package; without it, only whether a proof changed is told. */
+  output?: PackageOutput;
+  /** The seal as verification recomputed it, and the chain to check the proofs against. */
+  seal?: string;
+  chain?: ChainSetting;
+  onProgress?: (read: number, total: number) => void;
+}
+
 /** Asks the calendars for completed proofs; with `output`, writes the upgraded package there. */
-export function upgradeInWorker(file: Blob, output?: PackageOutput, onProgress?: (read: number, total: number) => void): Task<Upgraded> {
-  const request: VerifyRequest = { type: "upgrade", file, ...(output && { output }) };
+export function upgradeInWorker(file: Blob, options: UpgradeInWorkerOptions = {}): Task<Upgraded> {
+  const { output, seal, chain } = options;
+  const request: VerifyRequest = { type: "upgrade", file, ...(output && { output }), ...(seal !== undefined && { seal }), ...(chain && { chain }) };
   return start(
     request,
     (message) =>
       message.type === "upgraded"
-        ? { changed: message.changed, ...(message.size !== undefined && { size: message.size }), ...(message.blob && { blob: message.blob }) }
+        ? {
+            changed: message.changed,
+            ...(message.size !== undefined && { size: message.size }),
+            ...(message.blob && { blob: message.blob }),
+            ...(message.progress && { progress: message.progress }),
+          }
         : undefined,
-    onProgress,
+    options.onProgress,
   );
 }

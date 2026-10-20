@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Fetch } from "@docseal/anchor-ots";
 import type { TrustedKey } from "@docseal/core";
-import { fakeNetwork } from "../../../../../tests/fake-network";
+import { fakeNetwork, HEIGHT } from "../../../../../tests/fake-network";
 import { Signer } from "../signer/run";
 import type { VerifyMessage } from "./protocol";
 import { PROGRESS_INTERVAL_MS, runVerification } from "./run";
@@ -126,5 +126,30 @@ describe("runVerification", () => {
     expect(report.overall).toBe("valid");
     // The source that answered is named; the unreachable one was skipped.
     expect(report.anchors[0]?.source).toBe("esplora https://esplora.test");
+    expect(report.anchors[0]).toMatchObject({ blockHeight: HEIGHT, confirmations: 10 });
+    expect(typeof report.anchors[0]?.submittedAt).toBe("string");
+  });
+
+  it("tells how far a time proof has come, checked against the chain for the verified seal", async () => {
+    const network = fakeNetwork();
+    const messages: unknown[] = [];
+    const signer = new Signer((m) => messages.push(m), () => 0, 2 ** 10, network.fetch);
+    await signer.handle({ type: "generate", passphrase: "correct horse battery" });
+    await signer.handle({ type: "seal", files: [{ path: "a.txt", file: new File(["document"], "a.txt") }], role: "author", output: { kind: "memory", limit: 1024 * 1024 }, timestamp: true });
+    const { blob, seal } = messages.at(-1) as { blob: Blob; seal: string };
+    const chain = { kind: "esplora", urls: ["https://esplora.test"] } as const;
+    const check = async (request: { seal?: string; chain?: typeof chain | { kind: "offline" } }) => {
+      const out: VerifyMessage[] = [];
+      await runVerification({ type: "upgrade", file: blob, ...request }, (m) => out.push(m), { fetch: network.fetch });
+      return out.at(-1);
+    };
+
+    // Waiting for the calendar: nothing in a block yet.
+    expect(await check({ seal, chain })).toEqual({ type: "upgraded", changed: false, progress: { confirmed: false } });
+    network.confirm();
+    expect(await check({ seal, chain })).toEqual({ type: "upgraded", changed: true, progress: { confirmed: true, blockHeight: HEIGHT, confirmations: 10 } });
+    // Without a chain, or for another seal, nothing is claimed.
+    expect(await check({ seal, chain: { kind: "offline" } })).toEqual({ type: "upgraded", changed: true });
+    expect(await check({ seal: "00".repeat(32), chain })).toEqual({ type: "upgraded", changed: true });
   });
 });

@@ -65,10 +65,18 @@ function axisDetail(axis: keyof AxisVerdicts, report: VerificationReport): strin
       if (report.attestedAt) {
         const anchor = report.anchors.find((a) => a.verdict === "confirmed");
         const via = anchor?.source ? ` via ${anchor.source}` : "";
+        const block = anchor?.blockHeight === undefined ? "" : ` block ${String(anchor.blockHeight)}`;
         const confirmations = anchor?.confirmations === undefined ? "" : `, ${String(anchor.confirmations)} confirmations`;
-        return `no later than ${report.attestedAt.replace("T", " ").replace(/\.000Z$|Z$/, " UTC")} (Bitcoin${confirmations}${via})`;
+        return `no later than ${report.attestedAt.replace("T", " ").replace(/\.000Z$|Z$/, " UTC")} (Bitcoin${block}${confirmations}${via})`;
       }
-      return report.anchors.map((a) => a.reason).filter(Boolean).join("; ");
+      // A proof already in a block says how far along it is.
+      return report.anchors
+        .flatMap((a) =>
+          a.reason
+            ? [a.blockHeight === undefined ? a.reason : `${a.reason} (block ${String(a.blockHeight)}, ${String(a.confirmations ?? 0)} so far)`]
+            : [],
+        )
+        .join("; ");
     }
     default:
       return "";

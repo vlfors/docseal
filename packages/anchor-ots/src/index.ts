@@ -172,7 +172,7 @@ async function verifyReceipt(
     return { verdict: "unsupported", reason: `Chain source ${chain.source} cannot read Bitcoin headers` };
   }
 
-  let earliest: { time: number; confirmations: number } | undefined;
+  let earliest: { time: number; confirmations: number; height: number } | undefined;
   try {
     const tip = await chain.bitcoinTipHeight();
     const headers = new Map<number, Awaited<ReturnType<NonNullable<ChainReader["bitcoinBlockHeader"]>>>>();
@@ -186,7 +186,7 @@ async function verifyReceipt(
       }
       const confirmations = tip - height + 1;
       if (!earliest || header.time < earliest.time) {
-        earliest = { time: header.time, confirmations };
+        earliest = { time: header.time, confirmations, height };
       }
     }
   } catch (error) {
@@ -200,7 +200,7 @@ async function verifyReceipt(
     return {
       verdict: "pending",
       source: chain.source,
-      ...(earliest ? { confirmations: earliest.confirmations } : {}),
+      ...(earliest ? { confirmations: earliest.confirmations, blockHeight: earliest.height } : {}),
       reason: `Fewer than ${String(minConfirmations)} confirmations`,
     };
   }
@@ -208,6 +208,7 @@ async function verifyReceipt(
     verdict: "confirmed",
     attestedAt: new Date(earliest.time * 1000),
     confirmations: earliest.confirmations,
+    blockHeight: earliest.height,
     source: chain.source,
   };
 }

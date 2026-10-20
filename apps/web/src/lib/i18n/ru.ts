@@ -34,7 +34,17 @@ export const ru: Messages = {
     needFiles: "Сначала выберите документы.",
     needKey: "Сначала откройте или создайте ключ подписи.",
     fixPaths: "Уберите или переименуйте пути, которые нельзя запечатать.",
-    progress: (percent) => `Запечатывание: ${String(percent)} %`,
+    steps: {
+      hashing: "Чтение и хеширование документов",
+      signing: "Подпись",
+      timestamping: "Отправка печати в календари времени",
+      writing: "Запись пакета",
+    },
+    stepsLabel: "Шаги запечатывания",
+    percent: (percent) => `${String(percent)} %`,
+    calendarWaiting: "ждём ответа…",
+    calendarAccepted: "принял",
+    calendarFailed: "не принял",
     cancel: "Отменить",
     cancelled: "Запечатывание отменено; пакет не сохранён. Ключ закрыт.",
     done: "Запечатано",
@@ -55,7 +65,7 @@ export const ru: Messages = {
     calendars: "Доказательство времени отправлено в",
     noTimestamp: "Без доказательства времени: пакет запечатан без него.",
     calendarsFailed: "Печать приняли меньше двух календарей, поэтому пакет не сохранён. Попробуйте позже или запечатайте без доказательства времени.",
-    pendingNote: "Доказательство ожидает подтверждения в Bitcoin, это занимает несколько часов. Затем завершите его на странице «Проверить».",
+    pendingNote: "Доказательство ожидает подтверждения в Bitcoin, это занимает несколько часов. Откройте пакет на странице «Проверить», чтобы следить за ним и завершить его.",
   },
 
   key: {
@@ -98,9 +108,8 @@ export const ru: Messages = {
   },
 
   upgrade: {
-    title: "Завершить доказательство времени",
-    intro: "Когда Bitcoin подтвердит печать, календари выдают завершённое доказательство. Пакет сохраняется заново вместе с ним; документы и подписи не меняются.",
-    check: "Проверить, готово ли доказательство",
+    title: "Доказательство времени",
+    check: "Проверить сейчас",
     checking: "Запрос к календарям…",
     notYet: "Завершённого доказательства пока нет. Bitcoin нужно несколько часов; недоступный календарь из браузера выглядит так же. Попробуйте позже.",
     available: "Завершённое доказательство готово.",
@@ -109,6 +118,29 @@ export const ru: Messages = {
     saved: (name) => `Сохранено как ${name}; ниже он проверен заново.`,
     downloaded: (name) => `Скачано как ${name}; ниже он проверен заново.`,
     failed: "Обновить не удалось",
+    stages: { submitted: "Отправлено в календари", inBlock: "Записано в блок Bitcoin", confirmed: "Подтверждено Bitcoin" },
+    submittedAgo: (ago) => `${ago} назад, по времени, записанному в пакете.`,
+    waitingCalendar: "Календари собирают печати и записывают их в одну транзакцию Bitcoin; обычно это занимает несколько часов.",
+    block: (height) => `Блок ${String(height)}`,
+    viewBlock: "посмотреть на mempool.space",
+    confirmations: (count, required) => `Подтверждений: ${String(Math.min(count, required))} из ${String(required)}`,
+    remaining: (about) => `Осталось около ${about}: Bitcoin добавляет блок примерно раз в 10 минут.`,
+    confirmedNote: "Подтверждений достаточно: доказательство готово.",
+    saveNow: "Доказательство уже можно сохранить в пакет; он станет действительным, когда наберутся подтверждения.",
+    auto: (every) => `Проверять каждые ${every}, пока страница открыта`,
+    lastChecked: (time) => `Последняя проверка в ${time}.`,
+    noChain: "Проверка по Bitcoin выключена в настройках, поэтому блок и подтверждения не показываются.",
+    rechecking: "Bitcoin подтвердил печать: проверяем пакет заново.",
+  },
+
+  duration: (minutes) => {
+    if (minutes < 1) {
+      return "меньше минуты";
+    }
+    const whole = Math.round(minutes);
+    const hours = Math.floor(whole / 60);
+    const rest = whole % 60;
+    return hours === 0 ? `${String(rest)} мин` : rest === 0 ? `${String(hours)} ч` : `${String(hours)} ч ${String(rest)} мин`;
   },
 
   verify: {
@@ -150,7 +182,7 @@ export const ru: Messages = {
   details: {
     filesMatch: (ok, total) => `совпадают ${String(ok)} из ${String(total)} файлов`,
     noLaterThan: (time) => `существовал не позднее ${time}`,
-    confirmations: (count) => `Bitcoin, подтверждений: ${String(count)}`,
+    confirmations: (count, height) => `Bitcoin${height === undefined ? "" : `, блок ${String(height)}`}, подтверждений: ${String(count)}`,
     via: "через",
   },
 
@@ -174,12 +206,18 @@ export const ru: Messages = {
     trust: "Доверие",
     entry: "Запись",
   },
-  anchor: { provider: "Сервис", verdict: "Результат", attestedAt: "Доказанное время", source: "Проверено по" },
+  anchor: { provider: "Сервис", verdict: "Результат", attestedAt: "Доказанное время",
+    block: "Блок Bitcoin",
+    confirmations: "Подтверждения",
+    submittedAt: "Отправлено",
+    submittedAtNote: "так записано в пакете, не доказано",
+    source: "Проверено по",
+  },
   technical: { packageId: "ID пакета", seal: "Печать", merkleRoot: "Корень Меркла", statementHash: "Хеш заявления" },
   issueNote: "Сообщения выдаёт верификатор, они на английском.",
   hints: {
     trustNotEvaluated: "Доверие не оценивалось: вы ещё не добавили ключи, которым доверяете. Добавляйте ключ подписавшего, только сверив его с ним.",
-    timePending: "Доказательство времени ждёт подтверждения в Bitcoin, это несколько часов. Затем завершите его здесь.",
+    timePending: "Доказательство времени ждёт подтверждения в Bitcoin, это несколько часов. Ниже видно, на каком оно этапе.",
     timeMissing: "В пакете нет доказательства времени: его запечатали без него.",
     timeUnsupported: "Доказательство времени не проверено: ни один источник Bitcoin не ответил (см. причину).",
     timeOffline: "Доказательство времени не проверялось: проверка по Bitcoin выключена.",

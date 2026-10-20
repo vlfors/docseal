@@ -16,15 +16,27 @@ export type VerifyRequest =
     }
   /**
    * Asks the calendars for completed proofs. Without `output` it only checks whether any proof
-   * changed; with it, it also writes the upgraded package there.
+   * changed; with it, it also writes the upgraded package there. With `seal` (as verification
+   * recomputed it) and a chain source, the proofs are then checked against Bitcoin, to tell how
+   * far along they are.
    */
-  | { type: "upgrade"; file: Blob; output?: PackageOutput };
+  | { type: "upgrade"; file: Blob; output?: PackageOutput; seal?: string; chain?: ChainSetting };
+
+/** How far the package's time proofs have come, checked against a chain: the furthest one. */
+export interface ProofProgress {
+  /** Whether a proof has the confirmations required. */
+  confirmed: boolean;
+  /** The block a proof reached, once one did, and its confirmations so far. */
+  blockHeight?: number;
+  confirmations?: number;
+}
 
 export type VerifyMessage =
   /** Bytes of the package read so far, at most `total`. Approximate: some parts are read twice. */
   | { type: "progress"; read: number; total: number }
   | { type: "report"; report: VerificationReport }
   /** `changed`: a proof was completed. With output, the package is in the file or `blob`. */
-  | { type: "upgraded"; changed: boolean; size?: number; blob?: Blob }
+  /** `progress`: present when the request named the seal and a chain, and a proof was checked. */
+  | { type: "upgraded"; changed: boolean; size?: number; blob?: Blob; progress?: ProofProgress }
   /** The package could not be read at all, e.g. the file was removed. Not a verdict. */
   | { type: "failed"; message: string };

@@ -8,7 +8,9 @@
   import { totalSize, type PlannedFile } from "../seal/files";
   import { canStreamToDisk, memoryLimit, suggestedName } from "../seal/limits";
   import { chooseTarget, discardTarget, type SaveTarget } from "../save";
-  import { SealError, sealWithKey, type OpenKey, type Sealed, type SealTask } from "../signer/client";
+  import type { SealStage } from "../seal/seal";
+  import { SealError, sealWithKey, type OpenKey, type Sealed, type SealEvent, type SealTask } from "../signer/client";
+  import { BROWSER_CALENDARS } from "../../../network.js";
   import PackageText from "./PackageText.svelte";
 
   let { planned, key = $bindable() }: { planned: PlannedFile[]; key?: OpenKey | undefined } = $props();
@@ -16,6 +18,15 @@
   let role = $state("author");
   let timestamp = $state(true);
   let percent = $state<number | undefined>();
+  /** The log of the last sealing: the steps begun, in order, and each calendar's answer. */
+  let log = $state<{
+    timestamp: boolean;
+    begun: SealStage[];
+    read: number;
+    total: number;
+    calendars: Record<string, { accepted?: boolean; message?: string }>;
+    outcome?: "done" | "failed";
+  }>();
   let result = $state<{ sealed: Sealed; name: string; streamed: boolean } | undefined>();
   let message = $state("");
   let task: SealTask | undefined;
@@ -35,6 +46,50 @@
             : "",
   );
 
+  function record(event: SealEvent) {
+    if (!log) {
+      return;
+    }
+    if (event.type === "seal-stage") {
+      log.begun.push(event.stage);
+      if (event.stage === "timestamping") {
+        log.calendars = Object.fromEntries(BROWSER_CALENDARS.map((origin) => [origin, {}]));
+      }
+    } else {
+      log.calendars[event.origin] = { accepted: event.accepted, ...(event.message !== undefined && { message: event.message }) };
+    }
+  }
+
+  const STEPS: readonly SealStage[] = ["hashing", "signing", "timestamping", "writing"];
+  const steps = $derived(log ? STEPS.filter((step) => step !== "timestamping" || log?.timestamp) : []);
+
+  /** A step is done once a later one began (or all ended well); the last begun one failed if the sealing did. */
+  function stepState(step: SealStage): "done" | "current" | "waiting" | "failed" {
+    if (!log) {
+      return "waiting";
+    }
+    const at = log.begun.lastIndexOf(step);
+    if (at === -1) {
+      return "waiting";
+    }
+    if (at < log.begun.length - 1 || log.outcome === "done") {
+      return "done";
+    }
+    return log.outcome === "failed" ? "failed" : "current";
+  }
+
+  /** Each document is read twice: the first half of the reading is hashing, the second writing. */
+  function stepPercent(step: SealStage): number | undefined {
+    if (!log || log.total === 0 || (step !== "hashing" && step !== "writing")) {
+      return undefined;
+    }
+    const half = log.total / 2;
+    const share = step === "hashing" ? Math.min(log.read, half) / half : Math.max(0, log.read - half) / half;
+    return Math.floor(share * 100);
+  }
+
+  const STEP_MARK = { done: "✓", current: "•", waiting: "", failed: "✗" } as const;
+
   async function seal() {
     if (!key || blocked) {
       return;
@@ -48,9 +103,24 @@
     }
     const files = planned.map(({ path, file }) => ({ path, file }));
     percent = 0;
-    const current = sealWithKey(key, files, role.trim(), target.output, timestamp, (read, total) => {
-      percent = total > 0 ? Math.floor((read / total) * 100) : 100;
-    });
+    const current: SealTask = sealWithKey(
+      key,
+      files,
+      role.trim(),
+      target.output,
+      timestamp,
+      (read, total) => {
+        percent = total > 0 ? Math.floor((read / total) * 100) : 100;
+        if (log) {
+          log.read = read;
+          log.total = total;
+        }
+      },
+      (event) => {
+        record(event);
+      },
+    );
+    log = { timestamp, begun: [], read: 0, total: 0, calendars: {} };
     task = current;
     // The key belongs to this sealing now; whatever happens, it is closed at the end.
     key = undefined;
@@ -60,7 +130,9 @@
         saveBlob(sealed.blob, target.name);
       }
       result = { sealed, name: target.name, streamed: !sealed.blob };
+      log.outcome = "done";
     } catch (error) {
+      log.outcome = "failed";
       // The worker must have released the picked file before it can be removed.
       await current.stopped;
       await discardTarget(target);
@@ -100,10 +172,35 @@
     <p class="note">{t().sealing.memoryNote(formatSize(limit, language()))}</p>
   {/if}
 
+  {#if log}
+    <ol class="seal-log" aria-label={t().sealing.stepsLabel} data-testid="seal-log">
+      {#each steps as step (step)}
+        {@const at = stepState(step)}
+        {@const share = stepPercent(step)}
+        <li class="seal-step {at}" data-seal-step={step} data-state={at}>
+          <span class="seal-mark" aria-hidden="true">{STEP_MARK[at]}</span>
+          <span>{t().sealing.steps[step]}</span>
+          {#if share !== undefined && at !== "waiting"}<span class="note">{t().sealing.percent(share)}</span>{/if}
+          {#if step === "timestamping" && at !== "waiting"}
+            <ul class="calendar-log">
+              {#each Object.entries(log.calendars) as [origin, answer] (origin)}
+                <li data-calendar={new URL(origin).host} data-accepted={answer.accepted === undefined ? "" : String(answer.accepted)}>
+                  {new URL(origin).host}:
+                  {answer.accepted === undefined ? t().sealing.calendarWaiting : answer.accepted ? `✓ ${t().sealing.calendarAccepted}` : `✗ ${t().sealing.calendarFailed}`}
+                  {#if answer.message !== undefined}<span class="note">(<PackageText text={answer.message} />)</span>{/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </li>
+      {/each}
+    </ol>
+  {/if}
+
   {#if percent !== undefined}
     <div class="progress" data-state="sealing">
       <progress max="100" value={percent}></progress>
-      <span>{t().sealing.progress(percent)}</span>
+      <span>{t().sealing.percent(percent)}</span>
       <button type="button" onclick={() => task?.cancel()}>{t().sealing.cancel}</button>
     </div>
   {:else}

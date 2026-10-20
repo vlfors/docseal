@@ -100,7 +100,7 @@ describe("docseal CLI", () => {
     expect(valid.code).toBe(ExitCode.Valid);
     expect(valid.stdout).toMatch(/^VALID/);
     expect(valid.stdout).toContain("3 of 3 files match");
-    expect(valid.stdout).toContain("10 confirmations via esplora https://esplora.test");
+    expect(valid.stdout).toContain(`Bitcoin block ${String(HEIGHT)}, 10 confirmations via esplora https://esplora.test`);
 
     // An unreachable first source is skipped once; the report names the source that answered.
     const before = network.requests.length;

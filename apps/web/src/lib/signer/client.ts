@@ -2,6 +2,9 @@
 import type { SealRequestFile } from "../seal/seal";
 import type { SealOutput, SignerMessage, SignerRequest } from "./protocol";
 
+/** What a sealing tells as it goes, besides its progress: each step, and each calendar's answer. */
+export type SealEvent = Extract<SignerMessage, { type: "seal-stage" | "calendar" }>;
+
 export class KeyError extends Error {
   constructor(
     readonly reason: "passphrase" | "file" | "cancelled" | "other",
@@ -136,6 +139,7 @@ export function sealWithKey(
   output: SealOutput,
   timestamp: boolean,
   onProgress?: (read: number, total: number) => void,
+  onEvent?: (event: SealEvent) => void,
 ): SealTask {
   let settle: { resolve: (sealed: Sealed) => void; reject: (error: Error) => void } | undefined;
   const result = new Promise<Sealed>((resolve, reject) => {
@@ -177,6 +181,10 @@ export function sealWithKey(
     switch (message.type) {
       case "seal-progress":
         onProgress?.(message.read, message.total);
+        break;
+      case "seal-stage":
+      case "calendar":
+        onEvent?.(message);
         break;
       case "sealed":
         finish({

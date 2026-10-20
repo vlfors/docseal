@@ -3,6 +3,7 @@
  * using a fake calendar and chain so the test is offline and deterministic.
  */
 import {
+  bytesSource,
   DocSeal,
   fromHex,
   parseJson,
@@ -118,8 +119,9 @@ describe("anchoring", () => {
     expect(report.overall).toBe("valid");
     expect(report.attestedAt).toBe(new Date(BLOCK_TIME * 1000).toISOString());
     expect(report.anchors).toEqual([
-      expect.objectContaining({ verdict: "confirmed", confirmations: 6, source: "test chain" }),
+      expect.objectContaining({ verdict: "confirmed", confirmations: 6, blockHeight: HEIGHT, source: "test chain" }),
     ]);
+    expect(typeof report.anchors[0]?.submittedAt).toBe("string");
   });
 
   it("passes the proven time, not the claimed one, to the trust policy", async () => {
@@ -145,6 +147,20 @@ describe("anchoring", () => {
     const report = await docseal.verify(container, { chain: cal.chain(HEIGHT + 1) });
     expect(report.axes.time).toBe("pending");
     expect(report.overall).toBe("indeterminate");
+    // How far along it is: the block it reached and its confirmations so far.
+    expect(report.anchors).toEqual([expect.objectContaining({ verdict: "pending", confirmations: 2, blockHeight: HEIGHT })]);
+  });
+
+  it("returns the anchor files as upgraded, written or not", async () => {
+    const { cal, docseal, sealed } = await setup();
+    const before = await docseal.upgradeTo(bytesSource(sealed.container), () => undefined);
+    expect(before.changed).toBe(false);
+    expect(before.anchors.map((anchor) => anchor.receipts[0]?.cached?.status)).toEqual(["pending"]);
+    cal.confirm();
+    const after = await docseal.upgradeTo(bytesSource(sealed.container), () => undefined);
+    expect(after.changed).toBe(true);
+    expect(after.anchors).toEqual([expect.objectContaining({ seal: sealed.seal })]);
+    expect(after.anchors[0]?.receipts[0]?.cached).toMatchObject({ status: "confirmed", blockHeight: HEIGHT });
   });
 
   it("rejects an anchor moved from another package", async () => {

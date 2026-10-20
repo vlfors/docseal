@@ -17,7 +17,7 @@ export type AxisDetail =
   | { kind: "files"; ok: number; total: number }
   | { kind: "signers"; signers: { id: string; role?: string }[] }
   | { kind: "reasons"; reasons: string[] }
-  | { kind: "attested"; at: string; confirmations?: number; source?: string };
+  | { kind: "attested"; at: string; confirmations?: number; blockHeight?: number; source?: string };
 
 export interface AxisRow {
   axis: Axis;
@@ -81,6 +81,7 @@ function detail(axis: Axis, report: VerificationReport): AxisDetail {
           kind: "attested",
           at: report.attestedAt,
           ...(anchor?.confirmations !== undefined && { confirmations: anchor.confirmations }),
+          ...(anchor?.blockHeight !== undefined && { blockHeight: anchor.blockHeight }),
           ...(anchor?.source !== undefined && { source: anchor.source }),
         };
       }

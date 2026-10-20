@@ -44,3 +44,12 @@ describe("formatSize", () => {
     expect(formatSize(2 * 1024 ** 3, "ru")).toMatch(/^2,1\sГБ$/);
   });
 });
+
+describe("duration", () => {
+  it("writes minutes as hours and minutes, rounding first", () => {
+    expect(MESSAGES.en.duration(0.4)).toBe("less than a minute");
+    expect(MESSAGES.en.duration(40)).toBe("40 min");
+    expect(MESSAGES.en.duration(59.7)).toBe("1 h");
+    expect(MESSAGES.ru.duration(100)).toBe("1 ч 40 мин");
+  });
+});

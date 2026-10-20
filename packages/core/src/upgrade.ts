@@ -1,7 +1,7 @@
 import { DEFAULT_LIMITS, openContainer, rewriteAnchors, type ContainerLimits } from "./container.js";
 import { bytesSource, memorySink, type ByteSink, type ByteSource } from "./io.js";
 import { parseJson } from "./json.js";
-import { parseAnchorFile } from "./model.js";
+import { parseAnchorFile, type AnchorFile } from "./model.js";
 import type { AnchorProvider } from "./plugins.js";
 import { prettyJson } from "./seal.js";
 
@@ -28,16 +28,19 @@ export async function upgradePackage(
  * state, so signatures and the seal stay valid, and every other entry is copied as is.
  *
  * `output` is called once the outcome is known and returns where to write the upgraded
- * package, or undefined to write nothing.
+ * package, or undefined to write nothing. The anchor files are returned as upgraded, so a caller
+ * can check the new proofs without reading the package again; they are as untrusted as the
+ * package, and only a verification against the seal and a chain makes them evidence.
  */
 export async function upgradePackageTo(
   input: ByteSource,
   output: (changed: boolean) => ByteSink | undefined | Promise<ByteSink | undefined>,
   providers: readonly AnchorProvider[],
   limits: ContainerLimits = DEFAULT_LIMITS,
-): Promise<{ changed: boolean }> {
+): Promise<{ changed: boolean; anchors: AnchorFile[] }> {
   const container = await openContainer(input, limits);
   const anchors = new Map<string, Uint8Array>();
+  const parsed: AnchorFile[] = [];
   let changed = false;
   for (const [entry, bytes] of container.anchors) {
     const anchor = parseAnchorFile(parseJson(bytes));
@@ -53,6 +56,7 @@ export async function upgradePackageTo(
         anchorChanged = true;
       }
     }
+    parsed.push(anchor);
     if (anchorChanged) {
       anchors.set(entry, prettyJson(anchor));
       changed = true;
@@ -62,5 +66,5 @@ export async function upgradePackageTo(
   if (sink) {
     await rewriteAnchors(container, anchors, sink);
   }
-  return { changed };
+  return { changed, anchors: parsed };
 }

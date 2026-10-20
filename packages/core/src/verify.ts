@@ -67,6 +67,10 @@ export interface AnchorReport {
   /** Proven time, RFC 3339. */
   attestedAt?: string;
   confirmations?: number;
+  /** Height of the block the proof reaches, once it was checked against one. */
+  blockHeight?: number;
+  /** When the seal was submitted, as recorded in the package by whoever sealed it; not evidence of time. */
+  submittedAt?: string;
   /** Data source the proof was checked against. */
   source?: string;
   reason?: string;
@@ -442,6 +446,8 @@ async function checkAnchors(
         verdict: result.verdict,
         ...(result.attestedAt ? { attestedAt: result.attestedAt.toISOString() } : {}),
         ...(result.confirmations === undefined ? {} : { confirmations: result.confirmations }),
+        ...(result.blockHeight === undefined ? {} : { blockHeight: result.blockHeight }),
+        ...(typeof receipt.cached?.submittedAt === "string" ? { submittedAt: receipt.cached.submittedAt } : {}),
         ...(result.source === undefined ? {} : { source: result.source }),
         ...(result.reason === undefined ? {} : { reason: result.reason }),
       });

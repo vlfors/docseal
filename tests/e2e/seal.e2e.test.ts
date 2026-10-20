@@ -149,6 +149,13 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     await page.locator("[data-testid=sealed]").waitFor();
     // One key, one sealing: the key is closed.
     expect(await page.locator("[data-testid=signing-as]").count()).toBe(0);
+    // The log keeps every step, all done; without a time proof there is no calendar step.
+    const steps = page.locator("[data-testid=seal-log] [data-seal-step]");
+    expect(await steps.evaluateAll((items) => items.map((item) => `${item.getAttribute("data-seal-step") ?? ""} ${item.getAttribute("data-state") ?? ""}`))).toEqual([
+      "hashing done",
+      "signing done",
+      "writing done",
+    ]);
 
     const file = join(dir, `sealed-${name}.dseal`);
     const bytes = await savedPackage(page, download, "package.dseal", file);

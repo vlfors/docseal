@@ -34,7 +34,17 @@ export const en: Messages = {
     needFiles: "Choose the documents first.",
     needKey: "Open or create a signing key first.",
     fixPaths: "Remove or rename the paths that cannot be sealed.",
-    progress: (percent) => `Sealing: ${String(percent)} %`,
+    steps: {
+      hashing: "Reading and hashing the documents",
+      signing: "Signing",
+      timestamping: "Sending the seal to the time calendars",
+      writing: "Writing the package",
+    },
+    stepsLabel: "Sealing steps",
+    percent: (percent) => `${String(percent)} %`,
+    calendarWaiting: "waiting…",
+    calendarAccepted: "accepted",
+    calendarFailed: "did not accept",
     cancel: "Cancel",
     cancelled: "Sealing was cancelled; no package was saved. The key was closed.",
     done: "Sealed",
@@ -55,7 +65,7 @@ export const en: Messages = {
     calendars: "Time proof submitted to",
     noTimestamp: "No proof of time: the package was sealed without one.",
     calendarsFailed: "Fewer than two calendars accepted the seal, so no package was saved. Try again later, or seal without a proof of time.",
-    pendingNote: "The proof is pending until Bitcoin confirms it, within a few hours. Then complete it on the Verify page.",
+    pendingNote: "The proof is pending until Bitcoin confirms it, within a few hours. Open the package on the Verify page to follow it and complete it.",
   },
 
   key: {
@@ -98,9 +108,8 @@ export const en: Messages = {
   },
 
   upgrade: {
-    title: "Complete the time proof",
-    intro: "Once Bitcoin has confirmed the seal, the calendars hand out the completed proof. The package is saved again with it; documents and signatures stay as they are.",
-    check: "Check for a completed proof",
+    title: "Time proof",
+    check: "Check now",
     checking: "Asking the calendars…",
     notYet: "No completed proof yet. Bitcoin takes a few hours; a calendar that cannot be reached looks the same from a browser. Try again later.",
     available: "A completed proof is available.",
@@ -109,6 +118,29 @@ export const en: Messages = {
     saved: (name) => `Saved as ${name}; it is checked again below.`,
     downloaded: (name) => `Downloaded as ${name}; it is checked again below.`,
     failed: "The upgrade failed",
+    stages: { submitted: "Sent to the calendars", inBlock: "Written into a Bitcoin block", confirmed: "Confirmed by Bitcoin" },
+    submittedAgo: (ago) => `${ago} ago, by the time recorded in the package.`,
+    waitingCalendar: "The calendars gather seals and write them into one Bitcoin transaction; that usually takes a few hours.",
+    block: (height) => `Block ${String(height)}`,
+    viewBlock: "view on mempool.space",
+    confirmations: (count, required) => `${String(Math.min(count, required))} of ${String(required)} confirmations`,
+    remaining: (about) => `About ${about} more: Bitcoin adds a block every 10 minutes or so.`,
+    confirmedNote: "Enough confirmations: the proof is complete.",
+    saveNow: "The package can take the proof now; it is valid once the confirmations are in.",
+    auto: (every) => `Check every ${every} while this page is open`,
+    lastChecked: (time) => `Last checked at ${time}.`,
+    noChain: "Bitcoin checking is off in the settings, so the block and its confirmations are not shown.",
+    rechecking: "Bitcoin has confirmed it: checking the package again.",
+  },
+
+  duration: (minutes) => {
+    if (minutes < 1) {
+      return "less than a minute";
+    }
+    const whole = Math.round(minutes);
+    const hours = Math.floor(whole / 60);
+    const rest = whole % 60;
+    return hours === 0 ? `${String(rest)} min` : rest === 0 ? `${String(hours)} h` : `${String(hours)} h ${String(rest)} min`;
   },
 
   verify: {
@@ -150,7 +182,7 @@ export const en: Messages = {
   details: {
     filesMatch: (ok, total) => `${String(ok)} of ${String(total)} files match`,
     noLaterThan: (time) => `existed no later than ${time}`,
-    confirmations: (count) => `Bitcoin, ${String(count)} confirmations`,
+    confirmations: (count, height) => `Bitcoin${height === undefined ? "" : ` block ${String(height)}`}, ${String(count)} confirmations`,
     via: "via",
   },
 
@@ -174,12 +206,18 @@ export const en: Messages = {
     trust: "Trust",
     entry: "Entry",
   },
-  anchor: { provider: "Provider", verdict: "Result", attestedAt: "Proven time", source: "Checked against" },
+  anchor: { provider: "Provider", verdict: "Result", attestedAt: "Proven time",
+    block: "Bitcoin block",
+    confirmations: "Confirmations",
+    submittedAt: "Sent",
+    submittedAtNote: "as recorded in the package, not proven",
+    source: "Checked against",
+  },
   technical: { packageId: "Package ID", seal: "Seal", merkleRoot: "Merkle root", statementHash: "Statement hash" },
   issueNote: "Messages come from the verifier and are in English.",
   hints: {
     trustNotEvaluated: "Trust was not evaluated: you have not added the keys you trust. Add a signer's key only after confirming it with them.",
-    timePending: "The time proof is waiting for Bitcoin, which takes a few hours. Then complete it here.",
+    timePending: "The time proof is waiting for Bitcoin, which takes a few hours. Below: how far it has come.",
     timeMissing: "The package has no time proof: it was sealed without one.",
     timeUnsupported: "The time proof could not be checked: no Bitcoin source answered (see the reason).",
     timeOffline: "The time proof was not checked: Bitcoin checking is off.",

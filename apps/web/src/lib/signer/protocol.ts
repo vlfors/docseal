@@ -3,7 +3,7 @@
 // gets back the public key, and for a new key the encrypted key file to save. Then it sends
 // the documents once, and gets back the sealed package or the file it was written to.
 import type { PackageOutput } from "../output";
-import type { SealRequestFile } from "../seal/seal";
+import type { SealRequestFile, SealStage } from "../seal/seal";
 
 export type SealOutput = PackageOutput;
 
@@ -22,6 +22,10 @@ export type SignerMessage =
   | { type: "ready"; did: string; keyFile?: Uint8Array }
   /** Bytes of the documents read while sealing (each is read twice), and the total. */
   | { type: "seal-progress"; read: number; total: number }
+  /** A step of the sealing begins. */
+  | { type: "seal-stage"; stage: SealStage }
+  /** A calendar answered the seal's submission, or failed to; `message` says why it failed. */
+  | { type: "calendar"; origin: string; accepted: boolean; message?: string }
   /** The package is complete: in the picked file, or as `blob`. The key is already erased. */
   /** `calendars`: the origins of the calendars that accepted the seal (none without a time proof). */
   | { type: "sealed"; seal: string; packageId: string; size: number; calendars: string[]; blob?: Blob }

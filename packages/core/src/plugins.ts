@@ -63,6 +63,11 @@ export interface AnchorResult {
   /** Proven time from the block header or TSA. Present only when confirmed. */
   readonly attestedAt?: Date;
   readonly confirmations?: number;
+  /**
+   * Height of the block the proof was checked against (the earliest, if several), whenever one
+   * was: with a confirmed result, and with a pending one that has too few confirmations.
+   */
+  readonly blockHeight?: number;
   /** Data source used, copied from `ChainReader.source`, so the report shows whom we trusted. */
   readonly source?: string;
   readonly reason?: string;

@@ -8,6 +8,7 @@ import { signedBytes } from "./digests.js";
 import { fromBase64url } from "./encoding.js";
 import type { AnchorProvider, ChainReader, KeyProvider, SignatureSuite, TrustPolicy } from "./plugins.js";
 import type { ByteSink, ByteSource } from "./io.js";
+import type { AnchorFile } from "./model.js";
 import { sealPackage, sealPackageTo, type SealInfo, type SealOptions, type SealResult } from "./seal.js";
 import { upgradePackage, upgradePackageTo, type UpgradeResult } from "./upgrade.js";
 import { verifyPackage, type VerificationReport } from "./verify.js";
@@ -101,7 +102,7 @@ export class DocSeal {
   upgradeTo(
     input: ByteSource,
     output: (changed: boolean) => ByteSink | undefined | Promise<ByteSink | undefined>,
-  ): Promise<{ changed: boolean }> {
+  ): Promise<{ changed: boolean; anchors: AnchorFile[] }> {
     return upgradePackageTo(input, output, this.anchors, this.limits);
   }
 

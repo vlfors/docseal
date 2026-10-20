@@ -4,6 +4,7 @@
   import type { Snippet } from "svelte";
   import type { Hint, ReportView } from "../report/view";
   import { clip, shortId } from "../text";
+  import BlockLink from "./BlockLink.svelte";
   import PackageText from "./PackageText.svelte";
 
   let {
@@ -125,7 +126,7 @@
             {:else if row.detail.kind === "attested"}
               {t().details.noLaterThan(formatTime(row.detail.at, language()))}
               {#if row.detail.confirmations !== undefined}
-                ({t().details.confirmations(row.detail.confirmations)}{#if row.detail.source !== undefined}{`, ${t().details.via} `}<PackageText
+                ({t().details.confirmations(row.detail.confirmations, row.detail.blockHeight)}{#if row.detail.source !== undefined}{`, ${t().details.via} `}<PackageText
                     text={row.detail.source}
                   />{/if})
               {/if}
@@ -195,6 +196,21 @@
           {#if anchor.attestedAt !== undefined}
             <dt>{t().anchor.attestedAt}</dt>
             <dd>{formatTime(anchor.attestedAt, language())}</dd>
+          {/if}
+          {#if anchor.blockHeight !== undefined}
+            <dt>{t().anchor.block}</dt>
+            <dd data-testid="anchor-block">
+              {anchor.blockHeight}
+              <BlockLink height={anchor.blockHeight} />
+            </dd>
+          {/if}
+          {#if anchor.confirmations !== undefined}
+            <dt>{t().anchor.confirmations}</dt>
+            <dd>{anchor.confirmations}</dd>
+          {/if}
+          {#if anchor.submittedAt !== undefined}
+            <dt>{t().anchor.submittedAt}</dt>
+            <dd><PackageText text={anchor.submittedAt} /> <span class="note">({t().anchor.submittedAtNote})</span></dd>
           {/if}
           {#if anchor.source !== undefined}
             <dt>{t().anchor.source}</dt>

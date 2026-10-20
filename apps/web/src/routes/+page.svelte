@@ -11,11 +11,12 @@
   import { viewReport, type ReportView } from "../lib/report/view";
   import { trustedKeys } from "../lib/trust/state.svelte";
   import { VerificationCancelled, verifyInWorker, type VerificationTask } from "../lib/verify/client";
+  import type { ChainSetting } from "../lib/verify/protocol";
 
   type Status =
     | { kind: "idle" }
     | { kind: "checking"; read: number; total: number }
-    | { kind: "done"; view: ReportView }
+    | { kind: "done"; view: ReportView; chain: ChainSetting }
     | { kind: "failed"; message: string };
 
   let file: File | undefined = $state();
@@ -25,6 +26,8 @@
   let task: VerificationTask | undefined;
   let settingsOpen = $state(false);
   let settings: HTMLDetailsElement | undefined = $state();
+  /** Whether a pending time proof is checked again on its own; kept across verifications. */
+  let autoCheck = $state(false);
 
   const chainLabel = $derived(
     chainChoice().mode === "public" ? "mempool.space" : chainChoice().mode === "custom" ? chainChoice().url || t().chain.custom : t().chain.offline,
@@ -59,7 +62,7 @@
     current.result.then(
       (report) => {
         if (task === current) {
-          status = { kind: "done", view: viewReport(report, { online: chain.kind !== "offline" }) };
+          status = { kind: "done", view: viewReport(report, { online: chain.kind !== "offline" }), chain };
         }
       },
       (error: unknown) => {
@@ -172,8 +175,15 @@
         {#if status.kind === "done" && status.view.pending && file}
           <UpgradePanel
             {file}
+            anchors={status.view.anchors}
+            seal={status.view.technical.seal}
+            chain={status.chain}
+            bind:auto={autoCheck}
             onupgraded={(upgraded: File) => {
               choose(upgraded);
+            }}
+            onrecheck={() => {
+              if (file) run(file);
             }}
           />
         {/if}

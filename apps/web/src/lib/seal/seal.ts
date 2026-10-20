@@ -7,6 +7,9 @@ import { version } from "../../../package.json";
 
 export const GENERATOR = `docseal-web/${version}`;
 
+/** The steps of a sealing, in order; `timestamping` only with anchors. */
+export type SealStage = "hashing" | "signing" | "timestamping" | "writing";
+
 export interface SealRequestFile {
   path: string;
   file: Blob;
@@ -19,6 +22,8 @@ export interface SealFilesOptions {
   anchors?: readonly AnchorProvider[];
   /** Bytes of the documents read so far, and the total: each document is read twice. */
   onProgress?: (read: number, total: number) => void;
+  /** Called as each step begins. */
+  onStage?: (stage: SealStage) => void;
   /** Stops sealing at the next read of a document. */
   signal?: AbortSignal;
   /** Injected only by tests. */
@@ -47,12 +52,44 @@ export async function sealFiles(sink: ByteSink, options: SealFilesOptions): Prom
     read = Math.min(total, read + bytes);
     options.onProgress?.(read, total);
   };
+  const stage = (next: SealStage) => options.onStage?.(next);
+  const anchors = options.anchors?.length ? options.anchors : undefined;
+  const key = memoryKeyProvider(options.secretKey);
+  // The steps are seen from the outside: signing is the key's one call, after every document is
+  // hashed; then the seal goes to the anchors, if any; then the documents are read again to write.
+  const signer: typeof key = {
+    ...key,
+    getSigner: () => key.getSigner(),
+    async sign(bytes) {
+      stage("signing");
+      const signature = await key.sign(bytes);
+      if (!anchors) {
+        stage("writing");
+      }
+      return signature;
+    },
+  };
+  let submitting = 0;
+  const watched = anchors?.map((provider) => ({
+    ...provider,
+    async submit(digest: Uint8Array) {
+      if (submitting++ === 0) {
+        stage("timestamping");
+      }
+      const receipt = await provider.submit(digest);
+      if (--submitting === 0) {
+        stage("writing");
+      }
+      return receipt;
+    },
+  }));
+  stage("hashing");
   return sealPackageTo(sink, {
     files: options.files.map(({ path, file }) => ({ path, source: counted(blobSource(file), report) })),
-    signer: memoryKeyProvider(options.secretKey),
+    signer,
     generator: GENERATOR,
     ...(options.role !== undefined && options.role !== "" && { role: options.role }),
-    ...(options.anchors && { anchors: options.anchors }),
+    ...(watched && { anchors: watched }),
     ...(options.now && { now: options.now }),
     ...(options.randomBytes && { randomBytes: options.randomBytes }),
   });

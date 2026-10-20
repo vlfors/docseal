@@ -8,6 +8,7 @@ import { main } from "../../../../cli/src/main";
 import type { SignerMessage } from "./protocol";
 import { hasPython, verifyWithCli, verifyWithPython } from "../../../../../tests/e2e/verifiers";
 import { Signer } from "./run";
+import { fakeNetwork } from "../../../../../tests/fake-network";
 
 const PASSPHRASE = "correct horse battery";
 let dir: string;
@@ -129,6 +130,33 @@ describe("Signer", () => {
 
     await s.handle({ type: "seal", files, role: "author", output: { kind: "memory", limit: 1024 * 1024 }, timestamp: false });
     expect(messages.at(-1)).toEqual({ type: "failed", reason: "other", message: "No key is open" });
+  });
+
+  it("reports each step as it begins, without a time proof", async () => {
+    const { messages, s } = await openSigner();
+    await s.handle({ type: "seal", files: [{ path: "a.txt", file: new File(["a"], "a.txt") }], role: "author", output: { kind: "memory", limit: 1024 * 1024 }, timestamp: false });
+    expect(messages.flatMap((m) => (m.type === "seal-stage" ? [m.stage] : []))).toEqual(["hashing", "signing", "writing"]);
+    expect(messages.some((m) => m.type === "calendar")).toBe(false);
+  });
+
+  it("reports each calendar's answer while timestamping", async () => {
+    const made = await cli(["keygen", "-o", join(dir, "me.key"), "--scrypt-n", "1024"]);
+    expect(made.code).toBe(0);
+    const network = fakeNetwork();
+    const messages: SignerMessage[] = [];
+    // eternitywall is down; the two others accept, which is enough.
+    const s = new Signer((m) => messages.push(m), () => 0, undefined, (url, init) =>
+      url.startsWith("https://a.pool.eternitywall.com") ? Promise.reject(new TypeError("Failed to fetch")) : network.fetch(url, init),
+    );
+    await s.handle({ type: "open", keyFile: new Uint8Array(await readFile(join(dir, "me.key"))), passphrase: PASSPHRASE });
+    await s.handle({ type: "seal", files: [{ path: "a.txt", file: new File(["a"], "a.txt") }], role: "author", output: { kind: "memory", limit: 1024 * 1024 }, timestamp: true });
+    const steps = messages.flatMap((m) => (m.type === "seal-stage" ? [m.stage] : m.type === "calendar" ? [`${new URL(m.origin).host} ${String(m.accepted)}`] : []));
+    expect(steps.slice(0, 3)).toEqual(["hashing", "signing", "timestamping"]);
+    expect(steps.slice(3, 6).sort()).toEqual(["a.pool.eternitywall.com false", "a.pool.opentimestamps.org true", "b.pool.opentimestamps.org true"]);
+    expect(steps.slice(6)).toEqual(["writing"]);
+    expect(messages.find((m) => m.type === "calendar" && !m.accepted)).toMatchObject({ message: "Failed to fetch" });
+    const sealed = messages.at(-1);
+    expect(sealed?.type === "sealed" && [...sealed.calendars].sort()).toEqual(["https://a.pool.opentimestamps.org", "https://b.pool.opentimestamps.org"]);
   });
 
   it("reports a document that changed between its two reads, and erases the key", async () => {

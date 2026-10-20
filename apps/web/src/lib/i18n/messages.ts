@@ -42,7 +42,13 @@ export interface Messages {
     needFiles: string;
     needKey: string;
     fixPaths: string;
-    progress: (percent: number) => string;
+    /** The steps of a sealing, as the log shows them. */
+    steps: { hashing: string; signing: string; timestamping: string; writing: string };
+    stepsLabel: string;
+    percent: (percent: number) => string;
+    calendarWaiting: string;
+    calendarAccepted: string;
+    calendarFailed: string;
     cancel: string;
     cancelled: string;
     done: string;
@@ -106,7 +112,6 @@ export interface Messages {
 
   upgrade: {
     title: string;
-    intro: string;
     check: string;
     checking: string;
     notYet: string;
@@ -116,7 +121,24 @@ export interface Messages {
     saved: (name: string) => string;
     downloaded: (name: string) => string;
     failed: string;
+    /** The three stages of a time proof, as the tracker shows them. */
+    stages: { submitted: string; inBlock: string; confirmed: string };
+    submittedAgo: (ago: string) => string;
+    waitingCalendar: string;
+    block: (height: number) => string;
+    viewBlock: string;
+    confirmations: (count: number, required: number) => string;
+    remaining: (about: string) => string;
+    confirmedNote: string;
+    saveNow: string;
+    auto: (every: string) => string;
+    lastChecked: (time: string) => string;
+    noChain: string;
+    rechecking: string;
   };
+
+  /** A duration such as "1 h 20 min", from minutes. */
+  duration: (minutes: number) => string;
 
   verify: {
     title: string;
@@ -139,7 +161,8 @@ export interface Messages {
   details: {
     filesMatch: (ok: number, total: number) => string;
     noLaterThan: (time: string) => string;
-    confirmations: (count: number) => string;
+    /** `height`: the block, when the report names it. */
+    confirmations: (count: number, height?: number) => string;
     via: string;
   };
 
@@ -167,6 +190,10 @@ export interface Messages {
     provider: string;
     verdict: string;
     attestedAt: string;
+    block: string;
+    confirmations: string;
+    submittedAt: string;
+    submittedAtNote: string;
     source: string;
   };
   technical: {

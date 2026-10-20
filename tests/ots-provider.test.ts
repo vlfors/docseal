@@ -40,6 +40,7 @@ describe("verify", () => {
       verdict: "confirmed",
       attestedAt: new Date("2015-05-28T15:41:18Z"),
       confirmations: TIP - 358391 + 1,
+      blockHeight: 358391,
       source: "test chain",
     });
   });
@@ -70,7 +71,7 @@ describe("verify", () => {
   it("treats too few confirmations as pending", async () => {
     const shallow = fakeChain([block358391()], 358391 + 2);
     const result = await offline.verify(receiptFor("hello-world", HELLO_DIGEST), HELLO_DIGEST, shallow);
-    expect(result).toMatchObject({ verdict: "pending", confirmations: 3 });
+    expect(result).toMatchObject({ verdict: "pending", confirmations: 3, blockHeight: 358391 });
   });
 
   it("does not treat an unreachable or incapable chain source as a result", async () => {
@@ -201,7 +202,7 @@ describe("upgrade", () => {
 
     const chain = fakeChain([{ height: 900_000, merkleRoot: commitment, time: 1_750_000_000 }], 900_010);
     const result = await openTimestamps().verify(upgraded ?? receipt, digest, chain);
-    expect(result).toMatchObject({ verdict: "confirmed", confirmations: 11 });
+    expect(result).toMatchObject({ verdict: "confirmed", confirmations: 11, blockHeight: 900_000 });
   });
 
   it("leaves the receipt unchanged while the calendar has nothing yet", async () => {

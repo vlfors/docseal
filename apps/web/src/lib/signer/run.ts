@@ -13,10 +13,27 @@ class CalendarsFailed extends Error {
   override name = "CalendarsFailed";
 }
 
-/** OpenTimestamps over the calendars a browser can reach, and the ones that accepted. */
-function timestamping(base?: Fetch): { provider: AnchorProvider; accepted: readonly string[] } {
-  const fetch = browserFetch(base);
-  const provider = openTimestamps({ calendars: BROWSER_CALENDARS, fetch });
+/**
+ * OpenTimestamps over the calendars a browser can reach, and the ones that accepted.
+ * `onCalendar` hears each calendar's answer to the submission as it comes.
+ */
+function timestamping(
+  base: Fetch = (input, init) => globalThis.fetch(input, init),
+  onCalendar: (origin: string, accepted: boolean, message?: string) => void = () => undefined,
+): { provider: AnchorProvider; accepted: readonly string[] } {
+  const observed: Fetch = async (url, init) => {
+    const origin = new URL(url).origin;
+    try {
+      const response = await base(url, init);
+      onCalendar(origin, response.ok, response.ok ? undefined : `HTTP ${String(response.status)}`);
+      return response;
+    } catch (error) {
+      onCalendar(origin, false, error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+  };
+  const network = browserFetch(observed);
+  const provider = openTimestamps({ calendars: BROWSER_CALENDARS, fetch: network });
   return {
     provider: {
       ...provider,
@@ -25,7 +42,7 @@ function timestamping(base?: Fetch): { provider: AnchorProvider; accepted: reado
           throw new CalendarsFailed(error instanceof Error ? error.message : String(error));
         }),
     },
-    accepted: fetch.acceptedCalendars,
+    accepted: network.acceptedCalendars,
   };
 }
 
@@ -98,13 +115,20 @@ export class Signer {
     try {
       output = await openOutput(request.output);
       let last = -Infinity;
-      const anchor = request.timestamp ? timestamping(this.fetch) : undefined;
+      const anchor = request.timestamp
+        ? timestamping(this.fetch, (origin, accepted, message) => {
+            this.post({ type: "calendar", origin, accepted, ...(message !== undefined && { message }) });
+          })
+        : undefined;
       const info = await sealFiles(output, {
         files: request.files,
         secretKey,
         role: request.role,
         signal: sealing.signal,
         ...(anchor && { anchors: [anchor.provider] }),
+        onStage: (stage) => {
+          this.post({ type: "seal-stage", stage });
+        },
         onProgress: (read, total) => {
           if (read === total || this.now() - last >= PROGRESS_INTERVAL_MS) {
             last = this.now();
