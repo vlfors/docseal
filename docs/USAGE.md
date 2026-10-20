@@ -98,6 +98,25 @@ docseal verify contract.dseal --trust trusted-keys.json
 
 To check the time, DocSeal reads Bitcoin block headers from mempool.space, or from blockstream.info if mempool.space does not answer. If neither is reachable from your network, name another Esplora source, for example your own: `--chain https://your-node.example/api` (repeat `--chain` for fallbacks).
 
+## In the browser
+
+The DocSeal web app does the same in a browser: the Verify page checks a package, the Seal page signs documents and saves the package. Files and keys never leave the device; the page sends only the seal digest to the timestamp calendars and asks a Bitcoin source for block headers.
+
+- **Verify:** drop a `.dseal` on the page. Add the keys you trust under *Trusted keys* (or import your `trusted-keys.json`); the list is kept in this browser only. Under *Bitcoin*, choose where block headers come from (mempool.space then blockstream.info, your own Esplora instance, or offline). A pending time proof can be completed on this page once Bitcoin has confirmed it: *Check for a completed proof*, then *Save the upgraded package*.
+- **Seal:** choose files or a folder (a folder adds its contents, as `docseal seal <folder>` does), open your key file with its passphrase or create a new key, and *Seal and save*. A new key is downloaded at once as `docseal.key`; keep it, it opens in the CLI too. The key is closed after each sealing.
+
+### Size limits
+
+Measured on 2026-10-20 with Playwright 1.64.1 (Chromium, Firefox, and WebKit on Linux; real Safari may differ):
+
+| Browser | Verify | Seal |
+|---|---|---|
+| Chrome, Edge | any size; a 4.06 GiB package (ZIP64) in 151 s, 0.69 GiB of browser memory | any size: written straight to the file you pick; 4.06 GiB in 157 s, 1.18 GiB of memory |
+| Firefox | any size; 4.06 GiB in 170 s, 0.97 GiB of memory | up to 2 GiB: the package is built in memory, then downloaded (3 GiB was measured to work) |
+| Safari | any size; 4.06 GiB in 108 s, 0.63 GiB of memory (WebKit) | up to 1 GiB, built in memory (WebKit built 1.5 GiB, and its tab crashed at 2 GiB) |
+
+Above its limit the page refuses to seal and says why; for larger packages use Chrome or Edge, or the CLI. Verifying and sealing read documents at roughly 30 to 60 MiB/s, so a package of several gigabytes takes minutes.
+
 ## Reading the verdict
 
 | Verdict | Meaning | Exit code |

@@ -36,6 +36,7 @@ export default defineConfig({
       // The page cannot list a directory: the test is told which golden packages exist.
       goldenPackages: readdirSync(source("./spec/vectors/packages")).filter((name) => name.endsWith(".dseal")),
       benchmark: process.env.DOCSEAL_BENCHMARK === "1",
+      memoryProbe: process.env.DOCSEAL_MEMORY_PROBE === "1",
       largePackage: largeDir ? join(largeDir, "large.dseal") : "",
     },
     globalSetup: ["tests/browser/large-package.ts", "tests/browser/sealed-reference.ts"],

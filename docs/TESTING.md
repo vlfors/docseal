@@ -45,6 +45,8 @@ Measured on 2026-10-19 (Playwright 1.64.1, headless, one x86-64 laptop; WebKit i
 | Firefox | rejects them | 37.1 s, 28 MiB/s |
 | WebKit | rejects them | 16.3 s, 63 MiB/s |
 
+Two measurements run only on request. `DOCSEAL_MEMORY_PROBE=1 pnpm test:browser tests/browser/memory` builds packages of 0.5 to 3 GiB in memory, as Firefox and Safari save them, and reads them back: Chromium managed 1 GiB (it saves to disk instead), Firefox 3 GiB, WebKit 1.5 GiB, its tab crashing at 2 GiB; the page's limits (2 GiB in Firefox, 1 GiB elsewhere) leave room below that. `DOCSEAL_LARGE_TESTS=1 DOCSEAL_LARGE_DIR=<dir on disk> pnpm test:e2e tests/e2e/large` verifies a 4.06 GiB package (ZIP64) from disk in each engine and seals one in Chromium straight to a file, recording the browsers' peak memory; the results are in [USAGE.md](USAGE.md#size-limits).
+
 All three engines follow the Compression Streams standard, so the fallback check runs only on Node.js 22 and in the test that forces it. Hashing uses the portable SHA-256 of `@noble/hashes`, since Web Crypto has no incremental digest; at these speeds a 2 GiB package takes half a minute to over a minute to verify.
 
 ## Property tests

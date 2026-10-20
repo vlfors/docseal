@@ -6,7 +6,7 @@
   import { formatSize } from "../i18n/language";
   import { language, t } from "../i18n/state.svelte";
   import { totalSize, type PlannedFile } from "../seal/files";
-  import { canStreamToDisk, MEMORY_LIMIT, suggestedName } from "../seal/limits";
+  import { canStreamToDisk, memoryLimit, suggestedName } from "../seal/limits";
   import { chooseTarget, discardTarget, type SaveTarget } from "../save";
   import { SealError, sealWithKey, type OpenKey, type Sealed, type SealTask } from "../signer/client";
   import PackageText from "./PackageText.svelte";
@@ -21,6 +21,7 @@
   let task: SealTask | undefined;
 
   const streaming = typeof window !== "undefined" && canStreamToDisk(window);
+  const limit = typeof navigator !== "undefined" ? memoryLimit(navigator.userAgent) : 0;
   const size = $derived(totalSize(planned));
   const blocked = $derived(
     planned.length === 0
@@ -29,8 +30,8 @@
         ? t().sealing.fixPaths
         : !key
           ? t().sealing.needKey
-          : !streaming && size > MEMORY_LIMIT
-            ? `${t().sealing.tooLarge(formatSize(MEMORY_LIMIT, language()))} ${t().sealing.tooLargeHint}`
+          : !streaming && size > limit
+            ? `${t().sealing.tooLarge(formatSize(limit, language()))} ${t().sealing.tooLargeHint}`
             : "",
   );
 
@@ -70,7 +71,7 @@
             : error.reason === "changed"
               ? t().sealing.changed
               : error.reason === "too-large"
-                ? `${t().sealing.tooLarge(formatSize(MEMORY_LIMIT, language()))} ${t().sealing.tooLargeHint}`
+                ? `${t().sealing.tooLarge(formatSize(limit, language()))} ${t().sealing.tooLargeHint}`
                 : error.reason === "calendars"
                   ? `${t().sealing.calendarsFailed} (${error.message})`
                   : `${t().sealing.failed}: ${error.message}`;
@@ -97,7 +98,7 @@
   </label>
   <p class="note">{t().sealing.timestampNote}</p>
   {#if !streaming}
-    <p class="note">{t().sealing.memoryNote(formatSize(MEMORY_LIMIT, language()))}</p>
+    <p class="note">{t().sealing.memoryNote(formatSize(limit, language()))}</p>
   {/if}
 
   {#if percent !== undefined}

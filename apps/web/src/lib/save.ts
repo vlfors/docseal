@@ -2,7 +2,7 @@
 // one as it is produced, else memory and a download (see seal/limits.ts).
 import { MEDIA_TYPE } from "@docseal/core";
 import type { PackageOutput } from "./output";
-import { canStreamToDisk, MEMORY_LIMIT } from "./seal/limits";
+import { canStreamToDisk, memoryLimit } from "./seal/limits";
 
 export interface SaveTarget {
   output: PackageOutput;
@@ -15,7 +15,7 @@ export interface SaveTarget {
 /** Asks where to save; undefined if the viewer dismissed the dialog. Call on a user's action. */
 export async function chooseTarget(suggestedName: string): Promise<SaveTarget | undefined> {
   if (!canStreamToDisk(window)) {
-    return { output: { kind: "memory", limit: MEMORY_LIMIT }, name: suggestedName };
+    return { output: { kind: "memory", limit: memoryLimit(navigator.userAgent) }, name: suggestedName };
   }
   let handle: FileSystemFileHandle;
   try {
