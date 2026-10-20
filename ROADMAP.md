@@ -32,12 +32,14 @@ Explicitly deferred from v0.1: selective disclosure (only the proof-building fun
 
 The same core in the browser; the `.dseal` format does not change.
 
-- [ ] Create a package from selected files or a folder.
-- [ ] Verify `.dseal` locally without uploading documents to a server.
-- [ ] Drag-and-drop.
-- [ ] Web Workers and streaming processing of large files.
-- [ ] Clear human-readable report.
-- [ ] Static demo application.
+- [x] Create a package from selected files or a folder.
+- [x] Verify `.dseal` locally without uploading documents to a server.
+- [x] Drag-and-drop.
+- [x] Web Workers and streaming processing of large files.
+- [x] Clear human-readable report.
+- [x] Static demo application (served from the first release; see [releasing](docs/RELEASING.md)).
+
+Also in v0.2: keys opened or created in the browser, compatible with the CLI; time proofs submitted, completed, and checked against Bitcoin in the browser; English and Russian; tests in Chromium, Firefox, and WebKit.
 
 ## v0.3 — Instant timestamps (RFC 3161)
 

@@ -151,7 +151,7 @@ The primary client for `v0.1`. Provides a reproducible, easily testable end-to-e
 
 ### Web UI
 
-The `v0.2` client. Uses the same core. Files are processed locally; large files are read in chunks in a Web Worker.
+The `v0.2` client (`apps/web`): a static SvelteKit site under a strict Content Security Policy. It uses the same core packages, built from their sources. Verifying and upgrading run in a verification worker that reads the package in chunks; a signer worker opens or creates the key, seals once, and is terminated, so the secret key never reaches the page. Workers reach the network only through `browserFetch`, which allows the calendars and chain sources of `network.js` and nothing else. Sealed packages are written straight to a picked file where the File System Access API exists, and otherwise built in memory up to a measured limit.
 
 ### Backend
 

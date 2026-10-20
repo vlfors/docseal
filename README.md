@@ -2,9 +2,9 @@
 
 > Open-source toolkit for creating portable, independently verifiable proofs of document integrity, authorship by a cryptographic key, and existence no later than a confirmed timestamp.
 
-DocSeal is a library and command-line tool for creating and verifying document packages; a browser verifier is planned for v0.2. Documents are processed locally. Only a cryptographic digest of the signed package state is sent to a public network.
+DocSeal is a library, a command-line tool, and a browser app for creating and verifying document packages. Documents are processed locally, in the browser too. Only a cryptographic digest of the signed package state is sent to a public network.
 
-The project is intended as a complete, portfolio-grade open-source project: first a small, well-tested core and CLI (v0.1, complete), then a browser interface (v0.2). A server, legally binding signatures, and enterprise integrations are out of scope for the first releases.
+The project is intended as a complete, portfolio-grade open-source project: first a small, well-tested core and CLI (v0.1), then a browser interface (v0.2); both are complete. A server, legally binding signatures, and enterprise integrations are out of scope for the first releases.
 
 ## What DocSeal proves
 
@@ -122,7 +122,7 @@ DocSeal does not implement cryptographic primitives itself. The core defines the
 
 v0.1 is complete: the core library, the Ed25519 and OpenTimestamps plugins, and the CLI. The [format specification v0.1](docs/FORMAT-v0.1.md) is final and frozen. The packages are not on npm yet; the first publication waits for the public repository (see [releasing](docs/RELEASING.md)). Until then, build from source (see [Development](#development)).
 
-There is no web verifier yet: the browser interface is the next milestone, v0.2.
+The browser app (v0.2) is complete: it verifies and seals packages on the device, opens and creates key files the CLI shares, and submits, completes, and checks time proofs, tested in Chromium, Firefox, and WebKit, Safari's engine (see [the browser section of the guide](docs/USAGE.md#in-the-browser), with its size limits). From the first release it is served at [vlfors.github.io/docseal](https://vlfors.github.io/docseal/), built by CI from the release tag, and attached to the release so it can be served locally instead.
 
 `pnpm demo` shows the main promise without any network: it seals a folder, verifies it, changes one word in a sealed document, and verifies again, which gives `INVALID`.
 
@@ -142,7 +142,9 @@ pnpm check    # lint, typecheck, test
 pnpm build
 node apps/cli/dist/index.js --help
 pnpm demo     # seal → verify → change a word → invalid
-pnpm --filter @docseal/web dev   # the browser app (v0.2, in progress)
+pnpm --filter @docseal/web dev   # the browser app
+pnpm test:browser                # the core in Chromium, Firefox, WebKit
+pnpm test:e2e                    # the built site in the three engines
 ```
 
 | Path | Contents |
@@ -152,7 +154,7 @@ pnpm --filter @docseal/web dev   # the browser app (v0.2, in progress)
 | `packages/sig-ed25519` | Ed25519 signature suite and development key provider |
 | `packages/anchor-ots` | OpenTimestamps anchor provider |
 | `apps/cli` | `docseal` command-line interface |
-| `apps/web` | Browser app (v0.2, in progress): a static SvelteKit site |
+| `apps/web` | Browser app (v0.2): a static SvelteKit site, the work in Web Workers |
 | `verifiers/python` | Independent verifier used to cross-check the vectors |
 | `examples` | Library example and the CLI demo |
 | `scripts` | Packing, smoke test, release checks |

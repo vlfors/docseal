@@ -105,6 +105,16 @@ The DocSeal web app does the same in a browser: the Verify page checks a package
 - **Verify:** drop a `.dseal` on the page. Add the keys you trust under *Trusted keys* (or import your `trusted-keys.json`); the list is kept in this browser only. Under *Bitcoin*, choose where block headers come from (mempool.space then blockstream.info, your own Esplora instance, or offline). A pending time proof can be completed on this page once Bitcoin has confirmed it: *Check for a completed proof*, then *Save the upgraded package*.
 - **Seal:** choose files or a folder (a folder adds its contents, as `docseal seal <folder>` does), open your key file with its passphrase or create a new key, and *Seal and save*. A new key is downloaded at once as `docseal.key`; keep it, it opens in the CLI too. The key is closed after each sealing.
 
+### Checking that you are on the real site
+
+The page you use decides what you see, so check it before you rely on a verdict:
+
+- The address is `https://vlfors.github.io/docseal/`, nothing else.
+- The footer names the commit the site was built from. It must be the commit of a release tag on [the releases page](https://github.com/vlfors/docseal/releases); a page that says "A local build" is not a release.
+- To depend on GitHub Pages not at all, download `docseal-web-<version>.tar.gz` from the release, check its attestation, and serve it yourself (see [verifying a release](RELEASING.md#verifying-a-release)).
+- Browser extensions with access to the page can read what the page reads. Use a profile without them for sensitive documents.
+- The trusted keys you add are stored for the address `vlfors.github.io`, which every GitHub Pages site of the account shares: look over the list before you rely on a `trusted` verdict.
+
 ### Size limits
 
 Measured on 2026-10-20 with Playwright 1.64.1 (Chromium, Firefox, and WebKit on Linux; real Safari may differ):
