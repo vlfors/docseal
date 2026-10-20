@@ -8,7 +8,7 @@ This guide is for people who use DocSeal: how to sign documents into a `.dseal` 
 npm install -g @docseal/cli      # Node.js ≥ 22
 ```
 
-Until 0.1.0 is published on npm, build it from a checkout:
+Until 0.2.0 is published on npm, build it from a checkout:
 
 ```bash
 pnpm install && pnpm build

@@ -1,6 +1,6 @@
 {
   "name": "@docseal/sig-ed25519",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DocSeal Ed25519 signature suite and development key provider",
   "license": "Apache-2.0",
   "repository": {

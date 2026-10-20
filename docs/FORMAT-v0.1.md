@@ -1,6 +1,6 @@
 # `.dseal` Format v0.1
 
-Status: **final**, frozen with DocSeal 0.1.0. The format is cross-checked by two independent implementations (TypeScript and Python) against the published JSON Schemas and test vectors, and by differential fuzzing of both. Any change that alters the verdict for some package requires a new format version; see [Changes](#changes).
+Status: **final**, frozen with the first DocSeal release, 0.2.0. The format is cross-checked by two independent implementations (TypeScript and Python) against the published JSON Schemas and test vectors, and by differential fuzzing of both. Any change that alters the verdict for some package requires a new format version; see [Changes](#changes).
 
 The key words MUST, MUST NOT, SHOULD, and MAY are to be interpreted as described in RFC 2119.
 

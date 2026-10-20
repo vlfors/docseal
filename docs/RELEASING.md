@@ -24,29 +24,29 @@ All packages are released together, with one version, by pushing a tag. The work
 ## Each release
 
 1. Update `version` in the four published `package.json` files and `VERSION` in `apps/cli/src/main.ts`.
-2. In `CHANGELOG.md`, turn "Unreleased" into the version and date: `## [0.1.0] — 2026-10-20`.
+2. In `CHANGELOG.md`, turn "Unreleased" into the version and date: `## [0.2.0] — 2026-10-20`.
 3. Check locally, then commit:
 
    ```bash
-   node scripts/check-release.mjs v0.1.0
+   node scripts/check-release.mjs v0.2.0
    pnpm check && pnpm vectors:python && pnpm smoke
    ```
 4. Rehearse: Actions → Release → Run workflow (on `main`). It runs the whole build for the version in `package.json`, hands the tarballs over, checks `SHA256SUMS`, and runs `npm publish --dry-run` without any credentials; nothing is published, attested, or released. An unreleased CHANGELOG section is only a warning there.
-5. Tag and push: `git tag -s v0.1.0 -m "DocSeal 0.1.0" && git push origin main v0.1.0`.
+5. Tag and push: `git tag -s v0.2.0 -m "DocSeal 0.2.0" && git push origin main v0.2.0`.
 6. Approve the `npm` environment when the checks have passed.
 
 ## Verifying a release
 
 ```bash
 npm audit signatures                     # in a project that installed @docseal/*: npm provenance
-gh attestation verify docseal-core-0.1.0.tgz --repo vlfors/docseal
-gh attestation verify docseal-web-0.1.0.tar.gz --repo vlfors/docseal
+gh attestation verify docseal-core-0.2.0.tgz --repo vlfors/docseal
+gh attestation verify docseal-web-0.2.0.tar.gz --repo vlfors/docseal
 sha256sum -c SHA256SUMS                  # next to the tarballs from the GitHub release
 ```
 
 The web app's footer names the commit it was built from; it must be the commit of the release tag. To use exactly the attested site instead of the hosted one, serve the release's archive yourself. It is built for the path `/docseal/`:
 
 ```bash
-mkdir -p site/docseal && tar -xzf docseal-web-0.1.0.tar.gz -C site/docseal
+mkdir -p site/docseal && tar -xzf docseal-web-0.2.0.tar.gz -C site/docseal
 python3 -m http.server --bind 127.0.0.1 --directory site 8000   # then open http://127.0.0.1:8000/docseal/
 ```

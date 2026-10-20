@@ -44,7 +44,7 @@ The project is intended as a complete, portfolio-grade open-source project: firs
 ## Command line
 
 ```bash
-npm install -g @docseal/cli                    # Node.js ≥ 22, once 0.1.0 is published
+npm install -g @docseal/cli                    # Node.js ≥ 22, once 0.2.0 is published
 ```
 
 ```bash

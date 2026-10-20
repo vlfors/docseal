@@ -4,9 +4,9 @@ All notable changes to DocSeal are recorded here. The format follows [Keep a Cha
 
 All packages (`@docseal/core`, `@docseal/sig-ed25519`, `@docseal/anchor-ots`, `@docseal/cli`) are released together with the same version.
 
-## [0.1.0] — Unreleased
+## [0.2.0] — 2026-10-20
 
-The first release: the `.dseal` format v0.1, a TypeScript library, and the `docseal` CLI.
+The first release: the `.dseal` format v0.1, a TypeScript library, the `docseal` CLI, and a browser app. (0.1.0, the core and CLI alone, was never published; its work is part of this release.)
 
 ### Format
 
@@ -28,10 +28,20 @@ The first release: the `.dseal` format v0.1, a TypeScript library, and the `docs
 - `docseal keygen`, `pubkey`, `seal`, `verify`, and `upgrade`, with human and JSON reports and distinct exit codes (0 valid, 1 invalid, 2 indeterminate, 3 error).
 - `verify` reads block headers from mempool.space and falls back to blockstream.info; `--chain` is repeatable for your own sources.
 
+### Browser app
+
+- A static site (`apps/web`) that verifies and seals packages on the device, served by GitHub Pages at [vlfors.github.io/docseal](https://vlfors.github.io/docseal/) and attached to the release as `docseal-web-0.2.0.tar.gz`, attested, to serve yourself. Every page names the commit it was built from.
+- Verify: drop a package; the report shows the verdict, the six axes, the files, signatures, time proofs, and issues, with next steps. Trusted keys are added as `did:key` or imported from `trusted-keys.json`, kept in the browser, and exported again. Time proofs are checked against Bitcoin through mempool.space then blockstream.info, your own Esplora instance, or not at all, and a pending proof can be completed and saved on the page.
+- Seal: choose files or a folder (paths as `docseal seal` gives them, every path problem shown before sealing), open a key file made by `docseal keygen` or create one the CLI opens, and save the package straight to disk in Chrome and Edge or as a download elsewhere (up to 2 GiB in Firefox, 1 GiB in Safari). The seal is submitted to the OpenTimestamps calendars that accept requests from a browser.
+- Verification and sealing run in Web Workers; the secret key lives in its worker for one sealing and never reaches the page. English and Russian.
+- `@docseal/sig-ed25519`: `openKeyFile` and `createKeyFile` take an optional `onProgress` for scrypt.
+
 ### Security
 
 - Strict, bounded parsers for hostile input: ZIP (local headers matched against the central directory, no overlaps or gaps, no data descriptors, Unicode Path fields rejected, size and ratio limits), JSON (duplicate keys, I-JSON numbers, nesting), paths (NFC, collisions after case mapping), deflate (exactly one complete stream), and OpenTimestamps proofs (size, depth, and node limits).
 - Ed25519 verification requires `A` and `R` in the prime-order subgroup, so verifiers using cofactored and cofactorless equations agree.
 - `docseal seal` pins every collected file by identity and size and checks each read against it, so a file swapped for a link or another file while sealing is reported, not sealed.
 - An independent Python verifier (OpenSSL and libsodium, no curve arithmetic of its own) reproduces every vector; differential fuzzing checks that both implementations agree on mutated packages.
+- The browser app runs under a Content Security Policy that loads nothing from other origins; its workers reach only the calendars and chain sources it lists. Package text is shown as text with every control and bidirectional character made visible, the page refuses to work inside a frame, and nothing of a document or a secret key is stored.
+- The golden packages get their verdicts in Chromium, Firefox, and WebKit, and the built site is tested end to end in all three on a fake network; no source file may hold an invisible or bidirectional character.
 - See the [threat model](THREAT_MODEL.md) and the [testing guide](docs/TESTING.md).
