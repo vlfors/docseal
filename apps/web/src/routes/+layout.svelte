@@ -24,6 +24,8 @@
     initLanguage();
     initTrustedKeys();
     initChain();
+    // The page now responds to the viewer; until here the prerendered controls do nothing.
+    document.body.dataset["ready"] = "";
   });
 </script>
 

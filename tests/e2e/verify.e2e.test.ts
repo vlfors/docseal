@@ -66,7 +66,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
   it("shows a bidirectional override in a file name as a visible code", async () => {
     const sealed = await sealPackage({
       files: [
-        { path: "invoice‮txt.exe", data: utf8("not a text file") },
+        { path: "invoice\u202Etxt.exe", data: utf8("not a text file") },
         { path: "readme.txt", data: utf8("hello") },
       ],
       signer: memoryKeyProvider(new Uint8Array(32).fill(9)),
@@ -79,7 +79,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     const entry = page.locator(".files.all li").filter({ hasText: "invoice" });
     const text = await entry.innerText();
     expect(text).toContain("invoiceU+202Etxt.exe");
-    expect(text).not.toContain("‮");
+    expect(text).not.toContain("\u202E");
     await page.close();
   });
 

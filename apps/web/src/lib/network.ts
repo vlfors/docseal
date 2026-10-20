@@ -8,8 +8,13 @@
  * browser reports as a network error indistinguishable from an unreachable calendar. For
  * upgrades only, that error is read as the 404 it most likely is: the proof stays pending, as
  * the CLI leaves it on a 404, and the page says it may be either.
+ *
+ * The page's <meta> Content Security Policy does not reach its workers (on GitHub Pages they get
+ * no policy at all), so this fetch is the workers' connect-src: it refuses every origin but the
+ * calendars, upgrade hosts, and chain sources of network.js, and the viewer's own Esplora.
  */
-import type { Fetch } from "@docseal/anchor-ots";
+import { isAllowed, type Fetch } from "@docseal/anchor-ots";
+import { CONNECT_SOURCES } from "../../network.js";
 
 const UPGRADE_PATH = /\/timestamp\/[0-9a-f]+$/;
 
@@ -18,9 +23,29 @@ export interface BrowserFetch extends Fetch {
   readonly acceptedCalendars: readonly string[];
 }
 
-export function browserFetch(base: Fetch = (input, init) => fetch(input, init)): BrowserFetch {
+/** A request to an origin the page may not contact. */
+export class NotAllowed extends Error {
+  override name = "NotAllowed";
+}
+
+/** Whether `url` is on one of CONNECT_SOURCES or exactly one of `extra` (origins). */
+export function mayContact(url: string, extra: readonly string[] = []): boolean {
+  let origin: string;
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    return false;
+  }
+  return extra.includes(origin) || isAllowed(origin, CONNECT_SOURCES);
+}
+
+/** `extraOrigins`: further origins this fetch may contact, such as the viewer's own Esplora. */
+export function browserFetch(base: Fetch = (input, init) => fetch(input, init), extraOrigins: readonly string[] = []): BrowserFetch {
   const accepted: string[] = [];
   const wrapped = async (url: string, init: RequestInit = {}) => {
+    if (!mayContact(url, extraOrigins)) {
+      throw new NotAllowed(`${url} is not a source this page may contact`);
+    }
     const headers = new Headers(init.headers);
     headers.delete("user-agent");
     const method = (init.method ?? "GET").toUpperCase();

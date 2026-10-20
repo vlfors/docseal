@@ -16,5 +16,8 @@ export default defineConfig({
     hookTimeout: 60_000,
     // The tests print what they measure in each engine.
     silent: false,
+    // One file at a time: each launches its browsers, and hashing in several at once on a small
+    // CI machine makes waits time out.
+    fileParallelism: false,
   },
 });

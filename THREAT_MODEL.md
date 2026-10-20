@@ -54,6 +54,26 @@ DocSeal does not prove that a document is true, the signer's identity without an
 | Removal of a signature or anchor | Signed policy and a report of missing required proofs |
 | Brute-forcing a short hidden file | Random per-file leaf salt (see below) |
 
+## The browser app
+
+The web app (`apps/web`, v0.2) runs the same packages in the viewer's browser, from static files on GitHub Pages. Its own threats, each with the test or the stated mitigation that answers it:
+
+| Threat | Mitigation | Checked by |
+|---|---|---|
+| A compromised build or host serves a different verifier (one that says `valid` to anything, or sends documents away) | The site is built by CI from a release tag and shows the commit it was built from; the same static site is attached to each GitHub Release with a build attestation, so it can be checked and served locally instead of trusting the hosted copy. Residual: a viewer who does neither trusts GitHub Pages and the account. | Stated (release steps, task 13) |
+| Script from another origin (CDN, analytics, an injected tag) | A `<meta>` Content Security Policy: `default-src 'none'`, scripts and workers from the site only, inline scripts only by SvelteKit's hashes; nothing is loaded from elsewhere | `apps/web/src/csp.test.ts`; no violation in any engine, `tests/e2e/` |
+| The page's workers reach a host the policy does not list (a `<meta>` policy does not apply to workers, and GitHub Pages sends none) | Workers fetch only through `browserFetch`, which refuses every origin but the calendars, upgrade hosts, and chain sources of `network.js` and the viewer's own Esplora | `apps/web/src/lib/network.test.ts` |
+| A package that injects markup or script through a file name, role, signer, or message | Package text is rendered as text by Svelte; `{@html}` is rejected by ESLint | ESLint (`svelte/no-at-html-tags`), `tests/e2e/verify.e2e.test.ts` |
+| A file name with a bidirectional override or invisible characters that disguises itself (`invoice<U+202E>txt.exe`) | Package text is isolated with `<bdi>`, and every control, zero-width, and bidirectional character is shown as its code point, the same set the CLI escapes | `apps/web/src/lib/text.test.ts` (whole BMP against the CLI), `tests/e2e/verify.e2e.test.ts` |
+| Another site frames the page and lays its own verdict or buttons over it (clickjacking) | A `<meta>` policy cannot carry `frame-ancestors`, so the page refuses to work inside any frame | `tests/e2e/verify.e2e.test.ts` |
+| A malicious page in another tab | The page listens to no messages from other windows, opens no windows, and keeps no secret in storage; nothing of a document or key is in the URL | `tests/e2e/seal.e2e.test.ts` (storage and URL after sealing) |
+| Another project on the same origin (every GitHub Pages site of the account is `vlfors.github.io`) reads or changes the stored trusted keys | The list is shown in full on the verify page, with its names, and each key can be removed; it holds public keys only. A custom domain gives DocSeal an origin of its own and removes the risk. Residual until then. | Stated |
+| The secret key leaks from the page (a bug, an extension, a later script) | The key is opened and kept in a worker, which seals once and is terminated; the page holds only the `did:key`, a new key file is saved at once and dropped, and the passphrase field is cleared | `apps/web/src/lib/signer/run.test.ts`, `tests/e2e/seal.e2e.test.ts` |
+| Documents or keys written to storage, logs, or URLs | Nothing is logged; storage holds the viewer's language, Bitcoin source, and trusted public keys only; packages leave the device only as a download or a file the viewer picks | `tests/e2e/seal.e2e.test.ts` |
+| A package too large for memory, to crash the tab | Verification streams from the file in a worker; sealing streams to a picked file where the browser allows it, and elsewhere refuses above a measured limit | `apps/web/src/lib/verify/client.browser.test.ts`, `tests/browser/memory.browser.test.ts`, `tests/e2e/large.e2e.test.ts` |
+| A document changed while it is sealed | The core's CRC check between the two reads, and the browser's `NotReadableError`; nothing is saved | `apps/web/src/lib/signer/run.test.ts` |
+| A calendar or chain source that lies or is unreachable | As in the CLI: proofs are executed locally, the chain source is named in the report and trusted only for which block is at a height; an unreachable calendar on upgrade reads as "not yet", which the page says | `apps/web/src/lib/verify/run.test.ts`, `tests/e2e/time.e2e.test.ts` |
+
 ## Critical format rules
 
 ### Protected signature payload
@@ -99,6 +119,8 @@ Sealing the same files again with fresh random salts is not required to produce 
 - browser-side OpenTimestamps verification depending on an external data source;
 - Bitcoin block timestamps being accurate only to within about two hours;
 - losing the ability to verify old algorithms and certificates;
-- a user interface that hides an incomplete or untrusted result.
+- a user interface that hides an incomplete or untrusted result;
+- a browser extension with access to the page, which can read documents and keys as the page does;
+- in the web app, the host serving the page (see "The browser app").
 
 An independent audit is required before claiming production-grade security.

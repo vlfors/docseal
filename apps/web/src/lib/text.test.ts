@@ -11,20 +11,20 @@ describe("visibleParts", () => {
   });
 
   it("marks a bidirectional override so a name cannot disguise its extension", () => {
-    expect(visibleParts("invoice‮txt.exe")).toEqual([
+    expect(visibleParts("invoice\u202Etxt.exe")).toEqual([
       { text: "invoice", unsafe: false },
-      { text: "‮", unsafe: true, code: "U+202E" },
+      { text: "\u202E", unsafe: true, code: "U+202E" },
       { text: "txt.exe", unsafe: false },
     ]);
-    expect(hasUnsafe("invoice‮txt.exe")).toBe(true);
+    expect(hasUnsafe("invoice\u202Etxt.exe")).toBe(true);
   });
 
   it("marks consecutive and trailing characters one by one", () => {
-    expect(visibleParts("\u0000\u001b[31m​")).toEqual([
+    expect(visibleParts("\u0000\u001b[31m\u200B")).toEqual([
       { text: "\u0000", unsafe: true, code: "U+0000" },
       { text: "\u001b", unsafe: true, code: "U+001B" },
       { text: "[31m", unsafe: false },
-      { text: "​", unsafe: true, code: "U+200B" },
+      { text: "\u200B", unsafe: true, code: "U+200B" },
     ]);
     expect(visibleParts("")).toEqual([]);
   });

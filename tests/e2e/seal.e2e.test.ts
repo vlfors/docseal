@@ -157,6 +157,19 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     const envelope = JSON.parse(new TextDecoder().decode([...container.signatures.values()][0])) as { protected: { role: string; signer: string } };
     expect(envelope.protected).toMatchObject({ role: "approver", signer: fastKeyDid });
     expect(await page.locator("[data-testid=sealed]").getAttribute("data-seal")).toMatch(/^[0-9a-f]{64}$/);
+
+    // Nothing of the key or the documents is stored: only the viewer's three settings.
+    const stored = await page.evaluate(async () => ({
+      keys: Object.keys(localStorage).sort(),
+      values: Object.values(localStorage).join("\n"),
+      databases: "databases" in indexedDB ? (await indexedDB.databases()).length : 0,
+      url: location.href,
+    }));
+    expect(stored.keys.every((key) => ["docseal.chain", "docseal.language", "docseal.trustedKeys"].includes(key))).toBe(true);
+    expect(stored.values).not.toContain(PASSPHRASE);
+    expect(stored.values).not.toContain("ciphertext");
+    expect(stored.databases).toBe(0);
+    expect(stored.url).not.toMatch(/[?#]/);
     await site.expectClean(page);
     await context.close();
   });

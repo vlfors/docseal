@@ -2,7 +2,7 @@
  * Text taken from a package (file names, roles, signer ids, messages) is shown as text, never as
  * markup: Svelte escapes it, and {@html} is rejected by ESLint. What escaping does not stop are
  * characters that change how text is shown rather than being shown: controls, and invisible or
- * bidirectional formatting marks that reorder it ("invoice‮txt.exe" shows as
+ * bidirectional formatting marks that reorder it ("invoice<U+202E>txt.exe" shows as
  * "invoiceexe.txt"). They are the characters the CLI escapes (apps/cli/src/sanitize.ts, checked
  * by text.test.ts), and here each becomes a visible part such as "U+202E".
  */

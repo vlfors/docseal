@@ -91,6 +91,8 @@ export class Site {
       this.violations.push(text);
     });
     await page.goto(new URL(path, inject("siteUrl")).href);
+    // The prerendered controls are there before the page is hydrated; a file chosen then is lost.
+    await page.locator("body[data-ready]").waitFor({ state: "attached" });
     await page.locator(ready).waitFor({ state: "attached" });
     return page;
   }

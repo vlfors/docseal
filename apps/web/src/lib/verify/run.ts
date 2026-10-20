@@ -37,7 +37,9 @@ export interface RunOptions {
 /** Handles one request, posting progress, then exactly one report, upgrade result, or failure. */
 export async function runVerification(request: VerifyRequest, post: (message: VerifyMessage) => void, options: RunOptions = {}): Promise<void> {
   const now = options.now ?? (() => performance.now());
-  const fetch = options.fetch ?? browserFetch();
+  // The viewer's own Esplora is the one origin beyond network.js this worker may contact.
+  const ownSources = request.type === "verify" && request.chain.kind === "esplora" ? request.chain.urls.map((url) => new URL(url).origin) : [];
+  const fetch = options.fetch ?? browserFetch(undefined, ownSources);
   const total = request.file.size;
   let read = 0;
   let lastPost = -Infinity;

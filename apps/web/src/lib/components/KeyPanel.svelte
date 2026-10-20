@@ -80,8 +80,10 @@
       }),
     );
     if (key?.keyFile) {
-      // Saved at once: the page keeps no copy of the encrypted key either.
-      saveBytes(key.keyFile, "docseal.key", "application/json");
+      // Saved at once, and then dropped: the page keeps no copy of the encrypted key either.
+      const { keyFile, ...kept } = key;
+      saveBytes(keyFile, "docseal.key", "application/json");
+      key = kept;
       created = true;
     }
   }
