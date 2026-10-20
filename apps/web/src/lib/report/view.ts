@@ -26,7 +26,7 @@ export interface AxisRow {
   detail: AxisDetail;
 }
 
-export type Hint = "trustNotEvaluated" | "timePending" | "timeMissing" | "timeUnsupported";
+export type Hint = "trustNotEvaluated" | "timePending" | "timeMissing" | "timeUnsupported" | "timeOffline";
 
 export interface ReportView {
   overall: OverallVerdict;
@@ -38,6 +38,8 @@ export interface ReportView {
   anchors: AnchorReport[];
   /** Issues except pending proofs, which are a state shown on the time row, not a problem. */
   issues: Issue[];
+  /** Whether any time proof is pending, so an upgrade may complete it. */
+  pending: boolean;
   hints: Hint[];
   technical: { packageId?: string; seal?: string; merkleRoot?: string; statementHash?: string };
 }
@@ -90,7 +92,7 @@ function detail(axis: Axis, report: VerificationReport): AxisDetail {
   }
 }
 
-function hints(report: VerificationReport): Hint[] {
+function hints(report: VerificationReport, online: boolean): Hint[] {
   const out: Hint[] = [];
   if (report.axes.trust === "not-evaluated" && report.axes.signature === "valid") {
     out.push("trustNotEvaluated");
@@ -102,12 +104,13 @@ function hints(report: VerificationReport): Hint[] {
     out.push("timeMissing");
   }
   if (report.axes.time === "unsupported") {
-    out.push("timeUnsupported");
+    out.push(online ? "timeUnsupported" : "timeOffline");
   }
   return out;
 }
 
-export function viewReport(report: VerificationReport): ReportView {
+/** `online`: whether a chain source was configured, which changes the advice on time. */
+export function viewReport(report: VerificationReport, options: { online?: boolean } = {}): ReportView {
   return {
     overall: report.overall,
     axes: AXES.map((axis) => ({ axis, verdict: report.axes[axis], tone: tone(axis, report.axes[axis]), detail: detail(axis, report) })),
@@ -116,7 +119,8 @@ export function viewReport(report: VerificationReport): ReportView {
     signatures: report.signatures,
     anchors: report.anchors,
     issues: report.issues.filter((issue) => issue.code !== "pending"),
-    hints: hints(report),
+    pending: report.anchors.some((anchor) => anchor.verdict === "pending"),
+    hints: hints(report, options.online ?? false),
     technical: {
       ...(report.packageId !== undefined && { packageId: report.packageId }),
       ...(report.seal !== undefined && { seal: report.seal }),

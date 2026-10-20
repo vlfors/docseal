@@ -1,6 +1,7 @@
 // The page's side of verification: one Web Worker per package, so the page stays responsive.
 import type { TrustedKey, VerificationReport } from "@docseal/core";
-import type { VerifyMessage, VerifyRequest } from "./protocol";
+import type { PackageOutput } from "../output";
+import type { ChainSetting, VerifyMessage, VerifyRequest } from "./protocol";
 
 export class VerificationCancelled extends Error {
   override name = "VerificationCancelled";
@@ -9,34 +10,44 @@ export class VerificationCancelled extends Error {
   }
 }
 
-export interface VerificationTask {
-  /** The report; rejects with VerificationCancelled after `cancel`, or if the package cannot be read. */
-  readonly result: Promise<VerificationReport>;
-  /** Stops the work at once. Verification writes nothing, so stopping the worker is safe. */
+export interface Task<T> {
+  /** Rejects with VerificationCancelled after `cancel`, or if the package cannot be read. */
+  readonly result: Promise<T>;
+  /**
+   * Stops the work at once. Verifying and checking for upgrades write nothing; an upgrade being
+   * saved to a picked file leaves it unfinished, and the caller removes it.
+   */
   cancel(): void;
 }
 
-export interface VerifyInWorkerOptions {
-  trustedKeys?: readonly TrustedKey[];
-  onProgress?: (read: number, total: number) => void;
+/** A verification in progress. */
+export type VerificationTask = Task<VerificationReport>;
+
+export interface Upgraded {
+  /** Whether a calendar had completed a proof. */
+  changed: boolean;
+  size?: number;
+  /** The upgraded package, for memory output. */
+  blob?: Blob;
 }
 
-export function verifyInWorker(file: Blob, options: VerifyInWorkerOptions = {}): VerificationTask {
+/** Runs `request` in a new worker, which is terminated when the result is in. */
+function start<T>(request: VerifyRequest, pick: (message: VerifyMessage) => T | undefined, onProgress?: (read: number, total: number) => void): Task<T> {
   const worker = new Worker(new URL("./verify.worker.ts", import.meta.url), { type: "module" });
-  let settle: { resolve: (report: VerificationReport) => void; reject: (error: Error) => void } | undefined;
-  const result = new Promise<VerificationReport>((resolve, reject) => {
+  let settle: { resolve: (value: T) => void; reject: (error: Error) => void } | undefined;
+  const result = new Promise<T>((resolve, reject) => {
     settle = { resolve, reject };
   });
   /** Ends the task once: later messages from a stopped worker are ignored. */
-  const finish = (outcome: { report: VerificationReport } | { error: Error }) => {
+  const finish = (outcome: { value: T } | { error: Error }) => {
     if (!settle) {
       return;
     }
     const { resolve, reject } = settle;
     settle = undefined;
     worker.terminate();
-    if ("report" in outcome) {
-      resolve(outcome.report);
+    if ("value" in outcome) {
+      resolve(outcome.value);
     } else {
       reject(outcome.error);
     }
@@ -44,22 +55,18 @@ export function verifyInWorker(file: Blob, options: VerifyInWorkerOptions = {}):
 
   worker.onmessage = (event: MessageEvent<VerifyMessage>) => {
     const message = event.data;
-    if (!settle) {
-      return;
-    }
-    switch (message.type) {
-      case "progress":
-        options.onProgress?.(message.read, message.total);
-        break;
-      case "report":
-        finish({ report: message.report });
-        break;
-      case "failed":
-        finish({ error: new Error(message.message) });
-        break;
+    if (message.type === "progress") {
+      onProgress?.(message.read, message.total);
+    } else if (message.type === "failed") {
+      finish({ error: new Error(message.message) });
+    } else {
+      const value = pick(message);
+      if (value !== undefined) {
+        finish({ value });
+      }
     }
   };
-  // The worker script did not load or threw outside the verification (e.g. blocked by the CSP).
+  // The worker script did not load or threw outside the work (e.g. blocked by the CSP).
   worker.onerror = (event) => {
     event.preventDefault();
     finish({ error: new Error(event.message || "The verification worker failed") });
@@ -67,8 +74,6 @@ export function verifyInWorker(file: Blob, options: VerifyInWorkerOptions = {}):
   worker.onmessageerror = () => {
     finish({ error: new Error("The verification worker sent a message that could not be read") });
   };
-
-  const request: VerifyRequest = { file, ...(options.trustedKeys && { trustedKeys: options.trustedKeys }) };
   worker.postMessage(request);
   return {
     result,
@@ -76,4 +81,34 @@ export function verifyInWorker(file: Blob, options: VerifyInWorkerOptions = {}):
       finish({ error: new VerificationCancelled() });
     },
   };
+}
+
+export interface VerifyInWorkerOptions {
+  trustedKeys?: readonly TrustedKey[];
+  /** Offline unless given. */
+  chain?: ChainSetting;
+  onProgress?: (read: number, total: number) => void;
+}
+
+export function verifyInWorker(file: Blob, options: VerifyInWorkerOptions = {}): Task<VerificationReport> {
+  const request: VerifyRequest = {
+    type: "verify",
+    file,
+    chain: options.chain ?? { kind: "offline" },
+    ...(options.trustedKeys && { trustedKeys: options.trustedKeys }),
+  };
+  return start(request, (message) => (message.type === "report" ? message.report : undefined), options.onProgress);
+}
+
+/** Asks the calendars for completed proofs; with `output`, writes the upgraded package there. */
+export function upgradeInWorker(file: Blob, output?: PackageOutput, onProgress?: (read: number, total: number) => void): Task<Upgraded> {
+  const request: VerifyRequest = { type: "upgrade", file, ...(output && { output }) };
+  return start(
+    request,
+    (message) =>
+      message.type === "upgraded"
+        ? { changed: message.changed, ...(message.size !== undefined && { size: message.size }), ...(message.blob && { blob: message.blob }) }
+        : undefined,
+    onProgress,
+  );
 }

@@ -6,8 +6,9 @@ import { readFile } from "node:fs/promises";
 import type { AxisVerdicts } from "@docseal/core";
 import { publicKeyToDid } from "@docseal/sig-ed25519";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { chromium, firefox, webkit, type Browser, type BrowserType, type Page } from "playwright";
+import { chromium, firefox, webkit, type Browser, type BrowserContext, type BrowserType, type Page } from "playwright";
 import { expect, inject } from "vitest";
+import { useFakeNetwork, type FakeNetwork } from "./network";
 
 const PACKAGES = new URL("../../spec/vectors/packages/", import.meta.url);
 
@@ -50,9 +51,34 @@ export class Site {
     readonly browser: Browser,
   ) {}
 
-  /** A fresh page at `path` of the site, once `ready` is in the document. */
-  async open(path: string, ready: string, context: { newPage(): Promise<Page> } = this.browser): Promise<Page> {
-    const page = await context.newPage();
+  /**
+   * A browser context on the fake network, with downloads accepted. `storage` is put into the
+   * site's localStorage before its first page loads; by default Bitcoin checking is off, since
+   * the golden packages' verdicts are defined offline.
+   */
+  async context(options: { storage?: Record<string, string>; network?: FakeNetwork; initScript?: string } = {}): Promise<{ context: BrowserContext; network: FakeNetwork }> {
+    const context = await this.browser.newContext({ acceptDownloads: true });
+    const network = await useFakeNetwork(context, inject("siteUrl"), options.network);
+    const storage = { "docseal.chain": JSON.stringify({ mode: "offline", url: "" }), ...options.storage };
+    // Only where nothing is stored yet: a choice the page saves survives a reload.
+    await context.addInitScript((entries: Record<string, string>) => {
+      try {
+        for (const [key, value] of Object.entries(entries)) {
+          if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
+        }
+      } catch {
+        // A document without storage (about:blank, a refused origin).
+      }
+    }, storage);
+    if (options.initScript) {
+      await context.addInitScript(options.initScript);
+    }
+    return { context, network };
+  }
+
+  /** A page at `path` of the site, once `ready` is in the document; a new context unless given. */
+  async open(path: string, ready: string, context?: BrowserContext): Promise<Page> {
+    const page = await (context ?? (await this.context()).context).newPage();
     page.on("console", (message) => {
       const text = message.text();
       if (!/content.security.policy|refused to/i.test(text)) {

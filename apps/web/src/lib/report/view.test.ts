@@ -53,7 +53,8 @@ describe("viewReport", () => {
 
   it("suggests next steps like the CLI, but never a time proof for a package that is not well-formed", async () => {
     expect(viewReport(await verify("valid-basic.dseal")).hints).toEqual(["trustNotEvaluated", "timeMissing"]);
-    expect(viewReport(await verify("valid-pending-anchor.dseal")).hints).toEqual(["trustNotEvaluated", "timeUnsupported"]);
+    expect(viewReport(await verify("valid-pending-anchor.dseal")).hints).toEqual(["trustNotEvaluated", "timeOffline"]);
+    expect(viewReport(await verify("valid-pending-anchor.dseal"), { online: true }).hints).toEqual(["trustNotEvaluated", "timeUnsupported"]);
     expect(viewReport(await verify("crc-mismatch.dseal")).hints).toEqual([]);
   });
 });

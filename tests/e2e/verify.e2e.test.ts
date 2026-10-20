@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sealPackage, utf8 } from "@docseal/core";
 import { memoryKeyProvider } from "@docseal/sig-ed25519";
-import type { Page } from "playwright";
+import type { BrowserContext, Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { ENGINE_NAMES, golden, GOLDEN_SIGNER, goldenPath, launch, Site } from "./site";
 
@@ -30,7 +30,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     await site.browser.close();
   });
 
-  const open = (context?: { newPage(): Promise<Page> }) => site.open("", "[data-testid=package-input]", context);
+  const open = (context?: BrowserContext) => site.open("", "[data-testid=package-input]", context);
 
   /** Chooses `path` and waits for its report; returns what the page shows. */
   async function check(page: Page, path: string) {
@@ -84,7 +84,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
   });
 
   it("evaluates trust with the viewer's keys, keeps them, and exports them", async () => {
-    const context = await site.browser.newContext({ acceptDownloads: true });
+    const { context } = await site.context();
     const page = await open(context);
     let shown = await check(page, goldenPath("valid-basic.dseal"));
     expect(shown.axes.trust).toBe("not-evaluated");
@@ -129,7 +129,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
   });
 
   it("refuses to work inside a frame", async () => {
-    const page = await site.browser.newPage();
+    const page = await (await site.context()).context.newPage();
     await page.setContent(`<iframe src="${inject("siteUrl")}"></iframe>`);
     const frame = page.frameLocator("iframe");
     await frame.locator("main p").first().waitFor();

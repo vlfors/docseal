@@ -8,20 +8,9 @@ import type { Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readContainer } from "@docseal/core";
 import { collectFiles } from "../../apps/cli/src/files";
+import { openKey, PICK_IN_OPFS, savedPackage } from "./pages";
 import { ENGINE_NAMES, launch, Site } from "./site";
 import { cli, hasPython, PASSPHRASE, verifyWithCli, verifyWithPython } from "./verifiers";
-
-/**
- * Playwright cannot answer the native save dialog, so in Chromium it is replaced by one that
- * picks a file in the origin private file system: a real FileSystemFileHandle, written by the
- * worker through createWritable, as a file on disk would be.
- */
-const PICK_IN_OPFS = `
-  window.showSaveFilePicker = async (options) => {
-    const root = await navigator.storage.getDirectory();
-    return root.getFileHandle(options.suggestedName, { create: true });
-  };
-`;
 
 let dir: string;
 let cliKeyDid: string;
@@ -106,7 +95,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
   });
 
   it("creates a key, downloads it at once, and the CLI signs with it", async () => {
-    const context = await site.browser.newContext({ acceptDownloads: true });
+    const { context } = await site.context();
     const page = await site.open("seal/", "[data-testid=files-input]", context);
     await page.getByRole("tab", { name: "Create a new key" }).click();
     await page.locator("input[name=new-passphrase]").fill("short");
@@ -137,38 +126,15 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
 
   /** The seal page with the cheap key open and `files` chosen; downloads accepted. */
   async function ready(files: string[]) {
-    const context = await site.browser.newContext({ acceptDownloads: true });
-    if (name === "chromium") {
-      await context.addInitScript(PICK_IN_OPFS);
-    }
+    const { context } = await site.context(name === "chromium" ? { initScript: PICK_IN_OPFS } : {});
     const page = await site.open("seal/", "[data-testid=files-input]", context);
     expect(await page.locator("[data-testid=seal-button]").isDisabled()).toBe(true);
     await page.locator("[data-testid=files-input]").setInputFiles(files);
     expect(await page.locator("[data-testid=seal-blocked]").innerText()).toMatch(/signing key/);
-    await page.locator("[data-testid=key-file-input]").setInputFiles(join(dir, "fast.key"));
-    await page.locator("input[name=passphrase]").fill(PASSPHRASE);
-    await page.getByRole("button", { name: "Open the key" }).click();
-    await page.locator("[data-testid=signing-as]").waitFor();
+    await openKey(page, join(dir, "fast.key"));
+    // These packages carry no time proof; tests/e2e/time.e2e.test.ts covers the calendars.
+    await page.locator("input[name=timestamp]").uncheck();
     return { context, page };
-  }
-
-  /** The bytes of the package the page saved: from the private file system, or the download. */
-  async function savedPackage(page: Page, download: Promise<import("playwright").Download> | undefined, file: string): Promise<Uint8Array> {
-    if (download) {
-      await (await download).saveAs(file);
-      return new Uint8Array(await readFile(file));
-    }
-    const base64 = await page.evaluate(async () => {
-      const root = await navigator.storage.getDirectory();
-      const handle = await root.getFileHandle("package.dseal");
-      const bytes = new Uint8Array(await (await handle.getFile()).arrayBuffer());
-      let text = "";
-      for (const byte of bytes) text += String.fromCharCode(byte);
-      return btoa(text);
-    });
-    const bytes = Uint8Array.from(Buffer.from(base64, "base64"));
-    await writeFile(file, bytes);
-    return bytes;
   }
 
   it("seals and saves a package that the CLI and the Python verifier accept", { timeout: 120_000 }, async () => {
@@ -181,7 +147,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     expect(await page.locator("[data-testid=signing-as]").count()).toBe(0);
 
     const file = join(dir, `sealed-${name}.dseal`);
-    const bytes = await savedPackage(page, download, file);
+    const bytes = await savedPackage(page, download, "package.dseal", file);
     const accepted = { format: "valid", integrity: "valid", signature: "valid", trust: "trusted", time: "missing", completeness: "full" };
     expect(await verifyWithCli(file, join(dir, "trusted-keys.json"))).toEqual(accepted);
     if (hasPython) {

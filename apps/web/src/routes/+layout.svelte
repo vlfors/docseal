@@ -7,6 +7,7 @@
   import { LANGUAGES, MESSAGES } from "../lib/i18n/language";
   import type { Language } from "../lib/i18n/messages";
   import { initLanguage, language, setLanguage, t } from "../lib/i18n/state.svelte";
+  import { initChain } from "../lib/chain/state.svelte";
   import { initTrustedKeys } from "../lib/trust/state.svelte";
   import "../app.css";
 
@@ -22,6 +23,7 @@
     framed = isFramed(window);
     initLanguage();
     initTrustedKeys();
+    initChain();
   });
 </script>
 

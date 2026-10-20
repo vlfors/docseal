@@ -1,58 +1,31 @@
 // The work of the signer worker, apart from the worker itself so it can be tested in Node.js.
-import { MEDIA_TYPE, utf8, type ByteSink } from "@docseal/core";
+import { openTimestamps, type Fetch } from "@docseal/anchor-ots";
+import { utf8, type AnchorProvider } from "@docseal/core";
 import { createKeyFile, generateSecretKey, KeyFileError, openKeyFile, type KeyFileProgress } from "@docseal/sig-ed25519";
 import { sealFiles } from "../seal/seal";
-import type { SealOutput, SignerMessage, SignerRequest } from "./protocol";
+import { BROWSER_CALENDARS } from "../../../network.js";
+import { browserFetch } from "../network";
+import { openOutput, TooLarge, type Output } from "../output";
+import type { SignerMessage, SignerRequest } from "./protocol";
 
-export class TooLarge extends Error {
-  constructor(limit: number) {
-    super(`The package would be larger than ${String(limit)} bytes`);
-    this.name = "TooLarge";
-  }
+/** Too few calendars accepted the seal: sealing stops before anything is written. */
+class CalendarsFailed extends Error {
+  override name = "CalendarsFailed";
 }
 
-/** Where the package is written, and how to finish or give up. */
-interface Output extends ByteSink {
-  size(): number;
-  /** The finished package: the Blob for memory output. */
-  close(): Promise<Blob | undefined>;
-  abort(): Promise<void>;
-}
-
-async function openOutput(output: SealOutput): Promise<Output> {
-  let size = 0;
-  if (output.kind === "file") {
-    // Written to a swap file and moved into place by close(); abort() leaves the file untouched.
-    const writable = await output.handle.createWritable();
-    return {
-      async write(chunk) {
-        size += chunk.length;
-        await writable.write(chunk as Uint8Array<ArrayBuffer>);
-      },
-      size: () => size,
-      async close() {
-        await writable.close();
-        return undefined;
-      },
-      abort: () => writable.abort(),
-    };
-  }
-  const chunks: Uint8Array<ArrayBuffer>[] = [];
+/** OpenTimestamps over the calendars a browser can reach, and the ones that accepted. */
+function timestamping(base?: Fetch): { provider: AnchorProvider; accepted: readonly string[] } {
+  const fetch = browserFetch(base);
+  const provider = openTimestamps({ calendars: BROWSER_CALENDARS, fetch });
   return {
-    write(chunk) {
-      size += chunk.length;
-      if (size > output.limit) {
-        return Promise.reject(new TooLarge(output.limit));
-      }
-      chunks.push(chunk.slice());
-      return Promise.resolve();
+    provider: {
+      ...provider,
+      submit: (digest) =>
+        provider.submit(digest).catch((error: unknown) => {
+          throw new CalendarsFailed(error instanceof Error ? error.message : String(error));
+        }),
     },
-    size: () => size,
-    close: () => Promise.resolve(new Blob(chunks, { type: MEDIA_TYPE })),
-    abort: () => {
-      chunks.length = 0;
-      return Promise.resolve();
-    },
+    accepted: fetch.acceptedCalendars,
   };
 }
 
@@ -74,6 +47,8 @@ export class Signer {
     private readonly now: () => number = () => performance.now(),
     /** scrypt cost of a new key; only tests lower it. */
     private readonly scryptN?: number,
+    /** The network; only tests replace it. */
+    private readonly fetch?: Fetch,
   ) {}
 
   /** The seed, for sealing in this worker (task 8). */
@@ -123,11 +98,13 @@ export class Signer {
     try {
       output = await openOutput(request.output);
       let last = -Infinity;
+      const anchor = request.timestamp ? timestamping(this.fetch) : undefined;
       const info = await sealFiles(output, {
         files: request.files,
         secretKey,
         role: request.role,
         signal: sealing.signal,
+        ...(anchor && { anchors: [anchor.provider] }),
         onProgress: (read, total) => {
           if (read === total || this.now() - last >= PROGRESS_INTERVAL_MS) {
             last = this.now();
@@ -137,12 +114,27 @@ export class Signer {
       });
       const blob = await output.close();
       this.forget();
-      this.post({ type: "sealed", seal: info.seal, packageId: info.manifest.packageId, size: output.size(), ...(blob && { blob }) });
+      this.post({
+        type: "sealed",
+        seal: info.seal,
+        packageId: info.manifest.packageId,
+        size: output.size(),
+        calendars: [...(anchor?.accepted ?? [])],
+        ...(blob && { blob }),
+      });
     } catch (error) {
       this.forget();
       await output?.abort().catch(() => undefined);
       const message = error instanceof Error ? error.message : String(error);
-      const reason = sealing.signal.aborted ? "cancelled" : error instanceof TooLarge ? "too-large" : isChanged(error) ? "changed" : "other";
+      const reason = sealing.signal.aborted
+        ? "cancelled"
+        : error instanceof TooLarge
+          ? "too-large"
+          : error instanceof CalendarsFailed
+            ? "calendars"
+            : isChanged(error)
+              ? "changed"
+              : "other";
       this.post({ type: "failed", reason, message });
     } finally {
       this.sealing = undefined;

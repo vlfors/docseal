@@ -106,7 +106,7 @@ describe("Signer", () => {
       { path: "contract.pdf", file: new File(["%PDF contract"], "contract.pdf") },
       { path: "annex/приложение.txt", file: new File(["приложение"], "приложение.txt") },
     ];
-    await s.handle({ type: "seal", files, role: "author", output: { kind: "memory", limit: 1024 * 1024 } });
+    await s.handle({ type: "seal", files, role: "author", output: { kind: "memory", limit: 1024 * 1024 }, timestamp: false });
     const sealed = messages.at(-1);
     if (sealed?.type !== "sealed" || !sealed.blob) {
       throw new Error(JSON.stringify(sealed));
@@ -127,7 +127,7 @@ describe("Signer", () => {
     const container = await readContainer(new Uint8Array(await sealed.blob.arrayBuffer()));
     expect(new TextDecoder().decode(container.manifest)).toContain('"generator": "docseal-web/');
 
-    await s.handle({ type: "seal", files, role: "author", output: { kind: "memory", limit: 1024 * 1024 } });
+    await s.handle({ type: "seal", files, role: "author", output: { kind: "memory", limit: 1024 * 1024 }, timestamp: false });
     expect(messages.at(-1)).toEqual({ type: "failed", reason: "other", message: "No key is open" });
   });
 
@@ -139,7 +139,7 @@ describe("Signer", () => {
       size: 4,
       slice: () => ({ arrayBuffer: () => Promise.resolve(new TextEncoder().encode(reads++ === 0 ? "aaaa" : "bbbb").buffer) }),
     } as unknown as Blob;
-    await s.handle({ type: "seal", files: [{ path: "a.txt", file: changing }], role: "author", output: { kind: "memory", limit: 1024 * 1024 } });
+    await s.handle({ type: "seal", files: [{ path: "a.txt", file: changing }], role: "author", output: { kind: "memory", limit: 1024 * 1024 }, timestamp: false });
     expect(messages.at(-1)).toMatchObject({ type: "failed", reason: "changed" });
     expect(s.secretKey).toBeUndefined();
   });
@@ -147,7 +147,7 @@ describe("Signer", () => {
   it("stops sealing when cancelled, and erases the key", async () => {
     const { messages, s } = await openSigner();
     const big = new File([new Uint8Array(64 * 1024 * 1024)], "big.bin");
-    const sealing = s.handle({ type: "seal", files: [{ path: "big.bin", file: big }], role: "author", output: { kind: "memory", limit: 1024 ** 3 } });
+    const sealing = s.handle({ type: "seal", files: [{ path: "big.bin", file: big }], role: "author", output: { kind: "memory", limit: 1024 ** 3 }, timestamp: false });
     await s.handle({ type: "cancel" });
     await sealing;
     expect(messages.at(-1)).toMatchObject({ type: "failed", reason: "cancelled" });
@@ -156,7 +156,7 @@ describe("Signer", () => {
 
   it("refuses a package over the memory limit", async () => {
     const { messages, s } = await openSigner();
-    await s.handle({ type: "seal", files: [{ path: "a.bin", file: new File([new Uint8Array(4096)], "a.bin") }], role: "author", output: { kind: "memory", limit: 1000 } });
+    await s.handle({ type: "seal", files: [{ path: "a.bin", file: new File([new Uint8Array(4096)], "a.bin") }], role: "author", output: { kind: "memory", limit: 1000 }, timestamp: false });
     expect(messages.at(-1)).toMatchObject({ type: "failed", reason: "too-large" });
   });
 });

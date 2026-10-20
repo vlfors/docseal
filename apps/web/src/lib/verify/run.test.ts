@@ -1,14 +1,24 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { VerifyMessage, VerifyRequest } from "./protocol";
+import type { Fetch } from "@docseal/anchor-ots";
+import type { TrustedKey } from "@docseal/core";
+import { fakeNetwork } from "../../../../../tests/fake-network";
+import { Signer } from "../signer/run";
+import type { VerifyMessage } from "./protocol";
 import { PROGRESS_INTERVAL_MS, runVerification } from "./run";
 
 const PACKAGES = new URL("../../../../../spec/vectors/packages/", import.meta.url);
 const golden = (name: string) => new Blob([readFileSync(new URL(name, PACKAGES))]);
 
-async function run(request: VerifyRequest, now?: () => number): Promise<VerifyMessage[]> {
+/** Offline, a verification must not touch the network at all. */
+const noNetwork: Fetch = (url) => Promise.reject(new Error(`unexpected request to ${url}`));
+
+async function run(request: { file: Blob; trustedKeys?: readonly TrustedKey[] }, now?: () => number): Promise<VerifyMessage[]> {
   const messages: VerifyMessage[] = [];
-  await runVerification(request, (message) => messages.push(message), now);
+  await runVerification({ type: "verify", chain: { kind: "offline" }, ...request }, (message) => messages.push(message), {
+    fetch: noNetwork,
+    ...(now && { now }),
+  });
   return messages;
 }
 
@@ -72,5 +82,49 @@ describe("runVerification", () => {
   it("reports a trusted-key list that names a key twice as a failure", async () => {
     const messages = await run({ file: golden("valid-basic.dseal"), trustedKeys: [{ id: "did:key:z1" }, { id: "did:key:z1" }] });
     expect(messages.at(-1)).toEqual({ type: "failed", message: "Key did:key:z1 is listed twice" });
+  });
+
+  it("seals with a time proof, upgrades it once Bitcoin confirms, and then verifies as valid", async () => {
+    const network = fakeNetwork();
+    const messages: unknown[] = [];
+    const signer = new Signer((m) => messages.push(m), () => 0, 2 ** 10, network.fetch);
+    await signer.handle({ type: "generate", passphrase: "correct horse battery" });
+    const did = (messages.at(-1) as { did: string }).did;
+    await signer.handle({
+      type: "seal",
+      files: [{ path: "a.txt", file: new File(["document"], "a.txt") }],
+      role: "author",
+      output: { kind: "memory", limit: 1024 * 1024 },
+      timestamp: true,
+    });
+    const sealed = messages.at(-1) as { type: string; blob: Blob; calendars: string[] };
+    expect(sealed.type).toBe("sealed");
+    // Every calendar a browser can reach accepted it (the fake accepts any).
+    expect(sealed.calendars).toHaveLength(3);
+
+    const online = { kind: "esplora", urls: ["https://unreachable.test", "https://esplora.test"] } as const;
+    const verify = async (file: Blob) => {
+      const out: VerifyMessage[] = [];
+      await runVerification({ type: "verify", file, chain: online, trustedKeys: [{ id: did }] }, (m) => out.push(m), { fetch: network.fetch });
+      return reportOf(out);
+    };
+    const upgrade = async (file: Blob, save: boolean) => {
+      const out: VerifyMessage[] = [];
+      await runVerification({ type: "upgrade", file, ...(save && { output: { kind: "memory", limit: 1024 * 1024 } }) }, (m) => out.push(m), {
+        fetch: network.fetch,
+      });
+      return out.at(-1) as Extract<VerifyMessage, { type: "upgraded" }>;
+    };
+
+    expect((await verify(sealed.blob)).axes.time).toBe("pending");
+    expect(await upgrade(sealed.blob, false)).toEqual({ type: "upgraded", changed: false });
+    network.confirm();
+    expect(await upgrade(sealed.blob, false)).toEqual({ type: "upgraded", changed: true });
+    const saved = await upgrade(sealed.blob, true);
+    expect(saved).toMatchObject({ changed: true });
+    const report = await verify(saved.blob ?? new Blob());
+    expect(report.overall).toBe("valid");
+    // The source that answered is named; the unreachable one was skipped.
+    expect(report.anchors[0]?.source).toBe("esplora https://esplora.test");
   });
 });

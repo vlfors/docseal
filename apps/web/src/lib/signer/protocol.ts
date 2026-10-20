@@ -2,18 +2,16 @@
 // worker: the page sends a key file and its passphrase (or a passphrase for a new key) and
 // gets back the public key, and for a new key the encrypted key file to save. Then it sends
 // the documents once, and gets back the sealed package or the file it was written to.
+import type { PackageOutput } from "../output";
 import type { SealRequestFile } from "../seal/seal";
 
-/**
- * Where the package goes: a file picked with showSaveFilePicker, written as it is produced, or
- * memory, handed back as one Blob of at most `limit` bytes.
- */
-export type SealOutput = { kind: "file"; handle: FileSystemFileHandle } | { kind: "memory"; limit: number };
+export type SealOutput = PackageOutput;
 
 export type SignerRequest =
   | { type: "open"; keyFile: Uint8Array; passphrase: string }
   | { type: "generate"; passphrase: string }
-  | { type: "seal"; files: SealRequestFile[]; role: string; output: SealOutput }
+  /** `timestamp`: submit the seal to the calendars that accept requests from a browser. */
+  | { type: "seal"; files: SealRequestFile[]; role: string; output: SealOutput; timestamp: boolean }
   /** Stops a sealing: the output is aborted (a picked file is released) before the reply. */
   | { type: "cancel" };
 
@@ -25,10 +23,12 @@ export type SignerMessage =
   /** Bytes of the documents read while sealing (each is read twice), and the total. */
   | { type: "seal-progress"; read: number; total: number }
   /** The package is complete: in the picked file, or as `blob`. The key is already erased. */
-  | { type: "sealed"; seal: string; packageId: string; size: number; blob?: Blob }
+  /** `calendars`: the origins of the calendars that accepted the seal (none without a time proof). */
+  | { type: "sealed"; seal: string; packageId: string; size: number; calendars: string[]; blob?: Blob }
   /**
    * `passphrase`: wrong passphrase (or a damaged file); `file`: not a usable key file;
    * `changed`: a document changed or vanished while it was being sealed; `too-large`: over the
-   * memory limit; `cancelled`: stopped on request, the output already aborted.
+   * memory limit; `calendars`: too few calendars accepted the seal; `cancelled`: stopped on
+   * request, the output already aborted.
    */
-  | { type: "failed"; reason: "passphrase" | "file" | "changed" | "too-large" | "cancelled" | "other"; message: string };
+  | { type: "failed"; reason: "passphrase" | "file" | "changed" | "too-large" | "calendars" | "cancelled" | "other"; message: string };

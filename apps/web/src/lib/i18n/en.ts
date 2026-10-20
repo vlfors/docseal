@@ -47,6 +47,13 @@ export const en: Messages = {
     failed: "Sealing failed",
     seal_: "Seal digest",
     size: "Size",
+    timestamp: "Add a proof of time (OpenTimestamps, Bitcoin)",
+    timestampNote:
+      "Only the seal digest is sent, to public OpenTimestamps calendars; it reveals nothing about the documents. At least two must accept it.",
+    calendars: "Time proof submitted to",
+    noTimestamp: "No proof of time: the package was sealed without one.",
+    calendarsFailed: "Fewer than two calendars accepted the seal, so no package was saved. Try again later, or seal without a proof of time.",
+    pendingNote: "The proof is pending until Bitcoin confirms it, within a few hours. Then complete it on the Verify page.",
   },
 
   key: {
@@ -73,6 +80,31 @@ export const en: Messages = {
     shareTitle: "For the people who check your packages",
     shareNote: "They add this to their trusted keys (on the Verify page, or in a trusted-keys.json for the CLI):",
     devOnly: "A key file is for personal and development use. Keep production keys in an HSM, KMS, or hardware token.",
+  },
+
+  chain: {
+    title: "Bitcoin",
+    publicSources: "Check time proofs against Bitcoin through mempool.space, then blockstream.info",
+    custom: "Use my own Esplora instance",
+    customUrl: "Esplora API address",
+    offline: "Offline: do not check time proofs",
+    trustNote: "The source is trusted only to say which block is at a height; the proof itself is checked on this device, and the report names the source.",
+    privacyNote: "Checking asks the source for block headers, so it learns the block heights you look up, never the documents.",
+    invalidUrl: "Use an https:// address (or http://localhost for an instance on this computer).",
+  },
+
+  upgrade: {
+    title: "Complete the time proof",
+    intro: "Once Bitcoin has confirmed the seal, the calendars hand out the completed proof. The package is saved again with it; documents and signatures stay as they are.",
+    check: "Check for a completed proof",
+    checking: "Asking the calendars…",
+    notYet: "No completed proof yet. Bitcoin takes a few hours; a calendar that cannot be reached looks the same from a browser. Try again later.",
+    available: "A completed proof is available.",
+    save: "Save the upgraded package",
+    saving: (percent) => `Saving: ${String(percent)} %`,
+    saved: (name) => `Saved as ${name}; it is checked again below.`,
+    downloaded: (name) => `Downloaded as ${name}; it is checked again below.`,
+    failed: "The upgrade failed",
   },
 
   verify: {
@@ -140,9 +172,10 @@ export const en: Messages = {
   issueNote: "Messages come from the verifier and are in English.",
   hints: {
     trustNotEvaluated: "Trust was not evaluated: add the keys you accept under Trusted keys below.",
-    timePending: "The time proof is pending: Bitcoin confirms it within a few hours. Upgrade the package later with the DocSeal CLI (docseal upgrade).",
+    timePending: "The time proof is pending: Bitcoin confirms it within a few hours. Then complete it below.",
     timeMissing: "The package has no time proof: it was sealed without one.",
-    timeUnsupported: "The time proof could not be checked here: this page verifies offline for now. Check it with the DocSeal CLI.",
+    timeUnsupported: "The time proof could not be checked: no Bitcoin source answered (see the reason). Try again, or choose another source below.",
+    timeOffline: "The time proof was not checked: Bitcoin checking is off. Switch it on below.",
   },
   disclaimer:
     "DocSeal proves that the files are unchanged, that they were signed by the key shown, and that the signed state existed no later than the confirmed time. It does not prove who owns the key.",

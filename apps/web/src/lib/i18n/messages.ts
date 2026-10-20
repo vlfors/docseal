@@ -55,6 +55,12 @@ export interface Messages {
     failed: string;
     seal_: string;
     size: string;
+    timestamp: string;
+    timestampNote: string;
+    calendars: string;
+    noTimestamp: string;
+    calendarsFailed: string;
+    pendingNote: string;
   };
 
   key: {
@@ -81,6 +87,31 @@ export interface Messages {
     shareTitle: string;
     shareNote: string;
     devOnly: string;
+  };
+
+  chain: {
+    title: string;
+    publicSources: string;
+    custom: string;
+    customUrl: string;
+    offline: string;
+    trustNote: string;
+    privacyNote: string;
+    invalidUrl: string;
+  };
+
+  upgrade: {
+    title: string;
+    intro: string;
+    check: string;
+    checking: string;
+    notYet: string;
+    available: string;
+    save: string;
+    saving: (percent: number) => string;
+    saved: (name: string) => string;
+    downloaded: (name: string) => string;
+    failed: string;
   };
 
   verify: {
@@ -143,6 +174,7 @@ export interface Messages {
     timePending: string;
     timeMissing: string;
     timeUnsupported: string;
+    timeOffline: string;
   };
   disclaimer: string;
   unsafeCharacter: (code: string) => string;

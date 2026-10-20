@@ -1,8 +1,12 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import { toSetting } from "../lib/chain/setting";
+  import { chainChoice } from "../lib/chain/state.svelte";
+  import ChainSettings from "../lib/components/ChainSettings.svelte";
   import PackageText from "../lib/components/PackageText.svelte";
   import Report from "../lib/components/Report.svelte";
   import TrustedKeys from "../lib/components/TrustedKeys.svelte";
+  import UpgradePanel from "../lib/components/UpgradePanel.svelte";
   import { t } from "../lib/i18n/state.svelte";
   import { viewReport, type ReportView } from "../lib/report/view";
   import { trustedKeys } from "../lib/trust/state.svelte";
@@ -25,9 +29,11 @@
   function run(chosen: File) {
     task?.cancel();
     const keys = $state.snapshot(trustedKeys());
+    const chain = toSetting($state.snapshot(chainChoice()));
     const current = verifyInWorker(chosen, {
       // Without keys, trust is not evaluated (and the page says how to add them).
       ...(keys.length > 0 && { trustedKeys: keys }),
+      chain,
       onProgress: (read, total) => {
         if (task === current) {
           status = { kind: "checking", read, total };
@@ -39,7 +45,7 @@
     current.result.then(
       (report) => {
         if (task === current) {
-          status = { kind: "done", view: viewReport(report) };
+          status = { kind: "done", view: viewReport(report, { online: chain.kind !== "offline" }) };
         }
       },
       (error: unknown) => {
@@ -70,9 +76,10 @@
     input?.click();
   }
 
-  // A change to the trusted keys changes the trust verdict: verify the open package again.
+  // A change to the trusted keys or the Bitcoin source changes the verdict: verify again.
   $effect(() => {
     trustedKeys();
+    chainChoice();
     untrack(() => {
       if (file && status.kind !== "idle") {
         run(file);
@@ -152,8 +159,17 @@
     <p class="message error" role="alert" data-state="failed">{t().verify.failed}: <PackageText text={status.message} /></p>
   {:else if status.kind === "done"}
     <Report view={status.view} />
+    {#if status.view.pending && file}
+      <UpgradePanel
+        {file}
+        onupgraded={(upgraded: File) => {
+          choose(upgraded);
+        }}
+      />
+    {/if}
     <button type="button" onclick={another}>{t().verify.another}</button>
   {/if}
 
   <TrustedKeys />
+  <ChainSettings />
 </main>

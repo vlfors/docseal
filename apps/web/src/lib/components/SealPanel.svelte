@@ -2,24 +2,23 @@
   // Seals the chosen documents with the open key and saves the package: straight to a picked
   // file where the browser allows it, else built in memory and downloaded, up to a limit.
   import { resolve } from "$app/paths";
-  import { MEDIA_TYPE } from "@docseal/core";
   import { saveBlob } from "../download";
   import { formatSize } from "../i18n/language";
   import { language, t } from "../i18n/state.svelte";
   import { totalSize, type PlannedFile } from "../seal/files";
   import { canStreamToDisk, MEMORY_LIMIT, suggestedName } from "../seal/limits";
+  import { chooseTarget, discardTarget, type SaveTarget } from "../save";
   import { SealError, sealWithKey, type OpenKey, type Sealed, type SealTask } from "../signer/client";
-  import type { SealOutput } from "../signer/protocol";
   import PackageText from "./PackageText.svelte";
 
   let { planned, key = $bindable() }: { planned: PlannedFile[]; key?: OpenKey | undefined } = $props();
 
   let role = $state("author");
+  let timestamp = $state(true);
   let percent = $state<number | undefined>();
   let result = $state<{ sealed: Sealed; name: string; streamed: boolean } | undefined>();
   let message = $state("");
   let task: SealTask | undefined;
-  let picked: FileSystemFileHandle | undefined;
 
   const streaming = typeof window !== "undefined" && canStreamToDisk(window);
   const size = $derived(totalSize(planned));
@@ -41,27 +40,14 @@
     }
     message = "";
     result = undefined;
-    const name = suggestedName(planned.map((file) => file.path));
-    let output: SealOutput;
-    let savedName = name;
-    if (canStreamToDisk(window)) {
-      try {
-        picked = await window.showSaveFilePicker({
-          suggestedName: name,
-          types: [{ description: "DocSeal package", accept: { [MEDIA_TYPE]: [".dseal"] } }],
-        });
-      } catch {
-        // The picker was dismissed: nothing to do.
-        return;
-      }
-      output = { kind: "file", handle: picked };
-      savedName = picked.name;
-    } else {
-      output = { kind: "memory", limit: MEMORY_LIMIT };
+    const target: SaveTarget | undefined = await chooseTarget(suggestedName(planned.map((file) => file.path)));
+    if (!target) {
+      // The dialog was dismissed: nothing to do.
+      return;
     }
     const files = planned.map(({ path, file }) => ({ path, file }));
     percent = 0;
-    const current = sealWithKey(key, files, role.trim(), output, (read, total) => {
+    const current = sealWithKey(key, files, role.trim(), target.output, timestamp, (read, total) => {
       percent = total > 0 ? Math.floor((read / total) * 100) : 100;
     });
     task = current;
@@ -70,13 +56,13 @@
     try {
       const sealed = await current.result;
       if (sealed.blob) {
-        saveBlob(sealed.blob, savedName);
+        saveBlob(sealed.blob, target.name);
       }
-      result = { sealed, name: savedName, streamed: !sealed.blob };
+      result = { sealed, name: target.name, streamed: !sealed.blob };
     } catch (error) {
       // The worker must have released the picked file before it can be removed.
       await current.stopped;
-      await discardPicked();
+      await discardTarget(target);
       if (error instanceof SealError) {
         message =
           error.reason === "cancelled"
@@ -85,21 +71,16 @@
               ? t().sealing.changed
               : error.reason === "too-large"
                 ? `${t().sealing.tooLarge(formatSize(MEMORY_LIMIT, language()))} ${t().sealing.tooLargeHint}`
-                : `${t().sealing.failed}: ${error.message}`;
+                : error.reason === "calendars"
+                  ? `${t().sealing.calendarsFailed} (${error.message})`
+                  : `${t().sealing.failed}: ${error.message}`;
       } else {
         throw error;
       }
     } finally {
       percent = undefined;
       task = undefined;
-      picked = undefined;
     }
-  }
-
-  /** A picked file that did not receive a finished package is removed (Chromium can). */
-  async function discardPicked() {
-    const handle = picked as (FileSystemFileHandle & { remove?: () => Promise<void> }) | undefined;
-    await handle?.remove?.().catch(() => undefined);
   }
 </script>
 
@@ -110,6 +91,11 @@
     <input name="role" bind:value={role} autocomplete="off" />
     <span class="note">{t().sealing.roleNote}</span>
   </label>
+  <label class="check">
+    <input type="checkbox" name="timestamp" bind:checked={timestamp} />
+    {t().sealing.timestamp}
+  </label>
+  <p class="note">{t().sealing.timestampNote}</p>
   {#if !streaming}
     <p class="note">{t().sealing.memoryNote(formatSize(MEMORY_LIMIT, language()))}</p>
   {/if}
@@ -141,6 +127,12 @@
         <dt>{t().technical.packageId}</dt>
         <dd class="id">{result.sealed.packageId}</dd>
       </dl>
+      {#if result.sealed.calendars.length > 0}
+        <p data-testid="calendars">{t().sealing.calendars}: {result.sealed.calendars.map((origin) => new URL(origin).host).join(", ")}</p>
+        <p class="note">{t().sealing.pendingNote}</p>
+      {:else}
+        <p class="note">{t().sealing.noTimestamp}</p>
+      {/if}
       <p class="note">{t().sealing.keyClosed}</p>
       <p><a href={resolve("/")}>{t().sealing.verifyIt}</a></p>
     </div>

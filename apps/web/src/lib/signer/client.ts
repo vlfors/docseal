@@ -96,7 +96,7 @@ export function generateKey(passphrase: string, onProgress?: (share: number) => 
 
 export class SealError extends Error {
   constructor(
-    readonly reason: "changed" | "too-large" | "cancelled" | "other",
+    readonly reason: "changed" | "too-large" | "calendars" | "cancelled" | "other",
     message: string,
   ) {
     super(message);
@@ -108,6 +108,8 @@ export interface Sealed {
   seal: string;
   packageId: string;
   size: number;
+  /** Origins of the calendars that accepted the seal; empty without a time proof. */
+  calendars: string[];
   /** The package, for memory output; with file output it is already in the picked file. */
   blob?: Blob;
 }
@@ -132,6 +134,7 @@ export function sealWithKey(
   files: SealRequestFile[],
   role: string,
   output: SealOutput,
+  timestamp: boolean,
   onProgress?: (read: number, total: number) => void,
 ): SealTask {
   let settle: { resolve: (sealed: Sealed) => void; reject: (error: Error) => void } | undefined;
@@ -177,12 +180,21 @@ export function sealWithKey(
         break;
       case "sealed":
         finish({
-          sealed: { seal: message.seal, packageId: message.packageId, size: message.size, ...(message.blob && { blob: message.blob }) },
+          sealed: {
+            seal: message.seal,
+            packageId: message.packageId,
+            size: message.size,
+            calendars: message.calendars,
+            ...(message.blob && { blob: message.blob }),
+          },
         });
         break;
       case "failed":
         finish({
-          error: new SealError(message.reason === "changed" || message.reason === "too-large" ? message.reason : "other", message.message),
+          error: new SealError(
+            message.reason === "changed" || message.reason === "too-large" || message.reason === "calendars" ? message.reason : "other",
+            message.message,
+          ),
         });
         break;
       default:
@@ -193,7 +205,7 @@ export function sealWithKey(
     event.preventDefault();
     finish({ error: new SealError("other", event.message || "The sealing worker failed") });
   };
-  const request: SignerRequest = { type: "seal", files, role, output };
+  const request: SignerRequest = { type: "seal", files, role, output, timestamp };
   key.worker.postMessage(request);
   return {
     result,
