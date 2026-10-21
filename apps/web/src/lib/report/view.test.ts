@@ -51,6 +51,16 @@ describe("viewReport", () => {
     expect(signers?.kind === "signers" && signers.signers.length).toBe(2);
   });
 
+  it("sets apart an unchanged, correctly signed package from what it does not confirm", async () => {
+    const basic = viewReport(await verify("valid-basic.dseal"));
+    expect(basic.overall).toBe("indeterminate");
+    expect(basic.authentic).toBe(true);
+    expect(basic.unconfirmed).toEqual(["trust", "time"]);
+    const tampered = viewReport(await verify("tampered-content.dseal"));
+    expect(tampered.authentic).toBe(false);
+    expect(tampered.unconfirmed).toEqual([]);
+  });
+
   it("suggests next steps like the CLI, but never a time proof for a package that is not well-formed", async () => {
     expect(viewReport(await verify("valid-basic.dseal")).hints).toEqual(["trustNotEvaluated", "timeMissing"]);
     expect(viewReport(await verify("valid-pending-anchor.dseal")).hints).toEqual(["trustNotEvaluated", "timeOffline"]);

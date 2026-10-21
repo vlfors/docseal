@@ -27,8 +27,12 @@
   --bad-bg: #fdecea;
   --neutral: #8a5a00;
   --neutral-bg: #fdf4e3;
+  /* A state under way, not a problem: a time proof waiting for Bitcoin. */
+  --info: #2456c9;
+  --info-bg: #eaf0fc;
   --code-bg: #f0f1f3;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--sans);
   line-height: 1.5;
 }
 
@@ -46,6 +50,8 @@
     --bad-bg: #3a1916;
     --neutral: #f0c26b;
     --neutral-bg: #352a12;
+    --info: #7ea6ff;
+    --info-bg: #17223a;
     --code-bg: #26292d;
   }
 }
@@ -94,7 +100,7 @@ header.site .brand {
   text-decoration: none;
 }
 
-/* The two pages as a segmented control: the current one is filled. */
+/* The pages as a segmented control: the current one is filled. */
 .tabs-nav {
   display: inline-flex;
   flex: 1;
@@ -110,12 +116,15 @@ header.site .brand {
   text-decoration: none;
 }
 
+.tabs-nav a + a {
+  margin-left: -1px;
+}
+
 .tabs-nav a:first-child {
   border-radius: 0.5rem 0 0 0.5rem;
 }
 
 .tabs-nav a:last-child {
-  margin-left: -1px;
   border-radius: 0 0.5rem 0.5rem 0;
 }
 
@@ -207,6 +216,12 @@ button:disabled {
   cursor: default;
 }
 
+/* As button.small, for a label that opens a file dialog. */
+.button.small {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.9rem;
+}
+
 .button.primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -256,6 +271,10 @@ input {
   border: 2px dashed var(--border);
   border-radius: 0.6rem;
   background: var(--surface);
+}
+
+.dropzone:not(.compact) {
+  cursor: pointer;
 }
 
 .dropzone.dragging {
@@ -329,6 +348,29 @@ input {
   border-color: var(--neutral);
 }
 
+/* Unchanged and correctly signed: that in green, what is not confirmed below it, apart. */
+.verdict.authentic {
+  background: var(--good-bg);
+  border-color: var(--good);
+}
+
+.verdict.authentic h2 span {
+  margin-right: 0.4rem;
+  color: var(--good);
+}
+
+.verdict .unconfirmed {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.verdict .unconfirmed::before {
+  content: "• ";
+  color: var(--neutral);
+  font-weight: 700;
+}
+
 /* The six checks at a glance; the full table is folded below. */
 .chips {
   display: flex;
@@ -362,6 +404,13 @@ input {
 .chip.neutral {
   border-color: var(--neutral);
   color: var(--neutral);
+}
+
+/* In the short list of problem files and in the issues, the label is followed, not aligned. */
+.files:not(.all) .status,
+.issues .axis {
+  min-width: 0;
+  margin-right: 0.5rem;
 }
 
 .hints ul {
@@ -533,36 +582,67 @@ summary {
   margin-top: 0;
 }
 
+/* Tabs over a line, the chosen one underlined: nothing like a button, so the buttons in the
+   panel below are not taken for more tabs. */
 .tabs {
   display: flex;
-  gap: 0.5rem;
-  margin: 0.75rem 0;
+  flex-wrap: wrap;
+  margin: 0.75rem 0 1rem;
+  border-bottom: 1px solid var(--border);
 }
 
-/* Two choices joined, the chosen one filled, like the page tabs. */
-.tabs.segmented {
-  gap: 0;
-}
-
-.tabs.segmented button {
+.tabs [role="tab"] {
+  margin-bottom: -1px;
+  padding: 0.5rem 0.9rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
   border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
 }
 
-.tabs.segmented button:first-child {
-  border-radius: 0.5rem 0 0 0.5rem;
-}
-
-.tabs.segmented button:last-child {
-  margin-left: -1px;
-  border-radius: 0 0.5rem 0.5rem 0;
+.tabs [role="tab"]:hover {
+  color: var(--text);
 }
 
 .tabs [aria-selected="true"] {
-  position: relative;
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--bg);
-  font-weight: 600;
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+/* A file chosen as a form field: the field's name, and a box like an input with the file in it. */
+.file-field {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.file-box {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--surface);
+}
+
+.file-box .button {
+  flex: none;
+  background: var(--code-bg);
+}
+
+.file-box .file-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.file-box .placeholder {
+  color: var(--muted);
 }
 
 /* One field under another, in the order they are filled. */
@@ -613,8 +693,9 @@ summary {
   border-color: var(--accent);
 }
 
-.step.waiting {
-  opacity: 0.6;
+/* A waiting step is muted by colour, not transparency, so its text keeps its contrast. */
+.step.waiting h2 {
+  color: var(--muted);
 }
 
 .step-head {
@@ -666,6 +747,24 @@ summary {
   margin-top: 0;
 }
 
+.role-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+}
+
+.seal-panel .role select {
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.seal-panel .role-note {
+  margin-top: -0.5rem;
+}
+
 .seal-panel .role {
   display: flex;
   flex-direction: column;
@@ -709,6 +808,11 @@ button.primary {
   background: var(--neutral-bg);
 }
 
+.callout.info {
+  border-left-color: var(--info);
+  background: var(--info-bg);
+}
+
 .callout.good {
   border-left-color: var(--good);
   background: var(--good-bg);
@@ -745,9 +849,9 @@ button.primary {
 .upgrade-panel {
   margin: 1rem 0;
   padding: 1rem 1.25rem;
-  border-left: 0.4rem solid var(--neutral);
+  border-left: 0.4rem solid var(--info);
   border-radius: 0.6rem;
-  background: var(--neutral-bg);
+  background: var(--info-bg);
 }
 
 .upgrade-panel h3 {
@@ -771,8 +875,8 @@ button.primary {
   margin: 0.15rem 0 0;
 }
 
-.proof-stage.waiting {
-  opacity: 0.6;
+.proof-stage.waiting strong {
+  color: var(--muted);
 }
 
 .proof-mark {
@@ -973,8 +1077,47 @@ button.primary {
   margin-top: 1rem;
 }
 
-/* On a narrow screen each axis is a block: name and verdict on one line, the detail below. */
+/* A copy button beside an identifier, in the page's font rather than the identifier's. */
+button.copy {
+  margin-left: 0.35rem;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  vertical-align: baseline;
+}
+
+.share-id code {
+  overflow-wrap: anywhere;
+}
+
+/* On a narrow screen each axis is a block: name and verdict on one line, the detail below.
+   The header keeps the name and the language on one line and the page tabs on the next, full width. */
 @media (max-width: 40rem) {
+  header.site {
+    gap: 0.6rem;
+  }
+
+  header.site .language {
+    margin-left: auto;
+  }
+
+  .tabs-nav {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .tabs [role="tab"] {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .tabs-nav a {
+    flex: 1;
+    min-width: 0;
+    padding: 0.45rem 0.4rem;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
   .axes tr {
     display: grid;
     grid-template-columns: 1fr auto;

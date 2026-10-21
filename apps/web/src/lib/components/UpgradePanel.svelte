@@ -219,9 +219,9 @@
 
   <div class="upgrade-actions">
     {#if phase === "checking"}
-      <p role="status">{t().upgrade.checking}</p>
+      <div class="progress" role="status"><progress></progress> <span>{t().upgrade.checking}</span></div>
     {:else if phase === "rechecking"}
-      <p role="status">{t().upgrade.rechecking}</p>
+      <div class="progress" role="status"><progress></progress> <span>{t().upgrade.rechecking}</span></div>
     {:else if phase === "saving"}
       <div class="progress"><progress max="100" value={percent}></progress> <span>{t().upgrade.saving(percent)}</span></div>
     {:else}

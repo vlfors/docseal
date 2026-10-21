@@ -102,6 +102,13 @@
     });
   });
 
+  /** A click anywhere in the drop zone chooses a file, as its button does. */
+  function pick(event: MouseEvent) {
+    if (!(event.target instanceof Element && event.target.closest("label, button, a, input"))) {
+      input?.click();
+    }
+  }
+
   function drop(event: DragEvent) {
     event.preventDefault();
     dragging = false;
@@ -126,6 +133,8 @@
   <h1>{t().upgradePage.title}</h1>
   <p class="note">{t().upgradePage.intro}</p>
 
+  <!-- A click anywhere in the zone is a shortcut for the mouse; the button inside is the keyboard's way. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
   <div
     class={[dragging ? "dropzone dragging" : "dropzone", file && status.kind !== "idle" ? "compact" : ""].join(" ")}
     role="region"
@@ -136,6 +145,7 @@
     }}
     ondragleave={() => (dragging = false)}
     ondrop={drop}
+    onclick={pick}
   >
     {#if file && status.kind !== "idle"}
       <span class="file-name">{#if status.kind === "checking"}{`${t().verify.checking} `}{/if}<PackageText text={file.name} /></span>

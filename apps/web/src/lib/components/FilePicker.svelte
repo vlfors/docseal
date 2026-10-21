@@ -23,6 +23,13 @@
     chosen = chosen.filter((entry) => entry.file !== file);
   }
 
+  /** A click anywhere in the drop zone chooses files, as its first button does. */
+  function pick(event: MouseEvent) {
+    if (!(event.target instanceof Element && event.target.closest("label, button, a, input"))) {
+      filesInput?.click();
+    }
+  }
+
   async function drop(event: DragEvent) {
     event.preventDefault();
     dragging = false;
@@ -39,6 +46,8 @@
 </script>
 
 <div class="file-picker">
+  <!-- A click anywhere in the zone is a shortcut for the mouse; the buttons inside are the keyboard's way. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
   <div
     class={dragging ? "dropzone dragging" : "dropzone"}
     role="region"
@@ -49,6 +58,7 @@
     }}
     ondragleave={() => (dragging = false)}
     ondrop={drop}
+    onclick={pick}
   >
     <label class="button primary">
       {t().seal.chooseFiles}
@@ -86,9 +96,7 @@
     <p class="note" role="status">{t().seal.readingFolder}</p>
   {/if}
 
-  {#if planned.length === 0}
-    <p class="empty">{t().seal.empty}</p>
-  {:else}
+  {#if planned.length > 0}
     <p class="summary" data-testid="files-summary">
       {t().seal.summary(planned.length, formatSize(totalSize(planned), language()))}
       <button type="button" onclick={() => (chosen = [])}>{t().seal.clear}</button>

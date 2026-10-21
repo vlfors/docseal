@@ -11,11 +11,15 @@
   import type { SealStage } from "../seal/seal";
   import { SealError, sealWithKey, type OpenKey, type Sealed, type SealEvent, type SealTask } from "../signer/client";
   import { BROWSER_CALENDARS } from "../../../network.js";
+  import CopyButton from "./CopyButton.svelte";
   import PackageText from "./PackageText.svelte";
 
   let { planned, key = $bindable() }: { planned: PlannedFile[]; key?: OpenKey | undefined } = $props();
 
-  let role = $state("author");
+  /** The usual roles by name; any other is typed, in English like those. */
+  let roleChoice = $state<"author" | "approver" | "other">("author");
+  let customRole = $state("");
+  const role = $derived(roleChoice === "other" ? customRole : roleChoice);
   let timestamp = $state(true);
   let percent = $state<number | undefined>();
   /** The log of the last sealing: the steps begun, in order, and each calendar's answer. */
@@ -158,11 +162,23 @@
 </script>
 
 <div class="seal-panel">
-  <label class="role">
-    {t().sealing.role}
-    <input name="role" bind:value={role} autocomplete="off" />
-    <span class="note">{t().sealing.roleNote}</span>
-  </label>
+  <div class="role-fields">
+    <label class="role">
+      {t().sealing.role}
+      <select name="role" bind:value={roleChoice}>
+        <option value="author">{t().sealing.roles.author}</option>
+        <option value="approver">{t().sealing.roles.approver}</option>
+        <option value="other">{t().sealing.roles.other}</option>
+      </select>
+    </label>
+    {#if roleChoice === "other"}
+      <label class="role">
+        {t().sealing.roleCustom}
+        <input name="role-custom" bind:value={customRole} autocomplete="off" spellcheck="false" />
+      </label>
+    {/if}
+  </div>
+  <p class="note role-note">{t().sealing.roleNote}</p>
   <label class="check">
     <input type="checkbox" name="timestamp" bind:checked={timestamp} />
     {t().sealing.timestamp}
@@ -220,9 +236,9 @@
         <dt>{t().sealing.size}</dt>
         <dd>{formatSize(result.sealed.size, language())}</dd>
         <dt>{t().sealing.seal_}</dt>
-        <dd class="id">{result.sealed.seal}</dd>
+        <dd class="id">{result.sealed.seal} <CopyButton text={result.sealed.seal} label={t().sealing.seal_} /></dd>
         <dt>{t().technical.packageId}</dt>
-        <dd class="id">{result.sealed.packageId}</dd>
+        <dd class="id">{result.sealed.packageId} <CopyButton text={result.sealed.packageId} label={t().technical.packageId} /></dd>
       </dl>
       {#if result.sealed.calendars.length > 0}
         <p data-testid="calendars">{t().sealing.calendars}: {result.sealed.calendars.map((origin) => new URL(origin).host).join(", ")}</p>

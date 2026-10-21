@@ -5,18 +5,19 @@
   import type { Hint, ReportView } from "../report/view";
   import { clip, shortId } from "../text";
   import BlockLink from "./BlockLink.svelte";
+  import CopyButton from "./CopyButton.svelte";
   import PackageText from "./PackageText.svelte";
 
   let {
     view,
     onaction,
-    afterHints,
+    afterVerdict,
   }: {
     view: ReportView;
     /** A hint's button: open the trusted keys or the Bitcoin settings, or update the package. */
     onaction?: (action: "addKey" | "configure" | "upgrade") => void;
-    /** Shown right after the next steps: completing a pending time proof. */
-    afterHints?: Snippet;
+    /** Shown right under the verdict: completing a pending time proof. */
+    afterVerdict?: Snippet;
   } = $props();
 
   const ACTIONS: Partial<Record<Hint, "addKey" | "configure" | "upgrade">> = {
@@ -40,19 +41,31 @@
 </script>
 
 <section class="report" data-overall={view.overall} aria-live="polite">
-  <header class="verdict {view.overall}">
-    <h2>{t().overall[view.overall].headline}</h2>
-    <p>{t().overall[view.overall].explanation}</p>
-  </header>
+  {#if view.authentic}
+    <!-- What is proven first, in the colour of a good result; what is not, apart and neutral. -->
+    <header class="verdict authentic" data-testid="authentic">
+      <h2><span aria-hidden="true">✓</span>{t().authentic.headline}</h2>
+      {#if view.unconfirmed.length > 0}
+        <p class="unconfirmed">{t().authentic.unconfirmed}: {view.unconfirmed.map((axis) => t().authentic.axes[axis]).join("; ")}.</p>
+      {/if}
+    </header>
+  {:else}
+    <header class="verdict {view.overall}">
+      <h2>{t().overall[view.overall].headline}</h2>
+      <p>{t().overall[view.overall].explanation}</p>
+    </header>
+  {/if}
 
   <ul class="chips" aria-label={t().sections.checks}>
-    {#each view.axes as row (row.axis)}
+    <!-- Completeness is about the checks, not the package: shown only when some could not run. -->
+    {#each view.axes.filter((row) => row.axis !== "completeness" || row.tone !== "good") as row (row.axis)}
       <li class="chip {row.tone}" data-chip={row.axis}>
         <span aria-hidden="true">{MARK[row.tone]}</span>
         {t().axes[row.axis].name}: {(t().verdicts[row.axis] as Record<string, string>)[row.verdict]}
       </li>
     {/each}
   </ul>
+  {@render afterVerdict?.()}
 
   {#if view.problemFiles.length > 0}
     <section>
@@ -102,7 +115,6 @@
       </ul>
     </section>
   {/if}
-  {@render afterHints?.()}
 
   <details class="axes-details">
     <summary>{t().sections.checks}</summary>
@@ -228,7 +240,7 @@
       <dl class="record">
         {#each technical as [key, value] (key)}
           <dt>{t().technical[key]}</dt>
-          <dd class="id"><PackageText text={value} /></dd>
+          <dd class="id"><PackageText text={value} />{#if key === "packageId" || key === "seal"} <CopyButton text={value} label={t().technical[key]} />{/if}</dd>
         {/each}
       </dl>
     </details>

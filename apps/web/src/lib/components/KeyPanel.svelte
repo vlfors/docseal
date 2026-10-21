@@ -5,6 +5,7 @@
   import { t } from "../i18n/state.svelte";
   import { checkNewPassphrase, generateKey, KeyError, openKey, type KeyTask, type OpenKey } from "../signer/client";
   import { shortId } from "../text";
+  import CopyButton from "./CopyButton.svelte";
   import PackageText from "./PackageText.svelte";
 
   let { key = $bindable() }: { key?: OpenKey | undefined } = $props();
@@ -88,6 +89,20 @@
     }
   }
 
+  /** The two tabs, in order: arrow keys move between them, as in any tab list. */
+  const MODES = ["open", "new"] as const;
+
+  function moveTab(event: KeyboardEvent, from: (typeof MODES)[number]) {
+    const at = MODES.indexOf(from);
+    const next =
+      event.key === "ArrowRight" ? MODES[(at + 1) % MODES.length] : event.key === "ArrowLeft" ? MODES[(at + MODES.length - 1) % MODES.length] : event.key === "Home" ? MODES[0] : event.key === "End" ? MODES[MODES.length - 1] : undefined;
+    if (next !== undefined) {
+      event.preventDefault();
+      mode = next;
+      document.getElementById(`key-tab-${next}`)?.focus();
+    }
+  }
+
   function close() {
     key?.close();
     key = undefined;
@@ -102,53 +117,79 @@
     <p class="signing-as" data-testid="signing-as" data-did={key.did}>
       {t().key.ready}
       <code class="id" title={key.did}><PackageText text={shortId(key.did)} /></code>
+      <CopyButton text={key.did} label="did:key" />
       <button type="button" onclick={close}>{t().key.close}</button>
     </p>
     {#if created}
       <p class="message" role="status">{t().key.created}</p>
       <h3>{t().key.shareTitle}</h3>
       <p class="note">{t().key.shareNote}</p>
-      <pre class="share" data-testid="share-entry">{shareEntry}</pre>
+      <p class="share-id"><code class="id" data-testid="share-entry"><PackageText text={key.did} /></code> <CopyButton text={key.did} label="did:key" /></p>
+      <details>
+        <summary>{t().key.shareFile}</summary>
+        <pre class="share">{shareEntry}</pre>
+      </details>
     {/if}
     <p class="note">{t().key.keepPrivate}</p>
   {:else}
-    <div class="tabs segmented" role="tablist">
-      <button type="button" role="tab" aria-selected={mode === "open"} onclick={() => (mode = "open")}>{t().key.openTab}</button>
-      <button type="button" role="tab" aria-selected={mode === "new"} onclick={() => (mode = "new")}>{t().key.newTab}</button>
+    <div class="tabs" role="tablist" aria-label={t().key.title}>
+      {#each MODES as choice (choice)}
+        <button
+          type="button"
+          role="tab"
+          id="key-tab-{choice}"
+          aria-selected={mode === choice}
+          aria-controls="key-form-{choice}"
+          tabindex={mode === choice ? 0 : -1}
+          onclick={() => (mode = choice)}
+          onkeydown={(event) => {
+            moveTab(event, choice);
+          }}>{choice === "open" ? t().key.openTab : t().key.newTab}</button
+        >
+      {/each}
     </div>
 
-    {#if mode === "open"}
-      <form class="key-form" onsubmit={open}>
-        <label class="button">
-          {t().key.chooseKeyFile}
-          <input
-            type="file"
-            class="visually-hidden"
-            data-testid="key-file-input"
-            bind:this={keyFileInput}
-            onchange={() => (keyFileName = keyFileInput?.files?.[0]?.name ?? "")}
-          />
-        </label>
-        {#if keyFileName}<span class="file-name"><PackageText text={keyFileName} /></span>{/if}
-        <label>
-          {t().key.passphrase}
-          <input type="password" name="passphrase" autocomplete="current-password" bind:value={passphrase} required />
-        </label>
-        <button type="submit" disabled={!keyFileName || share !== undefined}>{t().key.open}</button>
-      </form>
-    {:else}
-      <form class="key-form" onsubmit={create}>
-        <label>
-          {t().key.passphrase}
-          <input type="password" name="new-passphrase" autocomplete="new-password" bind:value={passphrase} required />
-        </label>
-        <label>
-          {t().key.repeat}
-          <input type="password" name="repeat-passphrase" autocomplete="new-password" bind:value={repeated} required />
-        </label>
-        <button type="submit" disabled={share !== undefined}>{t().key.create}</button>
-      </form>
-    {/if}
+    <div id="key-form-{mode}" role="tabpanel" aria-labelledby="key-tab-{mode}">
+      {#if mode === "open"}
+        <form class="key-form" onsubmit={open}>
+          <!-- A form field, like the passphrase below it: its name above, a box with the file chosen. -->
+          <div class="file-field">
+            <span id="key-file-label">{t().key.keyFile}</span>
+            <div class="file-box">
+              <label class="button small">
+                {t().key.chooseKeyFile}
+                <input
+                  type="file"
+                  class="visually-hidden"
+                  aria-labelledby="key-file-label"
+                  data-testid="key-file-input"
+                  bind:this={keyFileInput}
+                  onchange={() => (keyFileName = keyFileInput?.files?.[0]?.name ?? "")}
+                />
+              </label>
+              {#if keyFileName}<span class="file-name"><PackageText text={keyFileName} /></span>{:else}<span class="placeholder">{t().key.noKeyFile}</span>{/if}
+            </div>
+          </div>
+          <label>
+            {t().key.passphrase}
+            <input type="password" name="passphrase" autocomplete="current-password" bind:value={passphrase} required />
+          </label>
+          <button type="submit" disabled={!keyFileName || share !== undefined}>{t().key.open}</button>
+        </form>
+      {:else}
+        <form class="key-form" onsubmit={create}>
+          <label>
+            {t().key.passphrase}
+            <input type="password" name="new-passphrase" autocomplete="new-password" bind:value={passphrase} required />
+          </label>
+          <label>
+            {t().key.repeat}
+            <input type="password" name="repeat-passphrase" autocomplete="new-password" bind:value={repeated} required />
+          </label>
+          <button type="submit" disabled={share !== undefined}>{t().key.create}</button>
+        </form>
+      {/if}
+    </div>
 
     {#if share !== undefined}
       <div class="progress">

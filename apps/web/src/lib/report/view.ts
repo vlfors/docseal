@@ -30,6 +30,13 @@ export type Hint = "trustNotEvaluated" | "timePending" | "timeMissing" | "timeUn
 
 export interface ReportView {
   overall: OverallVerdict;
+  /**
+   * An indeterminate package whose documents are unchanged and whose signatures verify: what is
+   * proven is shown apart from what is not (`unconfirmed`), rather than as one doubtful verdict.
+   */
+  authentic: boolean;
+  /** For an authentic package, the axes short of their strongest value. */
+  unconfirmed: ("trust" | "time" | "completeness")[];
   axes: AxisRow[];
   /** Files that are not unchanged, in the report's order. */
   problemFiles: FileResult[];
@@ -112,8 +119,17 @@ function hints(report: VerificationReport, online: boolean): Hint[] {
 
 /** `online`: whether a chain source was configured, which changes the advice on time. */
 export function viewReport(report: VerificationReport, options: { online?: boolean } = {}): ReportView {
+  const { axes } = report;
+  const authentic =
+    report.overall === "indeterminate" &&
+    axes.format === "valid" &&
+    axes.integrity === "valid" &&
+    axes.signature === "valid" &&
+    axes.trust !== "untrusted";
   return {
     overall: report.overall,
+    authentic,
+    unconfirmed: authentic ? (["trust", "time", "completeness"] as const).filter((axis) => axes[axis] !== STRONGEST[axis]) : [],
     axes: AXES.map((axis) => ({ axis, verdict: report.axes[axis], tone: tone(axis, report.axes[axis]), detail: detail(axis, report) })),
     problemFiles: report.files.filter((file) => file.status !== "valid"),
     files: report.files,

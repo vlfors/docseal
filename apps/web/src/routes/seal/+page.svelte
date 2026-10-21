@@ -62,7 +62,7 @@
     title={t().sealing.title}
     state={documentsReady && key ? "current" : "waiting"}
     always={reached}
-    waitingFor={documentsReady ? t().sealing.needKey : t().sealing.needFiles}
+    waitingFor={documentsReady ? t().sealing.needKey : t().sealing.needSteps}
   >
     <SealPanel {planned} bind:key />
   </Step>

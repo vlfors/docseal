@@ -64,7 +64,7 @@
   <footer class="site">
     <p>{t().footer}</p>
     <p class="meta" data-testid="build">
-      Format v{FORMAT_VERSION} ·
+      {t().formatVersion(String(FORMAT_VERSION))} ·
       {#if COMMIT}
         {t().builtFrom}
         <a href="https://github.com/vlfors/docseal/commit/{COMMIT}" rel="noopener noreferrer"><code>{COMMIT.slice(0, 12)}</code></a>

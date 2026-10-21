@@ -143,7 +143,7 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
 
   it("seals and saves a package that the CLI and the Python verifier accept", { timeout: 120_000 }, async () => {
     const { context, page } = await ready([join(dir, "contract", "main.pdf"), join(dir, "contract", "annex", "приложение.txt")]);
-    await page.locator("input[name=role]").fill("approver");
+    await page.locator("select[name=role]").selectOption("approver");
     const download = name === "chromium" ? undefined : page.waitForEvent("download");
     await page.locator("[data-testid=seal-button]").click();
     await page.locator("[data-testid=sealed]").waitFor();

@@ -116,6 +116,13 @@
     });
   });
 
+  /** A click anywhere in the drop zone chooses a file, as its button does. */
+  function pick(event: MouseEvent) {
+    if (!(event.target instanceof Element && event.target.closest("label, button, a, input"))) {
+      input?.click();
+    }
+  }
+
   function drop(event: DragEvent) {
     event.preventDefault();
     dragging = false;
@@ -140,6 +147,8 @@
 <main>
   <h1>{t().verify.title}</h1>
 
+  <!-- A click anywhere in the zone is a shortcut for the mouse; the button inside is the keyboard's way. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
   <div
     class={[dragging ? "dropzone dragging" : "dropzone", file && status.kind !== "idle" ? "compact" : ""].join(" ")}
     role="region"
@@ -150,6 +159,7 @@
     }}
     ondragleave={() => (dragging = false)}
     ondrop={drop}
+    onclick={pick}
   >
     {#if file && status.kind !== "idle"}
       <span class="file-name">{#if status.kind === "checking"}{`${t().verify.checking} `}{/if}<PackageText text={file.name} /></span>
@@ -187,14 +197,19 @@
   {:else if status.kind === "failed"}
     <p class="message error" role="alert" data-state="failed">{t().verify.failed}: <PackageText text={status.message} /></p>
   {:else if status.kind === "done"}
-    {#if status.view.pending}
-      <section class="callout warning" role="alert" data-testid="needs-upgrade">
-        <h2>{t().verify.needsUpgrade.title}</h2>
-        <p>{t().verify.needsUpgrade.text}</p>
-        <button type="button" class="primary" onclick={upgrade}>{t().verify.needsUpgrade.action}</button>
-      </section>
-    {/if}
-    <Report view={status.view} onaction={act} />
+    <!-- A pending proof is said once, under the verdict; its hint would only repeat it. -->
+    {@const view = status.view.pending ? { ...status.view, hints: status.view.hints.filter((hint) => hint !== "timePending") } : status.view}
+    <Report {view} onaction={act}>
+      {#snippet afterVerdict()}
+        {#if view.pending}
+          <section class="callout info" data-testid="needs-upgrade">
+            <h2>{t().verify.needsUpgrade.title}</h2>
+            <p>{t().verify.needsUpgrade.text}</p>
+            <button type="button" class="primary" onclick={upgrade}>{t().verify.needsUpgrade.action}</button>
+          </section>
+        {/if}
+      {/snippet}
+    </Report>
   {/if}
 
   <details class="settings" id="settings" bind:open={settingsOpen} bind:this={settings}>

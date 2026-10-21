@@ -15,6 +15,10 @@ export interface Messages {
   builtFrom: string;
   preview: string;
   localBuild: string;
+  formatVersion: (version: string) => string;
+  /** A button that copies an identifier, and what it says once it has. */
+  copy: string;
+  copied: string;
   nav: { verify: string; seal: string; upgrade: string };
 
   seal: {
@@ -31,15 +35,19 @@ export interface Messages {
     problems: (count: number) => string;
     collision: string;
     readingFolder: string;
-    empty: string;
   };
 
   sealing: {
     title: string;
     role: string;
+    /** The usual roles; the value written into the signature stays the English word. */
+    roles: { author: string; approver: string; other: string };
+    roleCustom: string;
     roleNote: string;
     seal: string;
     needFiles: string;
+    /** Step 3 while step 1 is not done either. */
+    needSteps: string;
     needKey: string;
     fixPaths: string;
     /** The steps of a sealing, as the log shows them. */
@@ -79,6 +87,7 @@ export interface Messages {
     newTab: string;
     keyFile: string;
     chooseKeyFile: string;
+    noKeyFile: string;
     passphrase: string;
     repeat: string;
     open: string;
@@ -95,6 +104,7 @@ export interface Messages {
     keepPrivate: string;
     shareTitle: string;
     shareNote: string;
+    shareFile: string;
     devOnly: string;
   };
 
@@ -154,7 +164,7 @@ export interface Messages {
     chooseAnother: string;
     settings: string;
     settingsSummary: (keys: number, chain: string) => string;
-    /** Shown above the report of a package whose time proof is not finished. */
+    /** Shown under the verdict of a package whose time proof is not finished. */
     needsUpgrade: { title: string; text: string; action: string };
   };
 
@@ -171,6 +181,8 @@ export interface Messages {
   };
 
   overall: Record<OverallVerdict, { headline: string; explanation: string }>;
+  /** The verdict of an indeterminate package that is unchanged and correctly signed. */
+  authentic: { headline: string; unconfirmed: string; axes: { trust: string; time: string; completeness: string } };
   axes: Record<Axis, { name: string; question: string }>;
   verdicts: { [A in Axis]: Record<AxisVerdicts[A], string> };
   details: {
