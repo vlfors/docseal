@@ -44,8 +44,8 @@
     <a class="brand" href={resolve("/")}>DocSeal</a>
     <nav class="tabs-nav" aria-label="DocSeal">
       <a href={resolve("/")} aria-current={current("/")}>{t().nav.verify}</a>
-      <a href={resolve("/seal")} aria-current={current("/seal")}>{t().nav.seal}</a>
       <a href={resolve("/upgrade")} aria-current={current("/upgrade")}>{t().nav.upgrade}</a>
+      <a href={resolve("/seal")} aria-current={current("/seal")}>{t().nav.seal}</a>
     </nav>
     <select
       class="language"
