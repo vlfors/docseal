@@ -16,7 +16,7 @@
   const COMMIT = /^[0-9a-f]{40}$/.test(__DOCSEAL_COMMIT__) ? __DOCSEAL_COMMIT__ : "";
 
   /** Marks the link of the page being shown (paths end in a slash: trailingSlash is "always"). */
-  const current = (route: "/" | "/seal") => (page.url.pathname.replace(/\/$/, "") === resolve(route).replace(/\/$/, "") ? "page" : undefined);
+  const current = (route: "/" | "/seal" | "/upgrade") => (page.url.pathname.replace(/\/$/, "") === resolve(route).replace(/\/$/, "") ? "page" : undefined);
 
   // A <meta> CSP cannot forbid framing, so the page refuses to work inside a frame: another site
   // could otherwise lay its own buttons or verdict over ours.
@@ -45,6 +45,7 @@
     <nav class="tabs-nav" aria-label="DocSeal">
       <a href={resolve("/")} aria-current={current("/")}>{t().nav.verify}</a>
       <a href={resolve("/seal")} aria-current={current("/seal")}>{t().nav.seal}</a>
+      <a href={resolve("/upgrade")} aria-current={current("/upgrade")}>{t().nav.upgrade}</a>
     </nav>
     <select
       class="language"

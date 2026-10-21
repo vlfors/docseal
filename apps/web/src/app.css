@@ -700,6 +700,29 @@ button.primary {
   margin-top: 0;
 }
 
+/* A notice above a report or on the update page: a package to update, or one complete. */
+.callout {
+  margin: 1rem 0;
+  padding: 1rem 1.25rem;
+  border-left: 0.4rem solid var(--neutral);
+  border-radius: 0.6rem;
+  background: var(--neutral-bg);
+}
+
+.callout.good {
+  border-left-color: var(--good);
+  background: var(--good-bg);
+}
+
+.callout h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.callout p {
+  margin: 0 0 0.75rem;
+}
+
 /* Bitcoin source and upgrades. */
 .field {
   display: flex;

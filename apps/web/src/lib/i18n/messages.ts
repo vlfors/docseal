@@ -15,7 +15,7 @@ export interface Messages {
   builtFrom: string;
   preview: string;
   localBuild: string;
-  nav: { verify: string; seal: string };
+  nav: { verify: string; seal: string; upgrade: string };
 
   seal: {
     title: string;
@@ -56,6 +56,7 @@ export interface Messages {
     downloaded: (name: string) => string;
     keyClosed: string;
     verifyIt: string;
+    upgradeIt: string;
     changed: string;
     tooLarge: (limit: string) => string;
     tooLargeHint: string;
@@ -153,6 +154,20 @@ export interface Messages {
     chooseAnother: string;
     settings: string;
     settingsSummary: (keys: number, chain: string) => string;
+    /** Shown above the report of a package whose time proof is not finished. */
+    needsUpgrade: { title: string; text: string; action: string };
+  };
+
+  /** The page that completes a package's pending time proof. */
+  upgradePage: {
+    title: string;
+    intro: string;
+    done: string;
+    doneDetail: (time: string) => string;
+    verifyFully: string;
+    missing: string;
+    invalid: string;
+    unsupported: string;
   };
 
   overall: Record<OverallVerdict, { headline: string; explanation: string }>;
@@ -213,6 +228,7 @@ export interface Messages {
   hintActions: {
     addKey: string;
     configure: string;
+    upgrade: string;
   };
   disclaimer: string;
   unsafeCharacter: (code: string) => string;

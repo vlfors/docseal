@@ -232,6 +232,7 @@
       {/if}
       <p class="note">{t().sealing.keyClosed}</p>
       <p><a href={resolve("/")}>{t().sealing.verifyIt}</a></p>
+      {#if result.sealed.calendars.length > 0}<p><a href={resolve("/upgrade")}>{t().sealing.upgradeIt}</a></p>{/if}
     </div>
   {/if}
 </div>

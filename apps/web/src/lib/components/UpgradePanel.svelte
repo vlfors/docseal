@@ -4,6 +4,7 @@
   // viewer's action the upgraded package is saved and handed back to be verified again. While
   // the page is open, checks can repeat on their own; nothing runs once it is closed.
   import { DEFAULT_MIN_CONFIRMATIONS } from "@docseal/anchor-ots";
+  import { onMount } from "svelte";
   import type { AnchorReport } from "@docseal/core";
   import { saveBlob } from "../download";
   import { language, t } from "../i18n/state.svelte";
@@ -20,6 +21,7 @@
     seal,
     chain,
     auto = $bindable(false),
+    checkOnOpen = false,
     onupgraded,
     onrecheck,
   }: {
@@ -31,6 +33,8 @@
     chain: ChainSetting;
     /** Whether checks repeat on their own; kept by the page across verifications. */
     auto?: boolean;
+    /** Ask the calendars as soon as the panel appears. */
+    checkOnOpen?: boolean;
     onupgraded: (upgraded: File) => void;
     /** The package already holds a proof that is now confirmed: verify it again. */
     onrecheck: () => void;
@@ -131,6 +135,10 @@
       }
     }
   }
+
+  onMount(() => {
+    if (checkOnOpen) void check();
+  });
 
   // Repeated checks, while asked for and while there is something to wait for. The first comes
   // a full interval after the panel appears: it appears again after each verification.

@@ -13,14 +13,15 @@
     afterHints,
   }: {
     view: ReportView;
-    /** A hint's button: open the trusted keys, or the Bitcoin settings. */
-    onaction?: (action: "addKey" | "configure") => void;
+    /** A hint's button: open the trusted keys or the Bitcoin settings, or update the package. */
+    onaction?: (action: "addKey" | "configure" | "upgrade") => void;
     /** Shown right after the next steps: completing a pending time proof. */
     afterHints?: Snippet;
   } = $props();
 
-  const ACTIONS: Partial<Record<Hint, "addKey" | "configure">> = {
+  const ACTIONS: Partial<Record<Hint, "addKey" | "configure" | "upgrade">> = {
     trustNotEvaluated: "addKey",
+    timePending: "upgrade",
     timeOffline: "configure",
     timeUnsupported: "configure",
   };

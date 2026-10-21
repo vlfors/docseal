@@ -1,7 +1,7 @@
 /**
  * Time proofs in the browser, on the fake network of tests/e2e/network.ts: a package is sealed
- * and submitted to the calendars, shows as pending, is upgraded once Bitcoin "confirms" it, and
- * then verifies as valid, all on the site. Run with `pnpm test:e2e`.
+ * and submitted to the calendars, shows as pending with a warning, is upgraded on the update page
+ * once Bitcoin "confirms" it, and then verifies as valid, all on the site. Run with `pnpm test:e2e`.
  */
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -95,10 +95,14 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     const verify = await site.open("", "[data-testid=package-input]", context);
     await verify.locator("[data-testid=package-input]").setInputFiles(path);
     await verify.locator("[data-axis=time][data-verdict=pending]").waitFor({ state: "attached" });
-    // Sent to the calendars, waiting for a block.
+    // The original package: the verify page warns that it needs an update, and hands it over.
+    await verify.locator("[data-testid=needs-upgrade]").waitFor();
+    expect(await verify.locator(".upgrade-panel").count()).toBe(0);
+    await verify.locator("[data-testid=needs-upgrade] button").click();
+    await verify.waitForURL(/\/upgrade\/$/);
+    // Sent to the calendars, waiting for a block; the calendars are asked at once.
     expect(await verify.locator(".upgrade-panel").getAttribute("data-stage")).toBe("submitted");
     expect(await verify.locator("[data-proof-stage=in-block]").getAttribute("class")).toContain("current");
-    await verify.locator("[data-testid=upgrade-check]").click();
     await verify.locator("[data-testid=upgrade-not-yet]").waitFor();
 
     network.confirm();
@@ -111,14 +115,18 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
     expect(await verify.locator(".upgrade-panel").getAttribute("data-stage")).toBe("confirmed");
     const saved = name === "chromium" ? undefined : verify.waitForEvent("download");
     await verify.locator("[data-testid=upgrade-save]").click();
-    // The upgraded package is checked again at once.
-    await verify.locator(".report[data-overall=valid]").waitFor();
+    // The upgraded package is checked again at once: nothing more to update.
+    await verify.locator("[data-testid=upgrade-done]").waitFor();
+    expect(await verify.locator("[data-testid=upgrade-done]").innerText()).toContain("Block 900000");
     const upgraded = await savedPackage(verify, saved, `pending-${name}.dseal`, join(dir, `upgraded-${name}.dseal`));
     expect(upgraded.length).toBeGreaterThan(0);
+    // Back on the verify page with the upgraded package: valid, the block named in the report.
+    await verify.locator("[data-testid=upgrade-done] button").click();
+    await verify.locator(".report[data-overall=valid]").waitFor();
+    expect(await verify.locator("[data-testid=needs-upgrade]").count()).toBe(0);
+    expect(await verify.locator("[data-testid=anchor-block]").textContent()).toContain("900000");
     await site.expectClean(seal);
     await site.expectClean(verify);
-    // The block is named in the report too.
-    expect(await verify.locator("[data-testid=anchor-block]").textContent()).toContain("900000");
     await context.close();
   });
 
@@ -133,12 +141,15 @@ describe.each(ENGINE_NAMES)("%s", (name) => {
 
     const { context } = await site.context({ network, storage: { "docseal.chain": PUBLIC, "docseal.trustedKeys": trusted() } });
     await context.clock.install();
-    const page = await site.open("", "[data-testid=package-input]", context);
+    const page = await site.open("upgrade/", "[data-testid=package-input]", context);
     await page.locator("[data-testid=package-input]").setInputFiles(path);
-    await page.locator("input[name=auto-check]").check();
-    // Turning it on checks at once.
+    // A package chosen here is checked at once.
     await page.locator("[data-testid=upgrade-not-yet]").waitFor();
     const asked = () => network.requests.filter((request) => request.includes("/timestamp/")).length;
+    const opened = asked();
+    // So is turning on the repeated checks.
+    await page.locator("input[name=auto-check]").check();
+    await expect.poll(asked).toBeGreaterThan(opened);
     const before = asked();
 
     network.confirm();

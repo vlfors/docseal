@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { tick, untrack } from "svelte";
+  import { resolve } from "$app/paths";
+  import { goto } from "$app/navigation";
+  import { onMount, tick, untrack } from "svelte";
   import { toSetting } from "../lib/chain/setting";
   import { chainChoice } from "../lib/chain/state.svelte";
   import ChainSettings from "../lib/components/ChainSettings.svelte";
   import PackageText from "../lib/components/PackageText.svelte";
   import Report from "../lib/components/Report.svelte";
   import TrustedKeys from "../lib/components/TrustedKeys.svelte";
-  import UpgradePanel from "../lib/components/UpgradePanel.svelte";
+  import { handOver, takeHanded } from "../lib/handoff";
   import { t } from "../lib/i18n/state.svelte";
   import { viewReport, type ReportView } from "../lib/report/view";
   import { trustedKeys } from "../lib/trust/state.svelte";
@@ -26,15 +28,17 @@
   let task: VerificationTask | undefined;
   let settingsOpen = $state(false);
   let settings: HTMLDetailsElement | undefined = $state();
-  /** Whether a pending time proof is checked again on its own; kept across verifications. */
-  let autoCheck = $state(false);
 
   const chainLabel = $derived(
     chainChoice().mode === "public" ? "mempool.space" : chainChoice().mode === "custom" ? chainChoice().url || t().chain.custom : t().chain.offline,
   );
 
-  /** A hint's button: open the settings at the trusted keys or at the Bitcoin source. */
-  async function act(action: "addKey" | "configure") {
+  /** A hint's button: open the settings at the trusted keys or at the Bitcoin source, or update. */
+  async function act(action: "addKey" | "configure" | "upgrade") {
+    if (action === "upgrade") {
+      await upgrade();
+      return;
+    }
     settingsOpen = true;
     await tick();
     settings?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -80,6 +84,19 @@
       run(chosen);
     }
   }
+
+  /** The time proof is not finished: complete it on the update page, with the same file. */
+  async function upgrade() {
+    if (file) {
+      handOver(file);
+      await goto(resolve("/upgrade"));
+    }
+  }
+
+  // A package handed over by the update page, once its proof is complete.
+  onMount(() => {
+    choose(takeHanded());
+  });
 
   function cancel() {
     task?.cancel();
@@ -170,25 +187,14 @@
   {:else if status.kind === "failed"}
     <p class="message error" role="alert" data-state="failed">{t().verify.failed}: <PackageText text={status.message} /></p>
   {:else if status.kind === "done"}
-    <Report view={status.view} onaction={act}>
-      {#snippet afterHints()}
-        {#if status.kind === "done" && status.view.pending && file}
-          <UpgradePanel
-            {file}
-            anchors={status.view.anchors}
-            seal={status.view.technical.seal}
-            chain={status.chain}
-            bind:auto={autoCheck}
-            onupgraded={(upgraded: File) => {
-              choose(upgraded);
-            }}
-            onrecheck={() => {
-              if (file) run(file);
-            }}
-          />
-        {/if}
-      {/snippet}
-    </Report>
+    {#if status.view.pending}
+      <section class="callout warning" role="alert" data-testid="needs-upgrade">
+        <h2>{t().verify.needsUpgrade.title}</h2>
+        <p>{t().verify.needsUpgrade.text}</p>
+        <button type="button" class="primary" onclick={upgrade}>{t().verify.needsUpgrade.action}</button>
+      </section>
+    {/if}
+    <Report view={status.view} onaction={act} />
   {/if}
 
   <details class="settings" id="settings" bind:open={settingsOpen} bind:this={settings}>

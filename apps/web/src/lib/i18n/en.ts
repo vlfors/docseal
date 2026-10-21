@@ -7,7 +7,7 @@ export const en: Messages = {
   builtFrom: "Built from commit",
   preview: "Preview: a version for testing, not a release. Use it with test documents and keys.",
   localBuild: "A local build, not a release.",
-  nav: { verify: "Verify", seal: "Seal" },
+  nav: { verify: "Verify", seal: "Seal", upgrade: "Update" },
 
   seal: {
     title: "Seal documents",
@@ -52,6 +52,7 @@ export const en: Messages = {
     downloaded: (name) => `Downloaded as ${name}.`,
     keyClosed: "The key was closed after sealing: open it again to seal another package.",
     verifyIt: "Check it on the Verify page",
+    upgradeIt: "Follow the time proof on the Update page",
     changed: "A document changed or became unreadable while it was being sealed, so no package was saved. Choose it again and seal once more.",
     tooLarge: (limit) => `This browser builds the package in memory, and the documents are larger than ${limit}.`,
     tooLargeHint: "Chrome and Edge save large packages straight to disk; the DocSeal CLI has no limit.",
@@ -65,7 +66,7 @@ export const en: Messages = {
     calendars: "Time proof submitted to",
     noTimestamp: "No proof of time: the package was sealed without one.",
     calendarsFailed: "Fewer than two calendars accepted the seal, so no package was saved. Try again later, or seal without a proof of time.",
-    pendingNote: "The proof is pending until Bitcoin confirms it, within a few hours. Open the package on the Verify page to follow it and complete it.",
+    pendingNote: "The package holds only the calendars' receipt for now. Bitcoin confirms it within a few hours; then open the package on the Update page to save the completed proof into it.",
   },
 
   key: {
@@ -156,6 +157,22 @@ export const en: Messages = {
     chooseAnother: "Choose another",
     settings: "Verification settings",
     settingsSummary: (keys, chain) => `Trusted keys: ${String(keys)} · Bitcoin: ${chain}`,
+    needsUpgrade: {
+      title: "This package needs an update",
+      text: "Its time proof is not finished: it holds the calendars' receipt, not the proof from Bitcoin, as a package does right after sealing. Until the completed proof is saved into it, the time cannot be confirmed.",
+      action: "Update the package",
+    },
+  },
+
+  upgradePage: {
+    title: "Update a package",
+    intro: "A package sealed with a time proof first holds only the calendars' receipt. Here the completed proof is fetched from the calendars, checked against Bitcoin, and saved into the package.",
+    done: "The time proof is complete",
+    doneDetail: (time) => `The package existed no later than ${time}. Nothing more to update.`,
+    verifyFully: "Check the whole package",
+    missing: "This package has no time proof, and none can be added after sealing: seal the documents again with a time proof.",
+    invalid: "The time proof in this package is false, and nothing can complete it. The Verify page shows why.",
+    unsupported: "The time proof cannot be checked against Bitcoin here. Choose a Bitcoin source in the settings below.",
   },
 
   overall: {
@@ -217,12 +234,12 @@ export const en: Messages = {
   issueNote: "Messages come from the verifier and are in English.",
   hints: {
     trustNotEvaluated: "Trust was not evaluated: you have not added the keys you trust. Add a signer's key only after confirming it with them.",
-    timePending: "The time proof is waiting for Bitcoin, which takes a few hours. Below: how far it has come.",
+    timePending: "The time proof is not finished: the package holds only the calendars' receipt. Update the package once Bitcoin has the proof, usually a few hours after sealing.",
     timeMissing: "The package has no time proof: it was sealed without one.",
     timeUnsupported: "The time proof could not be checked: no Bitcoin source answered (see the reason).",
     timeOffline: "The time proof was not checked: Bitcoin checking is off.",
   },
-  hintActions: { addKey: "Add a trusted key", configure: "Bitcoin settings" },
+  hintActions: { addKey: "Add a trusted key", configure: "Bitcoin settings", upgrade: "Update the package" },
   disclaimer:
     "DocSeal proves that the files are unchanged, that they were signed by the key shown, and that the signed state existed no later than the confirmed time. It does not prove who owns the key.",
   unsafeCharacter: (code) => `Invisible or reordering character ${code}, shown as its code`,
