@@ -50,6 +50,8 @@ describe("release metadata", () => {
     // The job that can publish never checks out or installs anything, and runs no package scripts.
     expect(publish).not.toMatch(/actions\/checkout|pnpm|pip install|scripts\//);
     expect(publish).toContain("--ignore-scripts");
+    // npm is opt-in: a release without it still makes the GitHub release and deploys the site.
+    expect(publish).toMatch(/- name: Publish to npm\n {8}if: vars\.NPM_PUBLISH == 'true'\n/);
     // The job that runs project and dependency code gets no secrets and no write access.
     expect(build).not.toMatch(/secrets\.|permissions:|environment:/);
     expect(workflow).toMatch(/^permissions:\n {2}contents: read\n/m);

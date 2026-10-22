@@ -9,6 +9,9 @@ name: Release
 # `build`, which holds no credentials. `publish` holds them and runs no project code: no
 # checkout, no install; it only publishes the tarballs `build` handed over.
 #
+# Publishing to npm is off until the repository variable NPM_PUBLISH is "true"; without it,
+# a tag still makes the GitHub release, with the tarballs attached, and deploys the site.
+#
 # Run by hand (Actions → Release → Run workflow), it is a rehearsal: `build` runs in full for
 # the version in package.json, and `rehearse` checks the tarballs and runs `npm publish
 # --dry-run` without any credentials. Nothing is published, attested, or released.
@@ -98,6 +101,7 @@ jobs:
       # fallback while it is not configured on npmjs.com. --ignore-scripts: a tarball's
       # lifecycle scripts must not run where the credentials are.
       - name: Publish to npm
+        if: vars.NPM_PUBLISH == 'true'
         run: |
           for name in core sig-ed25519 anchor-ots cli; do
             npm publish "./release/docseal-$name-${GITHUB_REF_NAME#v}.tgz" --provenance --access public --ignore-scripts
