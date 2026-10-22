@@ -37,7 +37,7 @@ All packages are released together, with one version, by pushing a tag. The work
 
 ## A preview before a release
 
-To let people try the web app before anything is released: Actions → Preview → Run workflow, on `main`. [`preview.yml`](../.github/workflows/preview.yml) builds the site from `main` and deploys it to GitHub Pages; nothing goes to npm and no release is made. Every page carries a banner saying it is a preview, and its footer names the commit. The address is public to anyone who has it. The next release, or the next preview, replaces it.
+To let people try the web app from `main`: Actions → Preview → Run workflow, on `main`. [`preview.yml`](../.github/workflows/preview.yml) builds the site from `main` and deploys it to GitHub Pages at `/docseal/preview/`; nothing goes to npm and no release is made. Every page carries a banner saying it is a preview, linking to the release, and its footer names the commit. GitHub Pages serves one site per repository, so the workflow deploys the latest release's site with it, unchanged at `/docseal/`: taken from the GitHub release and checked against its `SHA256SUMS` and build attestation first. Before the first release, `/docseal/` only points to the preview. The address is public to anyone who has it. The next preview replaces it; the next release removes it.
 
 ## Verifying a release
 

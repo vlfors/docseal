@@ -6,6 +6,7 @@ export const en: Messages = {
   footer: "DocSeal checks packages on this device. Files and keys never leave the browser.",
   builtFrom: "Built from commit",
   preview: "Preview: a version for testing, not a release. Use it with test documents and keys.",
+  previewRelease: (version) => `The released version, DocSeal ${version} →`,
   localBuild: "A local build, not a release.",
   formatVersion: (version) => `Format v${version}`,
   copy: "Copy",

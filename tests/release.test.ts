@@ -52,6 +52,8 @@ describe("release metadata", () => {
     expect(publish).toContain("--ignore-scripts");
     // npm is opt-in: a release without it still makes the GitHub release and deploys the site.
     expect(publish).toMatch(/- name: Publish to npm\n {8}if: vars\.NPM_PUBLISH == 'true'\n/);
+    // The released site names its version.
+    expect(build).toContain('DOCSEAL_VERSION="${TAG#v}" pnpm --filter @docseal/web build');
     // The job that runs project and dependency code gets no secrets and no write access.
     expect(build).not.toMatch(/secrets\.|permissions:|environment:/);
     expect(workflow).toMatch(/^permissions:\n {2}contents: read\n/m);
@@ -68,9 +70,17 @@ describe("release metadata", () => {
     const deploy = workflow.slice(workflow.indexOf("\n  deploy:"));
     expect(workflow).toMatch(/^on:\n {2}workflow_dispatch:\n\n/m);
     expect(workflow).toMatch(/^permissions:\n {2}contents: read\n/m);
-    expect(workflow).not.toMatch(/npm publish|gh release|secrets\./);
+    expect(workflow).not.toMatch(/npm publish|gh release (create|upload|edit|delete)|secrets\./);
     expect(build).not.toMatch(/permissions:|environment:/);
     expect(build).toContain('DOCSEAL_PREVIEW: "1"');
+    // The preview sits beside the release, never in its place.
+    expect(build).toContain("BASE_PATH: /docseal/preview\n");
+    // The release's site is served only once its sums and attestation check out.
+    expect(build).toMatch(/sha256sum --check --strict/);
+    expect(build).toMatch(/gh attestation verify [^\n]*\\\n\s*--signer-workflow "\$GITHUB_REPOSITORY\/\.github\/workflows\/release\.yml" --source-ref "refs\/tags\/\$tag"/);
+    // Its token is used once, before any project or dependency code runs.
+    expect(build.match(/GH_TOKEN/g)).toHaveLength(1);
+    expect(build.indexOf("GH_TOKEN")).toBeLessThan(build.indexOf("actions/checkout"));
     expect(deploy).not.toMatch(/actions\/checkout|pnpm|run:/);
     expect(deploy).toMatch(/permissions:\n {6}pages: write\n {6}id-token: write\n {4}steps:/);
   });

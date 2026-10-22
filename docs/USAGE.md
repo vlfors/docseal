@@ -111,7 +111,7 @@ The DocSeal web app does the same in a browser: the Verify page checks a package
 The page you use decides what you see, so check it before you rely on a verdict:
 
 - The address is `https://vlfors.github.io/docseal/`, nothing else.
-- The footer names the commit the site was built from. It must be the commit of a release tag on [the releases page](https://github.com/vlfors/docseal/releases); a page that says "A local build" is not a release.
+- The footer names the release, such as "DocSeal 0.2.0", linked to its entry on [the releases page](https://github.com/vlfors/docseal/releases), and the commit it was built from. A page without a version is not a release: a preview says so in a banner at the top (it lives at `/docseal/preview/`), a local build in the footer.
 - To depend on GitHub Pages not at all, download `docseal-web-<version>.tar.gz` from the release, check its attestation, and serve it yourself (see [verifying a release](RELEASING.md#verifying-a-release)).
 - Browser extensions with access to the page can read what the page reads. Use a profile without them for sensitive documents.
 - The trusted keys you add are stored for the address `vlfors.github.io`, which every GitHub Pages site of the account shares: look over the list before you rely on a `trusted` verdict.

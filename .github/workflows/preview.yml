@@ -1,8 +1,13 @@
 name: Preview
 
 # Run by hand (Actions → Preview → Run workflow) on main: deploys the web app built from main
-# to GitHub Pages so people can try it before a release. Nothing is published to npm and no
-# release is made; every page says it is a preview. The next release replaces it.
+# to GitHub Pages at /docseal/preview/ so people can try it. Nothing is published to npm and no
+# release is made; every page says it is a preview and links to the release.
+#
+# GitHub Pages serves one site per repository, so the preview is deployed together with the
+# latest release's own site, taken from its GitHub release and checked against its SHA256SUMS
+# and build attestation: the release stays at /docseal/, unchanged. Before the first release,
+# /docseal/ only points to the preview. The next release replaces both with itself.
 #
 # As in release.yml, the job that runs project and dependency code holds no credentials, and
 # the job that can deploy runs no code: it only deploys the artifact the build handed over.
@@ -11,11 +16,33 @@ on:
 
 permissions:
   contents: read
+  attestations: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Before any project code runs: the read-only token is in this step only.
+      - name: The latest release's site, checked
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SITE: ${{ runner.temp }}/site
+        run: |
+          mkdir -p "$SITE"
+          tag=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases --limit 1 --json tagName -q '.[0].tagName // ""')
+          if [ -z "$tag" ]; then
+            echo "No release yet: /docseal/ will point to the preview."
+            echo "DOCSEAL_RELEASE=" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          download="$RUNNER_TEMP/release"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$download" --pattern "docseal-web-${tag#v}.tar.gz" --pattern SHA256SUMS
+          (cd "$download" && grep " docseal-web-${tag#v}.tar.gz\$" SHA256SUMS | sha256sum --check --strict)
+          gh attestation verify "$download/docseal-web-${tag#v}.tar.gz" --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-ref "refs/tags/$tag"
+          tar -xzf "$download/docseal-web-${tag#v}.tar.gz" -C "$SITE"
+          test ! -e "$SITE/preview"
+          echo "DOCSEAL_RELEASE=${tag#v}" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
@@ -28,12 +55,21 @@ jobs:
       - name: Build the web app
         run: pnpm --filter @docseal/web build
         env:
-          BASE_PATH: /docseal
+          BASE_PATH: /docseal/preview
           DOCSEAL_COMMIT: ${{ github.sha }}
           DOCSEAL_PREVIEW: "1"
+      - name: Put the preview beside the release
+        env:
+          SITE: ${{ runner.temp }}/site
+        run: |
+          cp -r apps/web/build "$SITE/preview"
+          if [ -z "$DOCSEAL_RELEASE" ]; then
+            printf '%s\n' '<!doctype html>' '<meta charset="utf-8">' '<title>DocSeal</title>' \
+              '<meta http-equiv="refresh" content="0; url=preview/">' '<a href="preview/">DocSeal preview</a>' > "$SITE/index.html"
+          fi
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
         with:
-          path: apps/web/build
+          path: ${{ runner.temp }}/site
 
   deploy:
     needs: build

@@ -14,7 +14,7 @@ The app has three tabs at the top:
 
 Documents and keys never leave your device. Only the seal digest goes out, to the OpenTimestamps calendars; the app also asks for Bitcoin block headers to check the time. Neither the digest nor the block headers reveal anything about what the documents say.
 
-> If the top of the page says "Preview: a version for testing, not a release", use only test documents and test keys.
+> If the top of the page says "Preview: a version for testing, not a release", use only test documents and test keys. The banner links to the released version.
 
 ---
 
@@ -121,7 +121,7 @@ If the documents are over the limit, the page refuses to seal and says why; use 
 The page decides which verdict you see, so before an important check:
 
 - the address must be exactly `https://vlfors.github.io/docseal/`;
-- the footer names the commit the site was built from: for a release it matches the tag's commit on [the releases page](https://github.com/vlfors/docseal/releases); "A local build" means it is not a release;
+- the footer names the release, such as "DocSeal 0.2.0", linked to [the releases page](https://github.com/vlfors/docseal/releases), and the commit; no version means it is not a release: a preview says so in a banner at the top (and lives at `/docseal/preview/`), a local build in the footer;
 - for sensitive documents, open the site in a browser profile without extensions: extensions see what the page sees;
 - look over your trusted keys: they are stored for all of `vlfors.github.io`;
 - to depend on GitHub Pages not at all, download `docseal-web-<version>.tar.gz` from the release and serve it yourself (see [verifying a release](RELEASING.md#verifying-a-release)).

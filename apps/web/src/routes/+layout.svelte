@@ -14,6 +14,9 @@
   let { children }: { children: Snippet } = $props();
 
   const COMMIT = /^[0-9a-f]{40}$/.test(__DOCSEAL_COMMIT__) ? __DOCSEAL_COMMIT__ : "";
+  const SEMVER = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
+  const VERSION = SEMVER.test(__DOCSEAL_VERSION__) ? __DOCSEAL_VERSION__ : "";
+  const RELEASE = __DOCSEAL_RELEASE__ !== null && SEMVER.test(__DOCSEAL_RELEASE__.version) && __DOCSEAL_RELEASE__.path.startsWith("/") ? __DOCSEAL_RELEASE__ : null;
 
   /** Marks the link of the page being shown (paths end in a slash: trailingSlash is "always"). */
   const current = (route: "/" | "/seal" | "/upgrade") => (page.url.pathname.replace(/\/$/, "") === resolve(route).replace(/\/$/, "") ? "page" : undefined);
@@ -38,7 +41,13 @@
   </main>
 {:else}
   {#if __DOCSEAL_PREVIEW__}
-    <p class="preview-banner" role="note" data-testid="preview">{t().preview}</p>
+    <p class="preview-banner" role="note" data-testid="preview">
+      {t().preview}
+      {#if RELEASE}
+        <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- the release is another site, outside this one's base path -->
+        <a href={RELEASE.path} data-testid="preview-release">{t().previewRelease(RELEASE.version)}</a>
+      {/if}
+    </p>
   {/if}
   <header class="site">
     <a class="brand" href={resolve("/")}>DocSeal</a>
@@ -65,6 +74,9 @@
     <p>{t().footer}</p>
     <p class="meta" data-testid="build">
       {t().formatVersion(String(FORMAT_VERSION))} ·
+      {#if VERSION}
+        <a href="https://github.com/vlfors/docseal/releases/tag/v{VERSION}" rel="noopener noreferrer" data-testid="version">DocSeal {VERSION}</a> ·
+      {/if}
       {#if COMMIT}
         {t().builtFrom}
         <a href="https://github.com/vlfors/docseal/commit/{COMMIT}" rel="noopener noreferrer"><code>{COMMIT.slice(0, 12)}</code></a>

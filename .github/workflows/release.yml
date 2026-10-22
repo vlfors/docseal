@@ -53,9 +53,9 @@ jobs:
       - run: python -I verifiers/python/docseal_verify.py vectors spec/vectors
       - run: scripts/smoke-test.sh
       - run: scripts/pack.sh release
-      # The site shows the commit it was built from; GitHub Pages serves it under /docseal.
+      # The site shows the version and commit it was built from; GitHub Pages serves it under /docseal.
       - name: Build the web app
-        run: pnpm --filter @docseal/web build
+        run: DOCSEAL_VERSION="${TAG#v}" pnpm --filter @docseal/web build
         env:
           BASE_PATH: /docseal
           DOCSEAL_COMMIT: ${{ github.sha }}

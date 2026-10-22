@@ -6,6 +6,7 @@ export const ru: Messages = {
   footer: "DocSeal проверяет пакеты на этом устройстве. Файлы и ключи не покидают браузер.",
   builtFrom: "Собрано из коммита",
   preview: "Предварительная версия для проверки, не релиз. Пользуйтесь ею с тестовыми документами и ключами.",
+  previewRelease: (version) => `Релизная версия, DocSeal ${version} →`,
   localBuild: "Локальная сборка, не релиз.",
   formatVersion: (version) => `Формат v${version}`,
   copy: "Копировать",

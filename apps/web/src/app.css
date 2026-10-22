@@ -83,6 +83,11 @@ footer.site {
   font-weight: 600;
 }
 
+.preview-banner a {
+  margin-left: 0.5rem;
+  color: inherit;
+}
+
 header.site {
   display: flex;
   flex-wrap: wrap;

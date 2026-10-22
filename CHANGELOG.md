@@ -4,7 +4,7 @@ All notable changes to DocSeal are recorded here. The format follows [Keep a Cha
 
 All packages (`@docseal/core`, `@docseal/sig-ed25519`, `@docseal/anchor-ots`, `@docseal/cli`) are released together with the same version.
 
-## [0.2.0] — 2026-10-20
+## [0.2.0] — 2026-10-22
 
 The first release: the `.dseal` format v0.1, a TypeScript library, the `docseal` CLI, and a browser app. (0.1.0, the core and CLI alone, was never published; its work is part of this release.)
 
@@ -31,7 +31,7 @@ The first release: the `.dseal` format v0.1, a TypeScript library, the `docseal`
 
 ### Browser app
 
-- A static site (`apps/web`) that verifies and seals packages on the device, served by GitHub Pages at [vlfors.github.io/docseal](https://vlfors.github.io/docseal/) and attached to the release as `docseal-web-0.2.0.tar.gz`, attested, to serve yourself. Every page names the commit it was built from.
+- A static site (`apps/web`) that verifies and seals packages on the device, served by GitHub Pages at [vlfors.github.io/docseal](https://vlfors.github.io/docseal/) and attached to the release as `docseal-web-0.2.0.tar.gz`, attested, to serve yourself. Every page names the release and the commit it was built from. A preview built from `main` is served at `/docseal/preview/`, beside the release and never in its place; it says on every page that it is not a release and links to the release.
 - Verify: drop a package; the report shows the verdict, the six axes, the files, signatures, time proofs, and issues, with next steps. Trusted keys are added as `did:key` or imported from `trusted-keys.json`, kept in the browser, and exported again. Time proofs are checked against Bitcoin through mempool.space then blockstream.info, your own Esplora instance, or not at all. A package whose time proof is pending, as one is right after sealing, is marked as needing its time proof completed, under the verdict. An unchanged, correctly signed package that is not fully confirmed says so first, and lists what is not confirmed apart.
 - Timestamp: completes a pending time proof. The page shows its stage (sent to the calendars, in a block, confirmed) with the block and its confirmations out of 6, asks the calendars when a package is chosen, again on request or every 10 minutes while the page is open, and saves the completed proof into the package.
 - Seal: choose files or a folder (paths as `docseal seal` gives them, every path problem shown before sealing), open a key file made by `docseal keygen` or create one the CLI opens, and save the package straight to disk in Chrome and Edge or as a download elsewhere (up to 2 GiB in Firefox, 1 GiB in Safari). The seal is submitted to the OpenTimestamps calendars that accept requests from a browser. A log shows each step as it happens, with each calendar's answer.

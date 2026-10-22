@@ -14,6 +14,8 @@ export interface Messages {
   footer: string;
   builtFrom: string;
   preview: string;
+  /** In a preview's banner: the link to the release served beside it. */
+  previewRelease: (version: string) => string;
   localBuild: string;
   formatVersion: (version: string) => string;
   /** A button that copies an identifier, and what it says once it has. */
