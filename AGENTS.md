@@ -7,7 +7,7 @@ DocSeal seals documents into signed `.dseal` packages with OpenTimestamps time p
 - `packages/core`: format, Merkle tree, ZIP, seal, verify, upgrade. Runs in browsers: no `node:fs`, no `Buffer`.
 - `packages/sig-ed25519`, `packages/anchor-ots`: the signature and anchor plugins.
 - `packages/node`: Node.js glue shared by the CLI and the MCP server (files, keys, settings, `sanitize`). Private: bundled into them, never published.
-- `apps/cli`: the `docseal` CLI. `apps/web`: the SvelteKit static app (Svelte 5, Web Workers, en/ru strings in `src/lib/i18n`).
+- `apps/cli`: the `docseal` CLI. `apps/mcp`: the `docseal-mcp` MCP server (stdio only; nothing but protocol messages on stdout). `apps/web`: the SvelteKit static app (Svelte 5, Web Workers, en/ru strings in `src/lib/i18n`).
 - `spec/`: JSON Schemas and test vectors. `docs/FORMAT-v0.1.md` is the normative format.
 - `tests/`: cross-package, browser, and e2e tests. Unit tests sit next to their sources as `*.test.ts`.
 - `verifiers/python`: the independent verifier.

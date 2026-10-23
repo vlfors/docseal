@@ -4,6 +4,12 @@ All notable changes to DocSeal are recorded here. The format follows [Keep a Cha
 
 All packages (`@docseal/core`, `@docseal/sig-ed25519`, `@docseal/anchor-ots`, `@docseal/cli`) are released together with the same version.
 
+## Unreleased
+
+### MCP server
+
+- `@docseal/mcp`: the `docseal-mcp` server for AI agents, over stdio, for clients on the 2026-07-28 protocol and on the 2025 handshake. Work in progress: no tools yet.
+
 ## [0.2.0] — 2026-10-22
 
 The first release: the `.dseal` format v0.1, a TypeScript library, the `docseal` CLI, and a browser app. (0.1.0, the core and CLI alone, was never published; its work is part of this release.)
