@@ -1,5 +1,5 @@
 import type { AxisVerdicts, VerificationReport } from "@docseal/core";
-import { sanitize } from "./sanitize.js";
+import { sanitize } from "@docseal/node";
 
 const HEADLINES: Record<VerificationReport["overall"], string> = {
   valid: "VALID: every check passed",

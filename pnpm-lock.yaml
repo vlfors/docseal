@@ -247,6 +247,10 @@ importers:
       commander:
         specifier: ^15.0.0
         version: 15.0.0
+    devDependencies:
+      '@docseal/node':
+        specifier: workspace:*
+        version: link:../../packages/node
 
   apps/web:
     dependencies:
@@ -302,6 +306,18 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+
+  packages/node:
+    dependencies:
+      '@docseal/anchor-ots':
+        specifier: workspace:*
+        version: link:../anchor-ots
+      '@docseal/core':
+        specifier: workspace:*
+        version: link:../core
+      '@docseal/sig-ed25519':
+        specifier: workspace:*
+        version: link:../sig-ed25519
 
   packages/sig-ed25519:
     dependencies:

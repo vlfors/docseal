@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { collectFiles } from "../../../../cli/src/files";
+import { collectFiles } from "../../../../../packages/node/src/files";
 import { fromDroppedEntries, fromFileInput, fromFolderInput, planFiles, type Entry } from "./files";
 
 const file = (name: string, content = "x", relative = "") => {

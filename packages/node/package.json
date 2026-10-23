@@ -1,0 +1,28 @@
+{
+  "name": "@docseal/node",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Node.js glue shared by the DocSeal CLI and MCP server: files, keys, settings, and safe output. Bundled into them, not published.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --sourcemap",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@docseal/anchor-ots": "workspace:*",
+    "@docseal/core": "workspace:*",
+    "@docseal/sig-ed25519": "workspace:*"
+  }
+}

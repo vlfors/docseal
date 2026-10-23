@@ -7,7 +7,7 @@ import { join } from "node:path";
 import type { Page } from "playwright";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readContainer } from "@docseal/core";
-import { collectFiles } from "../../apps/cli/src/files";
+import { collectFiles } from "../../packages/node/src/files";
 import { openKey, PICK_IN_OPFS, savedPackage } from "./pages";
 import { ENGINE_NAMES, launch, Site } from "./site";
 import { cli, hasPython, PASSPHRASE, verifyWithCli, verifyWithPython } from "./verifiers";

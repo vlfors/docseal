@@ -2,7 +2,7 @@ import { constants, type BigIntStats } from "node:fs";
 import { lstat, open, readdir, readFile, rename, rm, type FileHandle } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
 import type { ByteSink, ByteSource, SealFile } from "@docseal/core";
-import { CliError } from "./io.js";
+import { UserError } from "./errors.js";
 
 /**
  * Collects the files to seal. A file argument is stored under its base name; a directory
@@ -20,18 +20,18 @@ export async function collectFiles(paths: readonly string[]): Promise<SealFile[]
   for (const path of paths) {
     const stats = await statOrFail(path);
     if (stats.isSymbolicLink()) {
-      throw new CliError(`${path} is a symbolic link; pass the target instead`);
+      throw new UserError(`${path} is a symbolic link; pass the target instead`);
     }
     if (stats.isFile()) {
       files.push({ path: basename(path), source: pathSource(path, stats) });
     } else if (stats.isDirectory()) {
       await walk(path, path, stats, files);
     } else {
-      throw new CliError(`${path} is not a regular file or directory`);
+      throw new UserError(`${path} is not a regular file or directory`);
     }
   }
   if (files.length === 0) {
-    throw new CliError("Nothing to seal: no files found");
+    throw new UserError("Nothing to seal: no files found");
   }
   return files;
 }
@@ -46,7 +46,7 @@ async function walk(root: string, dir: string, identity: BigIntStats, files: Sea
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isSymbolicLink()) {
-      throw new CliError(`${full} is a symbolic link; DocSeal does not follow links`);
+      throw new UserError(`${full} is a symbolic link; DocSeal does not follow links`);
     }
     if (entry.isDirectory()) {
       const stats = await statOrFail(full);
@@ -61,7 +61,7 @@ async function walk(root: string, dir: string, identity: BigIntStats, files: Sea
       }
       files.push({ path: relative(root, full).split(sep).join("/"), source: pathSource(full, stats) });
     } else {
-      throw new CliError(`${full} is not a regular file`);
+      throw new UserError(`${full} is not a regular file`);
     }
   }
 }
@@ -70,7 +70,7 @@ async function statOrFail(path: string): Promise<BigIntStats> {
   try {
     return await lstat(path, { bigint: true });
   } catch {
-    throw new CliError(`Cannot read ${path}`);
+    throw new UserError(`Cannot read ${path}`);
   }
 }
 
@@ -78,8 +78,8 @@ function sameFile(a: BigIntStats, b: BigIntStats): boolean {
   return a.dev === b.dev && a.ino === b.ino;
 }
 
-function changed(path: string): CliError {
-  return new CliError(`${path} changed while it was being read`);
+function changed(path: string): UserError {
+  return new UserError(`${path} changed while it was being read`);
 }
 
 // Not defined on Windows; there the identity check alone catches a replaced file.
@@ -94,7 +94,7 @@ function pathSource(path: string, identity: BigIntStats): ByteSource {
     size: Number(identity.size),
     async read(offset, length) {
       const handle = await open(path, READ_NO_FOLLOW).catch(() => {
-        throw new CliError(`Cannot read ${path}`);
+        throw new UserError(`Cannot read ${path}`);
       });
       try {
         const stats = await handle.stat({ bigint: true });
@@ -119,7 +119,7 @@ export async function openFileSource(path: string, what: string): Promise<FileSo
   try {
     handle = await open(path, "r");
   } catch {
-    throw new CliError(`Cannot read ${what} ${path}`);
+    throw new UserError(`Cannot read ${what} ${path}`);
   }
   const { size } = await handle.stat();
   return {
@@ -146,7 +146,7 @@ export async function readInput(path: string, what: string): Promise<Uint8Array>
   try {
     return new Uint8Array(await readFile(path));
   } catch {
-    throw new CliError(`Cannot read ${what} ${path}`);
+    throw new UserError(`Cannot read ${what} ${path}`);
   }
 }
 
@@ -163,10 +163,10 @@ export interface OutputFile extends ByteSink {
  */
 export async function createOutput(path: string, options: { overwrite: boolean; mode?: number }): Promise<OutputFile> {
   if (!options.overwrite && (await exists(path))) {
-    throw new CliError(`${path} already exists; use --force to overwrite`);
+    throw new UserError(`${path} already exists; use --force to overwrite`);
   }
   const temporary = `${path}.tmp-${String(process.pid)}`;
-  const fail = (error: unknown) => new CliError(`Cannot write ${path}: ${error instanceof Error ? error.message : String(error)}`);
+  const fail = (error: unknown) => new UserError(`Cannot write ${path}: ${error instanceof Error ? error.message : String(error)}`);
   let handle: FileHandle;
   try {
     handle = await open(temporary, "wx", options.mode ?? 0o644);

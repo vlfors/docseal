@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitize } from "../../../cli/src/sanitize";
+import { sanitize } from "../../../../packages/node/src/sanitize";
 import { clip, hasUnsafe, shortId, visibleParts } from "./text";
 
 describe("visibleParts", () => {

@@ -1,43 +1,42 @@
+import { DEFAULT_ESPLORA_URLS, DEFAULT_MIN_CONFIRMATIONS } from "@docseal/anchor-ots";
 import {
-  esploraChainReader,
-  firstAvailableChainReader,
-  openTimestamps,
-  DEFAULT_ESPLORA_URLS,
-  DEFAULT_MIN_CONFIRMATIONS,
-} from "@docseal/anchor-ots";
-import {
-  DocSeal,
   FORMAT_VERSION,
   FormatError,
   openContainer,
   parseAnchorFile,
   parseJson,
-  parseTrustedKeys,
-  pinnedKeys,
   utf8,
-  type AnchorProvider,
   type ByteSource,
   type VerificationReport,
 } from "@docseal/core";
 import {
+  PASSPHRASE_ENV,
+  UserError,
+  collectFiles,
+  createDocSeal,
+  createOutput,
+  openFileSource,
+  openKey,
+  readInput,
+  readTrustedKeys,
+  sanitize,
+  withOutput,
+  writeOutput,
+  type OutputFile,
+} from "@docseal/node";
+import {
   DEFAULT_SCRYPT_N,
   KeyFileError,
   createKeyFile,
-  ed25519Suite,
   generateSecretKey,
   keyFilePublicKey,
   memoryKeyProvider,
-  openKeyFile,
 } from "@docseal/sig-ed25519";
 import { Command, CommanderError, InvalidArgumentError, Option } from "commander";
-import { createHash } from "node:crypto";
-import { collectFiles, createOutput, openFileSource, readInput, withOutput, writeOutput, type OutputFile } from "./files.js";
 import { CliError, ExitCode, type Io } from "./io.js";
 import { formatReport } from "./report.js";
-import { sanitize } from "./sanitize.js";
 
 export const VERSION = "0.2.0";
-const PASSPHRASE_ENV = "DOCSEAL_PASSPHRASE";
 
 /** Runs the CLI and returns the exit code. Never calls process.exit. */
 export async function main(argv: readonly string[], io: Io): Promise<number> {
@@ -109,13 +108,8 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
         options: { key: string; output: string; role: string; title?: string; anchor: boolean; calendar?: string[]; force?: boolean },
       ) => {
         const files = await collectFiles(paths);
-        const keyBytes = await readInput(options.key, "key file");
-        const { seed, did } = await openKeyFile(keyBytes, await passphrase(io, `Passphrase for ${options.key}: `));
-        const docseal = new DocSeal({
-          signatures: [ed25519Suite()],
-          anchors: options.anchor ? [anchorProvider(io, { calendars: options.calendar })] : [],
-          sha256: nodeSha256,
-        });
+        const { seed, did } = await openKey(options.key, () => passphrase(io, `Passphrase for ${options.key}: `));
+        const docseal = createDocSeal({ fetch: io.fetch, anchor: options.anchor, calendars: options.calendar });
         const result = await withOutput(options.output, { overwrite: options.force === true }, (sink) =>
           docseal.sealTo(sink, {
             files,
@@ -158,17 +152,11 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
         path: string,
         options: { trust?: string; json?: boolean; chain: string[]; offline?: boolean; minConfirmations: number },
       ) => {
-        const trust = options.trust
-          ? pinnedKeys(parseTrustedKeys(await readInput(options.trust, "trusted keys file")).keys)
-          : undefined;
-        const docseal = new DocSeal({
-          signatures: [ed25519Suite()],
-          anchors: [anchorProvider(io, { minConfirmations: options.minConfirmations })],
-          ...(trust ? { trust } : {}),
-          ...(options.offline
-            ? {}
-            : { chain: firstAvailableChainReader(options.chain.map((url) => esploraChainReader(url, httpOptions(io)))) }),
-          sha256: nodeSha256,
+        const docseal = createDocSeal({
+          fetch: io.fetch,
+          minConfirmations: options.minConfirmations,
+          trust: options.trust ? await readTrustedKeys(options.trust) : undefined,
+          chain: options.offline ? undefined : options.chain,
         });
         const source = await openFileSource(path, "package");
         const report = await docseal.verify(source).finally(() => source.close());
@@ -183,7 +171,7 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
     .argument("<package>")
     .option("-o, --output <file>", "write the upgraded package here instead of in place")
     .action(async (path: string, options: { output?: string }) => {
-      const docseal = new DocSeal({ signatures: [ed25519Suite()], anchors: [anchorProvider(io, {})] });
+      const docseal = createDocSeal({ fetch: io.fetch });
       const target = options.output ?? path;
       const source = await openFileSource(path, "package");
       let output: OutputFile | undefined;
@@ -217,24 +205,13 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
     if (error instanceof CommanderError) {
       return error.exitCode === 0 ? ExitCode.Valid : ExitCode.Error;
     }
-    if (error instanceof CliError || error instanceof KeyFileError || error instanceof FormatError) {
+    if (error instanceof UserError || error instanceof KeyFileError || error instanceof FormatError) {
       io.stderr(`docseal: ${sanitize(error.message)}\n`);
       return ExitCode.Error;
     }
     io.stderr(`docseal: ${sanitize(error instanceof Error ? error.message : String(error))}\n`);
     return ExitCode.Error;
   }
-}
-
-/** Node's native SHA-256: several times faster than portable JavaScript on large documents. */
-function nodeSha256() {
-  const h = createHash("sha256");
-  return {
-    update(chunk: Uint8Array) {
-      h.update(chunk);
-    },
-    digest: () => new Uint8Array(h.digest()),
-  };
 }
 
 function exitCodeFor(report: VerificationReport): number {
@@ -246,21 +223,6 @@ function exitCodeFor(report: VerificationReport): number {
     case "indeterminate":
       return ExitCode.Indeterminate;
   }
-}
-
-function anchorProvider(
-  io: Io,
-  options: { calendars?: string[] | undefined; minConfirmations?: number },
-): AnchorProvider {
-  return openTimestamps({
-    ...httpOptions(io),
-    ...(options.calendars ? { calendars: options.calendars } : {}),
-    ...(options.minConfirmations === undefined ? {} : { minConfirmations: options.minConfirmations }),
-  });
-}
-
-function httpOptions(io: Io) {
-  return io.fetch ? { fetch: io.fetch } : {};
 }
 
 async function receiptSummary(source: ByteSource): Promise<string[]> {

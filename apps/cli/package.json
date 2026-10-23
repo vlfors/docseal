@@ -44,6 +44,9 @@
     "@docseal/sig-ed25519": "workspace:*",
     "commander": "^15.0.0"
   },
+  "devDependencies": {
+    "@docseal/node": "workspace:*"
+  },
   "publishConfig": {
     "access": "public",
     "provenance": true

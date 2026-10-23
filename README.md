@@ -153,6 +153,7 @@ pnpm test:e2e                    # the built site in the three engines
 | `packages/core` | Format, hashing, Merkle tree, container, verification pipeline, plugin interfaces |
 | `packages/sig-ed25519` | Ed25519 signature suite and development key provider |
 | `packages/anchor-ots` | OpenTimestamps anchor provider |
+| `packages/node` | Node.js glue shared by the CLI and the coming MCP server: reading files, keys, and settings; safe terminal text. Bundled into them, not published |
 | `apps/cli` | `docseal` command-line interface |
 | `apps/web` | Browser app (v0.2): a static SvelteKit site, the work in Web Workers |
 | `verifiers/python` | Independent verifier used to cross-check the vectors |

@@ -1,4 +1,5 @@
 import type { Fetch } from "@docseal/anchor-ots";
+import { UserError } from "@docseal/node";
 
 /** Everything the CLI touches besides the file system, so tests can drive it in-process. */
 export interface Io {
@@ -24,6 +25,6 @@ export const ExitCode = {
 } as const;
 
 /** An expected failure: printed as a one-line message without a stack trace. */
-export class CliError extends Error {
+export class CliError extends UserError {
   override readonly name = "CliError";
 }

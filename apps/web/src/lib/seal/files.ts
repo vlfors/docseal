@@ -1,5 +1,5 @@
 /**
- * The files to seal, as the CLI collects them (apps/cli/src/files.ts): a chosen or dropped file
+ * The files to seal, as the CLI collects them (packages/node/src/files.ts): a chosen or dropped file
  * is stored under its name; a folder contributes its contents, with paths relative to that
  * folder. Paths are checked with the core's own rules before sealing, so every problem the core
  * would reject is shown on the list rather than as a failed seal.
