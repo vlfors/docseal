@@ -69,6 +69,25 @@ See [FORMAT-v0.1.md](FORMAT-v0.1.md) for the normative details.
 
 This answers the open question of how to verify Bitcoin in the browser and show the trust in the data source.
 
+### Decided on 2026-10-23 for v0.3 (MCP server)
+
+| Question | Decision |
+|---|---|
+| Package | `apps/mcp`, published as `@docseal/mcp` with the binary `docseal-mcp`, versioned with the other packages. |
+| SDK and protocol | The official TypeScript SDK v2 (`@modelcontextprotocol/server`, the stable line since 2026-07-27), pinned. Its runtime dependencies are only `zod` and the SDK's own core, where v1 (`@modelcontextprotocol/sdk`) pulls in an HTTP stack the server would never use. Started with `serveStdio`, which serves both the 2026-07-28 protocol and clients still on the 2025 handshake (2025-11-25 and 2025-06-18). |
+| Transport | stdio only, started by the client as a local process. No HTTP transport: a network service that reads documents is out of scope ("storing user documents on a server"). |
+| Tools | `verify`, `inspect`, `upgrade`, and `list_trusted_keys` always; `seal` only when sealing is turned on. Each has an output schema, returns `structuredContent`, and carries annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`). Tools are listed in a fixed order. |
+| Text sent to the model | The text block starts with a summary built only from DocSeal's own fixed phrases (verdict, counts, what is not confirmed, next steps), followed by the structured result as JSON, as the specification recommends for clients that read only text. Text from a package appears only as escaped, sanitized, length-capped values of named JSON fields: data can be fenced and labelled for the model, never hidden from it. |
+| Configuration | Command-line flags in the client's server entry, with the CLI's names where they overlap: `--root <dir>` (repeatable), `--trust <file>`, `--chain <url>` (repeatable), `--offline`, `--allow-seal`, `--key <file>`. `DOCSEAL_PASSPHRASE` in the server's environment, as in the CLI. Nothing is read from a configuration file of its own. |
+| File access | Only under the `--root` directories; no `--root`, no file access. MCP roots are not used: the 2026-07-28 specification deprecates them (SEP-2577) and recommends server configuration instead. Paths are resolved, symlinks included, before the check. |
+| Trusted keys | From the `--trust` file only, read at each call. No tool adds, removes, or edits a key: a package, or anything else the agent reads, could otherwise talk it into trusting an attacker's key. Without `--trust`, trust is not evaluated, as in the CLI. |
+| Sealing | Off unless the server is started with `--allow-seal --key <file>`; the key path never comes from the agent. Each `seal` call asks the person to confirm through form-mode elicitation, showing the files (count, total size, names), role, title, and the signer's `did:key`; declined, cancelled, or a client without elicitation means nothing is sealed. Such clients can still verify, inspect, and upgrade. The key is opened per call and dropped afterwards. |
+| Passphrase | From `DOCSEAL_PASSPHRASE` in the server's environment only, never a tool argument or anything the model sees. Not through URL-mode elicitation: it would need a local web page served by DocSeal, and of the clients checked on 2026-10-23 only Claude Code and VS Code support it. |
+| Network | As in the CLI: the seal digest to the OpenTimestamps calendars when sealing or upgrading, Bitcoin block headers from mempool.space then blockstream.info (or `--chain`, or `--offline`). Documents never leave the machine. |
+| Logs | stderr only; stdout carries protocol messages and nothing else. MCP logging is deprecated in the 2026-07-28 specification. |
+| Distribution | npm publishing stays off (`NPM_PUBLISH`), so the release tarball must install on its own: the server is bundled with the `@docseal/*` workspace packages inside, and lists their third-party dependencies (`@noble/*`, `@scure/base`, `canonicalize`, `fflate`) and the SDK as ordinary npm dependencies. Installed with `npm install -g <release tarball URL>`; `npx @docseal/mcp` once npm publishing is turned on. |
+| Clients documented | Claude Code, Claude Desktop, Cursor, and Hermes Agent (`mcp_servers` in `~/.hermes/config.yaml`), each checked against the client's own documentation when the guide is written. |
+
 ## Why `PackageStatement` exists
 
 A signature only over the hash of the full manifest prevents selective disclosure: without the manifest, the disclosed Merkle root cannot be linked to the signature, and the full manifest reveals the list of files. Therefore the root is included directly in a small signed statement that can be transferred together with a separate Merkle proof.

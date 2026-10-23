@@ -43,13 +43,13 @@ Also in v0.2: keys opened or created in the browser, compatible with the CLI; ti
 
 ## v0.3 — MCP server for AI agents
 
-The same core for AI agents, through one [Model Context Protocol](https://modelcontextprotocol.io) server that any MCP client can use; the `.dseal` format does not change.
+The same core for AI agents, through one [Model Context Protocol](https://modelcontextprotocol.io) server that any MCP client can use; the `.dseal` format does not change. Decisions: [DECISIONS.md](docs/DECISIONS.md#decided-on-2026-10-23-for-v03-mcp-server).
 
 - [ ] `@docseal/mcp`, a local stdio server: verify a package, inspect its contents, and complete its time proof.
 - [ ] Package content treated as untrusted input to a model: text from a package never reaches a tool's summary, and an indeterminate verdict says first what is not confirmed.
 - [ ] Trust stays with the person: trusted keys come from the server's configuration, and no tool changes them.
 - [ ] Sealing off by default: turned on by the person running the server, with a key from its configuration, confirmed by the person for each package, and a passphrase that never passes through the model.
-- [ ] File access limited to the directories the client or the person allows.
+- [ ] File access limited to the directories the person allows in the server's configuration.
 - [ ] A skill that teaches agents to read the verdicts, configuration examples for common MCP clients, and threat model rows for agents.
 
 ## v0.4 — Instant timestamps (RFC 3161)
