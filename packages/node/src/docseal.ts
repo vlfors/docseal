@@ -1,5 +1,5 @@
 import { esploraChainReader, firstAvailableChainReader, openTimestamps, type Fetch } from "@docseal/anchor-ots";
-import { DocSeal, parseTrustedKeys, pinnedKeys, type TrustPolicy } from "@docseal/core";
+import { DocSeal, parseTrustedKeys, pinnedKeys, type TrustPolicy, type TrustedKey } from "@docseal/core";
 import { ed25519Suite, openKeyFile } from "@docseal/sig-ed25519";
 import { createHash } from "node:crypto";
 import { readInput } from "./files.js";
@@ -42,7 +42,14 @@ export function createDocSeal(settings: DocSealSettings = {}): DocSeal {
 
 /** The signers in a trusted-keys.json file, as a trust policy. */
 export async function readTrustedKeys(path: string): Promise<TrustPolicy> {
-  return pinnedKeys(parseTrustedKeys(await readInput(path, "trusted keys file")).keys);
+  return pinnedKeys(await listTrustedKeys(path));
+}
+
+/** The keys a trusted-keys.json file lists, checked as a trust policy would check them. */
+export async function listTrustedKeys(path: string): Promise<TrustedKey[]> {
+  const { keys } = parseTrustedKeys(await readInput(path, "trusted keys file"));
+  pinnedKeys(keys);
+  return keys;
 }
 
 /**

@@ -1,13 +1,13 @@
 import { DEFAULT_ESPLORA_URLS, type Fetch } from "@docseal/anchor-ots";
 import { FormatError } from "@docseal/core";
-import { UserError, createDocSeal, readTrustedKeys, sanitize } from "@docseal/node";
+import { UserError, createDocSeal, listTrustedKeys, readTrustedKeys, sanitize } from "@docseal/node";
 import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import manifest from "../package.json" with { type: "json" };
 import type { Config } from "./config.js";
 import { inspectPackage } from "./inspect.js";
 import { openInRoots, resolveInRoots } from "./paths.js";
-import { inspectInput, inspectOutput, upgradeInput, upgradeOutput, verifyInput, verifyOutput } from "./schemas.js";
-import { fence } from "./untrusted.js";
+import { inspectInput, inspectOutput, trustedKeysOutput, upgradeInput, upgradeOutput, verifyInput, verifyOutput } from "./schemas.js";
+import { capList, fence, fenceAll } from "./untrusted.js";
 import { upgradePackage, upgradedPath } from "./upgrade.js";
 import { describeReport } from "./verdict.js";
 
@@ -104,6 +104,38 @@ export function createServer(config: Config, options: { fetch?: Fetch | undefine
         } finally {
           await source.close();
         }
+      }),
+  );
+
+  server.registerTool(
+    "list_trusted_keys",
+    {
+      title: "List the signers this server trusts",
+      description:
+        "Lists the keys in the server's trusted-keys file, with the names the person gave them: verify calls a " +
+        "signature trusted only when its key is here. No tool adds, removes, or changes a key, on purpose: a package " +
+        "or a page could otherwise talk an agent into trusting an attacker's key. To trust a new signer, the person " +
+        "confirms the key with the signer through another channel and adds it to the file named by --trust (by hand, " +
+        "or exported from the DocSeal web app); the server reads it again at every call.",
+      outputSchema: trustedKeysOutput,
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    () =>
+      tool(async () => {
+        if (config.trust === undefined) {
+          return {
+            summary: "No trusted keys: the server was started without --trust, so verify does not evaluate trust.",
+            configured: false,
+            keys: [],
+          };
+        }
+        const { kept, omitted } = capList(await listTrustedKeys(config.trust));
+        return {
+          summary: `The server trusts ${String(kept.length + omitted)} key${kept.length + omitted === 1 ? "" : "s"}.${omitted > 0 ? " The list is shortened: see omitted." : ""}`,
+          configured: true,
+          keys: fenceAll(kept.map((key) => ({ id: key.id, ...(key.label !== undefined && { label: key.label }) }))),
+          ...(omitted > 0 && { omitted: { keys: omitted } }),
+        };
       }),
   );
 

@@ -61,7 +61,7 @@ describe("docseal-mcp", () => {
   it.each(["modern", "legacy"] as const)("serves a %s client with its name, version, and tool list", async (era) => {
     const { client } = await connect([], era);
     expect(client.getServerVersion()).toMatchObject({ name: NAME, version: VERSION });
-    expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual(["verify", "inspect", "upgrade"]);
+    expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual(["verify", "inspect", "upgrade", "list_trusted_keys"]);
   });
 
   it("writes nothing to stdout while serving and says on stderr what it allows", async () => {

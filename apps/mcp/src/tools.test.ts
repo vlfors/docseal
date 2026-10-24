@@ -81,7 +81,7 @@ async function runCli(args: string[]): Promise<void> {
 describe("tools", () => {
   it("lists its tools in a fixed order, with output schemas and annotations", async () => {
     const { tools } = await (await connect(["--root", GOLDEN])).listTools();
-    expect(tools.map((t) => t.name)).toEqual(["verify", "inspect", "upgrade"]);
+    expect(tools.map((t) => t.name)).toEqual(["verify", "inspect", "upgrade", "list_trusted_keys"]);
     for (const tool of tools) {
       expect(tool.outputSchema?.type).toBe("object");
       expect(tool.annotations).toMatchObject({ destructiveHint: false, idempotentHint: true });

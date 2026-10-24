@@ -126,6 +126,19 @@ export const upgradeOutput = z.object({
   nextSteps: z.array(z.string()),
 });
 
+export const trustedKeysOutput = z.object({
+  summary: z.string(),
+  configured: z.boolean().describe("Whether the server was started with a trusted-keys file (--trust)"),
+  keys: z.array(
+    z.object({
+      id: z.string().describe("The signer's key, as it appears in a package's signature"),
+      label: z.string().optional().describe("A name the person gave the key; DocSeal does not check it"),
+    }),
+  ),
+  omitted: omitted.optional(),
+});
+
+export type TrustedKeysOutput = z.infer<typeof trustedKeysOutput>;
 export type UpgradeOutput = z.infer<typeof upgradeOutput>;
 export type VerifyOutput = z.infer<typeof verifyOutput>;
 export type InspectOutput = z.infer<typeof inspectOutput>;
