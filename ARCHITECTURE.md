@@ -19,7 +19,12 @@ flowchart TB
     subgraph Clients["Clients"]
         WEB["Web UI<br/>SvelteKit + Web Workers"]
         CLI["CLI<br/>Node.js + Commander"]
+        MCP["MCP server<br/>stdio, for AI agents"]
         SDK["TypeScript SDK"]
+    end
+
+    subgraph NodeLayer["Node.js layer (packages/node)"]
+        NODE["Files under pinned identity<br/>key files · trusted keys<br/>plugin wiring · safe text"]
     end
 
     subgraph Assembly["Application assembly"]
@@ -55,7 +60,9 @@ flowchart TB
     end
 
     WEB --> REGISTRY
-    CLI --> REGISTRY
+    CLI --> NODE
+    MCP --> NODE
+    NODE --> REGISTRY
     SDK --> REGISTRY
     REGISTRY --> API
     API --> CONTAINER
@@ -153,9 +160,13 @@ The primary client for `v0.1`. Provides a reproducible, easily testable end-to-e
 
 The `v0.2` client (`apps/web`): a static SvelteKit site under a strict Content Security Policy. It uses the same core packages, built from their sources. Verifying and upgrading run in a verification worker that reads the package in chunks; a signer worker opens or creates the key, seals once, and is terminated, so the secret key never reaches the page. Workers reach the network only through `browserFetch`, which allows the calendars and chain sources of `network.js` and nothing else. Sealed packages are written straight to a picked file where the File System Access API exists, and otherwise built in memory up to a measured limit.
 
+### MCP server
+
+The `v0.3` client (`apps/mcp`): a local stdio [MCP](https://modelcontextprotocol.io) server started by an agent's client, on the MCP TypeScript SDK v2, serving the 2026-07-28 protocol and the 2025 handshake. It shares the Node.js layer (`packages/node`) with the CLI: file collection with pinned identity, key files, trusted keys, and the plugin wiring. Everything the agent may reach is set by the person in the server's options (`--root`, `--trust`, `--allow-seal --key`); text from a package reaches the model only as fenced values of named fields, and every seal is confirmed by the person through a form the client shows. The release tarball bundles the DocSeal packages, so it installs on its own. See [the MCP guide](docs/MCP.md) and [its threat model](THREAT_MODEL.md#the-mcp-server).
+
 ### Backend
 
-Absent in `v0.1` and `v0.2`. In the future a server may perform only auxiliary operations: background `upgrade`, batching, webhooks, and an index of public digests. Documents are never sent to the server.
+Absent in `v0.1` to `v0.3`; the MCP server is a local process, not a service. In the future a server may perform only auxiliary operations: background `upgrade`, batching, webhooks, and an index of public digests. Documents are never sent to the server.
 
 ## Sealing a package
 

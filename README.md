@@ -59,6 +59,17 @@ docseal upgrade contract.dseal                 # a few hours later: complete the
 
 By default `verify` reads Bitcoin block headers from the mempool.space Esplora API, and from blockstream.info if mempool.space does not answer; the report names the source used. Use `--chain <url>` (repeatable, tried in order) for your own Esplora instance, or `--offline` to skip the time check.
 
+## For AI agents
+
+`docseal-mcp` is a local [MCP](https://modelcontextprotocol.io) server through which an agent (Claude Code, Claude Desktop, Cursor, Hermes Agent, and other MCP clients) verifies packages, shows what they hold, and completes their time proofs, and signs only when you turn it on and confirm each package. You decide which directories it reads and which signers you trust; no tool can change either.
+
+```bash
+npm install -g https://github.com/vlfors/docseal/releases/download/v0.3.0/docseal-mcp-0.3.0.tgz
+claude mcp add --transport stdio --scope user docseal -- docseal-mcp --root ~/Documents/contracts --trust ~/.config/docseal/trusted-keys.json
+```
+
+Configuration for each client, the tools, the skill that teaches an agent to read verdicts, and what to weigh before you let an agent sign: [the MCP guide](docs/MCP.md).
+
 ## Package format
 
 The first version uses a "fat" ZIP container that includes the documents themselves:
@@ -86,7 +97,9 @@ All clients share one TypeScript core. Concrete mechanisms for signing, key stor
 ```mermaid
 flowchart LR
     WEB["Web UI (v0.2)"] -.-> CORE["DocSeal Core"]
-    CLI["CLI"] --> CORE
+    CLI["CLI"] --> NODE["Node.js layer"]
+    MCP["MCP server (v0.3)"] --> NODE
+    NODE --> CORE
     SDK["TypeScript SDK"] --> CORE
     CORE --> SIG["SignatureSuite"]
     CORE --> KEY["KeyProvider"]
@@ -130,7 +143,7 @@ The format is pinned by 44 golden packages that an independent Python verifier a
 
 See the [roadmap](ROADMAP.md), [architecture](ARCHITECTURE.md), [format specification](docs/FORMAT-v0.1.md), [decisions](docs/DECISIONS.md), [threat model](THREAT_MODEL.md), and [security policy](SECURITY.md).
 
-In-depth guides: [signing and verifying documents](docs/USAGE.md), [plugin system](docs/PLUGINS.md), [OpenTimestamps integration](docs/OPENTIMESTAMPS.md), and [testing](docs/TESTING.md).
+In-depth guides: [signing and verifying documents](docs/USAGE.md), [the browser app](docs/WEB.md), [AI agents through MCP](docs/MCP.md), [plugin system](docs/PLUGINS.md), [OpenTimestamps integration](docs/OPENTIMESTAMPS.md), and [testing](docs/TESTING.md).
 
 ## Development
 
