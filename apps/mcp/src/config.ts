@@ -1,4 +1,5 @@
-import { statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
+import { isAbsolute, relative, sep } from "node:path";
 import { parseArgs } from "node:util";
 
 /** What the person running the server allows. Nothing here comes from the agent. */
@@ -73,8 +74,32 @@ export function parseCommand(argv: readonly string[]): Command {
       throw new ConfigError(`--root ${root} is not a directory`);
     }
   }
+  // The roots are what the agent reaches. A key or trust file inside one could be sealed into a
+  // package, or edited by an agent that has file tools of its own.
+  for (const [flag, file] of [["--key", values.key], ["--trust", values.trust]] as const) {
+    if (file === undefined) continue;
+    const real = realOrSelf(file);
+    for (const root of values.root) {
+      if (inside(realOrSelf(root), real)) {
+        throw new ConfigError(`${flag} ${file} is inside --root ${root}: keep it where the agent cannot reach it`);
+      }
+    }
+  }
   return {
     kind: "serve",
     config: { roots: values.root, trust: values.trust, chain: values.chain, offline: values.offline, key: values.key },
   };
+}
+
+function realOrSelf(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
+  }
+}
+
+function inside(root: string, path: string): boolean {
+  const rest = relative(root, path);
+  return rest === "" || (rest !== ".." && !rest.startsWith(`..${sep}`) && !isAbsolute(rest));
 }

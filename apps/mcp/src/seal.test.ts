@@ -138,6 +138,12 @@ describe("seal is off by default", () => {
     expect(started.stderr).not.toContain(PASSPHRASE);
   });
 
+  it("refuses to start with the key where the agent can reach it, so it can never be sealed into a package", async () => {
+    const started = await connect({ argv: ["--root", keys, "--allow-seal", "--key", KEY()] });
+    expect(started.code).toBe(2);
+    expect(started.stderr).toContain(`--key ${KEY()} is inside --root ${keys}: keep it where the agent cannot reach it`);
+  });
+
   it("refuses to start without a readable key", async () => {
     const started = await connect({ argv: ["--root", dir, "--allow-seal", "--key", join(keys, "missing.key")] });
     expect(started.code).toBe(2);

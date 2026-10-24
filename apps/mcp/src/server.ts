@@ -14,7 +14,7 @@ import { randomBytes } from "node:crypto";
 import manifest from "../package.json" with { type: "json" };
 import type { Config } from "./config.js";
 import { inspectPackage } from "./inspect.js";
-import { openInRoots, resolveInRoots } from "./paths.js";
+import { openInRoots } from "./paths.js";
 import { INSTRUCTIONS, checkPackagePrompt } from "./prompts.js";
 import { confirmation, notSealed, planSeal, seal } from "./seal.js";
 import { checkPackageArgs, inspectInput, inspectOutput, sealInput, sealOutput, trustedKeysOutput, upgradeInput, upgradeOutput, verifyInput, verifyOutput } from "./schemas.js";
@@ -124,8 +124,9 @@ export function createServer(config: Config, options: ServerOptions = {}): McpSe
         });
         const source = await openInRoots(path, config.roots, "package");
         try {
-          const real = await resolveInRoots(path, config.roots);
-          const target = overwrite ? real : upgradedPath(real);
+          // Where the package was opened, not the path resolved again: a link swapped in between
+          // must not send this package's upgrade over another file.
+          const target = overwrite ? source.real : upgradedPath(source.real);
           return await upgradePackage(docseal, source, target, (written) => openInRoots(written, config.roots, "package"), online);
         } finally {
           await source.close();

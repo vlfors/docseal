@@ -43,9 +43,10 @@ const READ_FLAGS =
  * Opens a regular file under the roots for reading. Between the check and the open, a
  * directory on the way could be swapped for a link; so the file opened is checked once more:
  * on Linux by the path the kernel reports for the descriptor, elsewhere by resolving the path
- * again and comparing the file's identity with the descriptor's.
+ * again and comparing the file's identity with the descriptor's. The result names the real
+ * path it was opened at, so a caller writing next to it need not resolve the path again.
  */
-export async function openInRoots(path: string, roots: readonly string[], what: string): Promise<FileSource> {
+export async function openInRoots(path: string, roots: readonly string[], what: string): Promise<FileSource & { real: string }> {
   const real = await resolveInRoots(path, roots);
   let handle: FileHandle;
   try {
@@ -61,7 +62,7 @@ export async function openInRoots(path: string, roots: readonly string[], what: 
     if (!(await isOpenedWithin(handle, opened, real, roots))) {
       throw outside(path);
     }
-    return await fileSource(handle, path);
+    return Object.assign(await fileSource(handle, path), { real });
   } catch (error) {
     await handle.close();
     throw error;

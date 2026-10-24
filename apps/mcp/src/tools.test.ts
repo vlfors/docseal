@@ -140,9 +140,11 @@ describe("tools", () => {
       env: {},
       readSecret: () => Promise.reject(new Error("no terminal")),
     });
-    await writeFile(path("trusted-keys.json"), JSON.stringify({ type: "docseal-trusted-keys", version: 1, keys: [{ id: did, label: "Me" }] }));
+    // Outside the root: the server refuses a trusted-keys file the agent could reach.
+    const trust = `${dir}-trusted-keys.json`;
+    await writeFile(trust, JSON.stringify({ type: "docseal-trusted-keys", version: 1, keys: [{ id: did, label: "Me" }] }));
     await runCli(["seal", path("docs"), "-k", path("me.key"), "-o", path("p.dseal"), "--calendar", "https://pool.test"]);
-    await connect(["--root", dir, "--trust", path("trusted-keys.json"), "--chain", "https://esplora.test"]);
+    await connect(["--root", dir, "--trust", trust, "--chain", "https://esplora.test"]);
 
     const pending = (await call("verify", { path: "p.dseal" })).structuredContent as VerifyOutput;
     expect(pending.verdict).toBe("indeterminate");
@@ -157,7 +159,8 @@ describe("tools", () => {
     expect(valid.summary).toMatch(/^VALID: the files are unchanged, they were signed by a trusted key, and they existed no later than \d{4}-/);
     expect(valid.notConfirmed).toEqual([]);
     expect(valid.nextSteps).toEqual([]);
-    expect(valid.report).toEqual(await cliReport([path("p.dseal"), "--trust", path("trusted-keys.json"), "--chain", "https://esplora.test"]));
+    expect(valid.report).toEqual(await cliReport([path("p.dseal"), "--trust", trust, "--chain", "https://esplora.test"]));
+    await rm(trust);
 
     const inspected = (await call("inspect", { path: "p.dseal" })).structuredContent as InspectOutput;
     expect(inspected).toMatchObject({
