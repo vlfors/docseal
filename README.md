@@ -145,6 +145,7 @@ pnpm demo     # seal → verify → change a word → invalid
 pnpm --filter @docseal/web dev   # the browser app
 pnpm test:browser                # the core in Chromium, Firefox, WebKit
 pnpm test:e2e                    # the built site in the three engines
+pnpm test:mcp                    # the built MCP server over stdio
 ```
 
 | Path | Contents |

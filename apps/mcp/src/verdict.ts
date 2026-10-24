@@ -57,8 +57,8 @@ function unconfirmed(report: VerificationReport): string[] {
   if (axes.integrity === "not-checked") out.push("that the files are unchanged");
   if (axes.signature === "unsupported") out.push("the signature: it uses a kind this server cannot check");
   if (axes.signature === "missing") out.push("who signed the package: it has no signature this server could check");
-  if (axes.trust === "untrusted") out.push("the signer: the signing key is marked as not trusted");
-  if (axes.trust === "unknown" || axes.trust === "not-evaluated") out.push("who owns the signing key");
+  // untrusted: a signer is not among the trusted keys; unknown: a policy could not decide.
+  if (axes.trust !== "trusted") out.push("who owns the signing key");
   if (axes.time !== "confirmed") out.push("when the files existed");
   if (axes.completeness !== "full") out.push("that every signature and proof in the package was checked");
   return out;
@@ -102,7 +102,7 @@ function nextSteps(report: VerificationReport, context: VerifyContext): string[]
         "(a trusted-keys.json given with --trust), after confirming the signer's key with the signer through another channel.",
     );
   }
-  if (axes.trust === "unknown") {
+  if (axes.trust === "untrusted" || axes.trust === "unknown") {
     steps.push(
       "The signing key is not among the trusted keys. Ask the person to confirm the key with the signer through " +
         "another channel; only they can add it to the trusted keys.",

@@ -34,7 +34,7 @@ Run the smallest check that covers the change, and keep the output short (`--rep
 - one package: `pnpm --filter @docseal/<name> typecheck`;
 - before a commit: `pnpm check` (lint, typecheck, all unit tests).
 
-Only when asked, or when the change touches what they cover: `test:e2e`, `test:browser`, `coverage`, `mutation`, `fuzz`, `fuzz:differential`, `tests/large.test.ts`. WebKit e2e does not run on the maintainer's Fedora machine; CI runs it.
+Only when asked, or when the change touches what they cover: `test:e2e`, `test:browser`, `test:mcp` (the built MCP server), `coverage`, `mutation`, `fuzz`, `fuzz:differential`, `tests/large.test.ts`. WebKit e2e does not run on the maintainer's Fedora machine; CI runs it.
 
 Never hand-edit generated files. Regenerate vectors with `pnpm vectors:update` and check them with `pnpm vectors:python`; update snapshots with `vitest -u` and review the diff.
 

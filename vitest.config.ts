@@ -6,8 +6,9 @@ export default defineConfig({
   },
   test: {
     include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts", "tests/**/*.test.ts"],
-    // Run in real browser engines: vitest.browser.config.ts and vitest.e2e.config.ts.
-    exclude: [...configDefaults.exclude, "**/*.browser.test.ts", "**/*.e2e.test.ts"],
+    // Run in real browser engines (vitest.browser.config.ts, vitest.e2e.config.ts), or against
+    // the built MCP server (vitest.mcp.config.ts).
+    exclude: [...configDefaults.exclude, "**/*.browser.test.ts", "**/*.e2e.test.ts", "**/*.mcp.test.ts"],
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.ts"],

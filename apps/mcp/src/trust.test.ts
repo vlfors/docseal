@@ -69,6 +69,19 @@ describe("list_trusted_keys", () => {
   });
 });
 
+describe("a signer missing from the trusted keys", () => {
+  it("is reported as not confirmed, with what the person can do", async () => {
+    const c = await connect(["--root", dir, "--trust", path("trusted-keys.json")]);
+    const out = (await c.callTool({ name: "verify", arguments: { path: "p.dseal" } })).structuredContent as VerifyOutput;
+    expect(out.report.axes.trust).toBe("untrusted");
+    expect(out.notConfirmed).toEqual(["who owns the signing key", "when the files existed"]);
+    expect(out.nextSteps[0]).toBe(
+      "The signing key is not among the trusted keys. Ask the person to confirm the key with the signer through " +
+        "another channel; only they can add it to the trusted keys.",
+    );
+  });
+});
+
 describe("no tool changes trust", () => {
   it("offers no argument that names a key or a trust file", async () => {
     const { tools } = await (await connect(["--root", dir, "--trust", path("trusted-keys.json")])).listTools();

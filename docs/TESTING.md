@@ -12,6 +12,7 @@ DocSeal is verification software: its job is to say "no" correctly. Besides unit
 | Mutation testing | `stryker.config.json` | The tests notice when the code is changed | `pnpm mutation` |
 | Browser engines | `**/*.browser.test.ts` | The golden packages get their verdicts in Chromium, Firefox, and WebKit; verification in a Web Worker | `pnpm test:browser` |
 | The built site | `tests/e2e/*.e2e.test.ts` | The verify page shows each golden package's verdicts and reasons; package text cannot disguise itself; trusted keys; the seal page collects a folder as the CLI does, opens `docseal keygen` key files, makes keys the CLI signs with, and seals packages the CLI and the Python verifier accept; time proofs are submitted, upgraded, and verified on a fake network; a package sealed on the site verifies as trusted, as untrusted, and as invalid once a document changes; no CSP violations | `pnpm test:e2e` |
+| The MCP server, built | `tests/mcp/*.mcp.test.ts` | `docseal-mcp` started over stdio by the MCP SDK's client, on the 2026-07-28 protocol and the 2025 handshake: each verdict, inspect, paths outside the roots, a seal declined and one confirmed, upgraded on a fake network, and verified as valid by the server and the CLI; nothing but JSON-RPC on stdout | `pnpm test:mcp` |
 
 `FUZZ_RUNS` sets the number of generated cases per property (defaults: 100 for properties, 200 for robustness, 300 for differential); `FUZZ_SEED` fixes the seed of the differential run so a failure can be reproduced.
 
@@ -48,6 +49,10 @@ Measured on 2026-10-19 (Playwright 1.64.1, headless, one x86-64 laptop; WebKit i
 Two measurements run only on request. `DOCSEAL_MEMORY_PROBE=1 pnpm test:browser tests/browser/memory` builds packages of 0.5 to 3 GiB in memory, as Firefox and Safari save them, and reads them back: Chromium managed 1 GiB (it saves to disk instead), Firefox 3 GiB, WebKit 1.5 GiB, its tab crashing at 2 GiB; the page's limits (2 GiB in Firefox, 1 GiB elsewhere) leave room below that. `DOCSEAL_LARGE_TESTS=1 DOCSEAL_LARGE_DIR=<dir on disk> pnpm test:e2e tests/e2e/large` verifies a 4.06 GiB package (ZIP64) from disk in each engine and seals one in Chromium straight to a file, recording the browsers' peak memory; the results are in [USAGE.md](USAGE.md#size-limits).
 
 All three engines follow the Compression Streams standard, so the fallback check runs only on Node.js 22 and in the test that forces it. Hashing uses the portable SHA-256 of `@noble/hashes`, since Web Crypto has no incremental digest; at these speeds a 2 GiB package takes half a minute to over a minute to verify.
+
+## The MCP server
+
+`pnpm test:mcp` builds `@docseal/mcp` and the CLI and starts `apps/mcp/dist/index.js` as a client would, through the SDK's stdio transport, once per protocol era. Nothing in the binary is changed for the tests: `tests/mcp/fake-network.mjs` is preloaded with `node --import` and replaces `fetch` with the fake network of `tests/fake-network.ts`, its state in files the test shares with the server process. The unit tests of `apps/mcp/src/` drive the same server in-process through the SDK's in-memory transport, and run with `pnpm test`.
 
 ## Property tests
 

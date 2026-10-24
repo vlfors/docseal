@@ -22,6 +22,10 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
+    files: ["tests/mcp/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
+  {
     files: ["examples/*.mjs", "scripts/*.mjs"],
     languageOptions: { globals: { console: "readonly", process: "readonly", URL: "readonly" } },
   },

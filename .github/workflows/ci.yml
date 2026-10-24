@@ -28,6 +28,8 @@ jobs:
       - name: The web build carries its Content Security Policy
         run: grep -q 'http-equiv="content-security-policy"' apps/web/build/index.html
       - run: pnpm test
+      # The built MCP server over stdio, in both protocol eras.
+      - run: pnpm test:mcp
 
   # The Node.js file handling on macOS: no /proc, so the MCP server checks an opened file by its
   # identity instead, and the file system may ignore case.
