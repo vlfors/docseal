@@ -39,13 +39,16 @@ All packages are released together, with one version, by pushing a tag. The work
 
 To let people try the web app from `main`: Actions → Preview → Run workflow, on `main`. [`preview.yml`](../.github/workflows/preview.yml) builds the site from `main` and deploys it to GitHub Pages at `/docseal/preview/`; nothing goes to npm and no release is made. Every page carries a banner saying it is a preview, linking to the release, and its footer names the commit. GitHub Pages serves one site per repository, so the workflow deploys the latest release's site with it, unchanged at `/docseal/`: taken from the GitHub release and checked against its `SHA256SUMS` and build attestation first. Before the first release, `/docseal/` only points to the preview. The address is public to anyone who has it. The next preview replaces it; the next release removes it.
 
-## The MCP server without npm
+## The CLI and the MCP server without npm
 
-`docseal-mcp-<version>.tgz` is built to install on its own from the release, while the other packages are not on npm: it carries the DocSeal packages it uses inside its bundle (`apps/mcp/tsup.config.ts`) and lists only their third-party dependencies, which npm fetches from the registry as usual. `tests/release.test.ts` keeps that list in step with the packages'. `scripts/pack.sh` then adds an `npm-shrinkwrap.json`, resolved from the registry when the release is packed, and drops the manifest's `devDependencies` (bundled already): a global install has no lockfile of its own, and with the shrinkwrap every install gets the same tree. `scripts/smoke-test.sh` installs the tarball alone into an empty project and has it verify a package over stdio.
+`docseal-cli-<version>.tgz` and `docseal-mcp-<version>.tgz` are built to install on their own from the release, while the libraries are not on npm: each carries the DocSeal packages it uses inside its bundle (`apps/*/tsup.config.ts`) and lists only their third-party dependencies, which npm fetches from the registry as usual. `tests/release.test.ts` keeps those lists in step with the packages'. `scripts/pack.sh` then adds an `npm-shrinkwrap.json` to each, resolved from the registry when the release is packed, and drops the manifest's `devDependencies` (bundled already): a global install has no lockfile of its own, and with the shrinkwrap every install gets the same tree. `scripts/smoke-test.sh` installs each tarball alone into an empty project and has it verify a package.
 
 ```bash
+npm install -g https://github.com/vlfors/docseal/releases/download/v0.3.0/docseal-cli-0.3.0.tgz
 npm install -g https://github.com/vlfors/docseal/releases/download/v0.3.0/docseal-mcp-0.3.0.tgz
 ```
+
+The library packages (`docseal-core`, `docseal-sig-ed25519`, `docseal-anchor-ots`) are released too, for projects that install them together from the tarballs.
 
 ## Verifying a release
 

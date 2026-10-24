@@ -13,18 +13,18 @@ describe("release metadata", () => {
     expect(new Set(manifests.map((m) => m.version))).toEqual(new Set([VERSION]));
   });
 
-  it("ships the MCP server with the DocSeal packages inside and their dependencies listed", () => {
+  it.each(["apps/cli", "apps/mcp"])("ships %s with the DocSeal packages inside and their dependencies listed", (app) => {
     // Installed from a release URL, the tarball must not need @docseal/* from npm.
     type Manifest = { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
     const manifest = (dir: string) => JSON.parse(read(`${dir}/package.json`)) as Manifest;
-    const mcp = manifest("apps/mcp");
-    expect(Object.keys(mcp.dependencies ?? {}).filter((name) => name.startsWith("@docseal/"))).toEqual([]);
-    const bundled = Object.keys(mcp.devDependencies ?? {}).filter((name) => name.startsWith("@docseal/"));
+    const own = manifest(app);
+    expect(Object.keys(own.dependencies ?? {}).filter((name) => name.startsWith("@docseal/"))).toEqual([]);
+    const bundled = Object.keys(own.devDependencies ?? {}).filter((name) => name.startsWith("@docseal/"));
     expect(bundled.sort()).toEqual(["@docseal/anchor-ots", "@docseal/core", "@docseal/node", "@docseal/sig-ed25519"]);
     for (const name of bundled) {
       const dir = `packages/${name.slice("@docseal/".length)}`;
       for (const [dependency, range] of Object.entries(manifest(dir).dependencies ?? {})) {
-        if (!dependency.startsWith("@docseal/")) expect(mcp.dependencies?.[dependency], `${dependency} of ${name}`).toBe(range);
+        if (!dependency.startsWith("@docseal/")) expect(own.dependencies?.[dependency], `${dependency} of ${name}`).toBe(range);
       }
     }
   });
