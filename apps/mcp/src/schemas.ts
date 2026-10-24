@@ -81,6 +81,8 @@ export const verifyOutput = z.object({
 
 export const inspectInput = verifyInput;
 
+export const checkPackageArgs = z.object({ path: z.string().describe("The .dseal package to check") });
+
 export const inspectOutput = z.object({
   summary: z.string(),
   verified: z.literal(false).describe("Nothing here was checked: call verify for a verdict"),

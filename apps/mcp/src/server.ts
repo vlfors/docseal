@@ -15,8 +15,9 @@ import manifest from "../package.json" with { type: "json" };
 import type { Config } from "./config.js";
 import { inspectPackage } from "./inspect.js";
 import { openInRoots, resolveInRoots } from "./paths.js";
+import { INSTRUCTIONS, checkPackagePrompt } from "./prompts.js";
 import { confirmation, notSealed, planSeal, seal } from "./seal.js";
-import { inspectInput, inspectOutput, sealInput, sealOutput, trustedKeysOutput, upgradeInput, upgradeOutput, verifyInput, verifyOutput } from "./schemas.js";
+import { checkPackageArgs, inspectInput, inspectOutput, sealInput, sealOutput, trustedKeysOutput, upgradeInput, upgradeOutput, verifyInput, verifyOutput } from "./schemas.js";
 import { capList, fence, fenceAll } from "./untrusted.js";
 import { upgradePackage, upgradedPath } from "./upgrade.js";
 import { describeReport } from "./verdict.js";
@@ -46,7 +47,8 @@ export function createServer(config: Config, options: ServerOptions = {}): McpSe
   const server = new McpServer(
     { name: NAME, version: VERSION },
     {
-      capabilities: { tools: {} },
+      capabilities: { tools: {}, prompts: {} },
+      instructions: INSTRUCTIONS,
       // Tool arguments are a path and a few strings; anything far larger is not a real call.
       maxToolInputElements: 1024,
       requestState: { verify: (state, ctx) => requestState.verify(state, ctx) },
@@ -223,6 +225,18 @@ export function createServer(config: Config, options: ServerOptions = {}): McpSe
       },
     );
   }
+
+  server.registerPrompt(
+    "check-package",
+    {
+      title: "Check a DocSeal package",
+      description: "Verify a .dseal package and report the verdict with what it does not confirm.",
+      argsSchema: checkPackageArgs,
+    },
+    ({ path }) => ({
+      messages: [{ role: "user", content: { type: "text", text: checkPackagePrompt(path) } }],
+    }),
+  );
 
   return server;
 }
