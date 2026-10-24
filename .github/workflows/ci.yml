@@ -29,6 +29,19 @@ jobs:
         run: grep -q 'http-equiv="content-security-policy"' apps/web/build/index.html
       - run: pnpm test
 
+  # The Node.js file handling on macOS: no /proc, so the MCP server checks an opened file by its
+  # identity instead, and the file system may ignore case.
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm vitest run packages/node apps/mcp apps/cli
+
   # Coverage floor, and the packed tarballs installed with npm and run as a user would.
   coverage-and-package:
     runs-on: ubuntu-latest

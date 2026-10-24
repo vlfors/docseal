@@ -1,3 +1,4 @@
+import { statSync } from "node:fs";
 import { parseArgs } from "node:util";
 
 /** What the person running the server allows. Nothing here comes from the agent. */
@@ -65,6 +66,12 @@ export function parseCommand(argv: readonly string[]): Command {
   }
   if (values.offline && values.chain.length > 0) {
     throw new ConfigError("--offline and --chain contradict each other");
+  }
+  for (const root of values.root) {
+    // A missing root would refuse every call later with a less clear message.
+    if (!statSync(root, { throwIfNoEntry: false })?.isDirectory()) {
+      throw new ConfigError(`--root ${root} is not a directory`);
+    }
   }
   return {
     kind: "serve",

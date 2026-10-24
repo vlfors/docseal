@@ -121,6 +121,11 @@ export async function openFileSource(path: string, what: string): Promise<FileSo
   } catch {
     throw new UserError(`Cannot read ${what} ${path}`);
   }
+  return fileSource(handle, path);
+}
+
+/** A source over a file already opened, which it then owns; `path` names it in errors. */
+export async function fileSource(handle: FileHandle, path: string): Promise<FileSource> {
   const { size } = await handle.stat();
   return {
     size,

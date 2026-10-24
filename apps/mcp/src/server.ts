@@ -1,11 +1,11 @@
 import { DEFAULT_ESPLORA_URLS, type Fetch } from "@docseal/anchor-ots";
 import { FormatError } from "@docseal/core";
-import { UserError, createDocSeal, openFileSource, readTrustedKeys, sanitize } from "@docseal/node";
+import { UserError, createDocSeal, readTrustedKeys, sanitize } from "@docseal/node";
 import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import manifest from "../package.json" with { type: "json" };
 import type { Config } from "./config.js";
 import { inspectPackage } from "./inspect.js";
-import { resolveInRoots } from "./paths.js";
+import { openInRoots } from "./paths.js";
 import { inspectInput, inspectOutput, verifyInput, verifyOutput } from "./schemas.js";
 import { fence } from "./untrusted.js";
 import { describeReport } from "./verdict.js";
@@ -49,7 +49,7 @@ export function createServer(config: Config, options: { fetch?: Fetch | undefine
           trust: config.trust === undefined ? undefined : await readTrustedKeys(config.trust),
           chain: online ? (config.chain.length > 0 ? config.chain : DEFAULT_ESPLORA_URLS) : undefined,
         });
-        const source = await openFileSource(await resolveInRoots(path, config.roots), "package");
+        const source = await openInRoots(path, config.roots, "package");
         const report = await docseal.verify(source).finally(() => source.close());
         return describeReport(report, { trustConfigured: config.trust !== undefined, online });
       }),
@@ -69,7 +69,7 @@ export function createServer(config: Config, options: { fetch?: Fetch | undefine
     },
     ({ path }) =>
       tool(async () => {
-        const source = await openFileSource(await resolveInRoots(path, config.roots), "package");
+        const source = await openInRoots(path, config.roots, "package");
         return inspectPackage(source).finally(() => source.close());
       }),
   );

@@ -1,4 +1,5 @@
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
+import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { USAGE } from "./config.js";
 import { main, type Running } from "./main.js";
@@ -47,6 +48,8 @@ describe("docseal-mcp", () => {
     [["--allow-seal"], "--allow-seal and --key go together"],
     [["--key", "a.key"], "--allow-seal and --key go together"],
     [["--offline", "--chain", "https://example.org/api"], "contradict"],
+    [["--root", "/nonexistent/docseal"], "--root /nonexistent/docseal is not a directory"],
+    [["--root", import.meta.filename], "is not a directory"],
   ])("refuses %j before serving", (argv, message) => {
     const { result, stdout, stderr } = run(argv);
     expect(result).toBe(2);
@@ -64,12 +67,12 @@ describe("docseal-mcp", () => {
   it("writes nothing to stdout while serving and says on stderr what it allows", async () => {
     const write = vi.spyOn(process.stdout, "write");
     const log = vi.spyOn(console, "log");
-    const { client, started } = await connect(["--root", "/srv/docs", "--allow-seal", "--key", "a.key"]);
+    const { client, started } = await connect(["--root", tmpdir(), "--allow-seal", "--key", "a.key"]);
     await client.listTools();
     expect(started.stdout).toBe("");
     expect(write).not.toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
-    expect(started.stderr).toBe(`${NAME} ${VERSION}: serving on stdio; files under /srv/docs; sealing on\n`);
+    expect(started.stderr).toBe(`${NAME} ${VERSION}: serving on stdio; files under ${tmpdir()}; sealing on\n`);
   });
 
   it("says when it has no file access", async () => {
