@@ -2,13 +2,26 @@
 
 All notable changes to DocSeal are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the library API; the `.dseal` format has its own version, and a package valid under format v0.1 stays valid for every DocSeal release that supports v0.1.
 
-All packages (`@docseal/core`, `@docseal/sig-ed25519`, `@docseal/anchor-ots`, `@docseal/cli`, and from 0.3 `@docseal/mcp`) are released together with the same version.
+All packages (`@docseal/core`, `@docseal/sig-ed25519`, `@docseal/anchor-ots`, `@docseal/cli`, and from 0.3.0 `@docseal/mcp`) are released together with the same version.
 
-## Unreleased
+## [0.3.0] — 2026-10-24
+
+DocSeal for AI agents: an MCP server that any MCP client can start, on the same core. The `.dseal` format does not change.
 
 ### MCP server
 
-- `@docseal/mcp`: the `docseal-mcp` server for AI agents, over stdio, for clients on the 2026-07-28 protocol and on the 2025 handshake. Work in progress. Tools: `verify`, with the verdict, what it does not confirm, next steps, and the same report as `docseal verify --json`; `inspect`, what a package holds, without checking it; `upgrade`, which completes the time proof into `<name>.upgraded.dseal` (or over the original with `overwrite`) and says how far it has come; `list_trusted_keys`, the keys from `--trust`, which no tool can change; `seal`, off unless started with `--allow-seal --key`, each call confirmed by the person in a form their client shows. A skill (`skills/docseal/SKILL.md`), a `check-package` prompt, and the server's instructions teach an agent to report a verdict with what it does not confirm. The release tarball installs on its own (`npm install -g <release URL>`): the DocSeal packages are bundled inside. Files only under `--root`. Text from a package reaches the model only as values of named fields, with hidden and reordering characters made visible and each value and list capped; the summary is DocSeal's own words.
+- `@docseal/mcp`, the `docseal-mcp` command: a local stdio server for the 2026-07-28 protocol and for clients on the 2025 handshake, on the MCP TypeScript SDK v2. See [the MCP guide](docs/MCP.md).
+- Tools: `verify` (the verdict, what it does not confirm, next steps, and the same report as `docseal verify --json`), `inspect` (what a package holds, without checking it or using the network), `upgrade` (completes the time proof into `<name>.upgraded.dseal`, or over the original with `overwrite`, and says how far it has come), `list_trusted_keys`, and `seal`.
+- What the agent reaches is set by the person, not the agent: files only under `--root`, checked as written, as resolved, and once more as opened; trusted keys only from `--trust`, which no tool can change; the server refuses to start with the key or the trusted-keys file inside a root.
+- `seal` is off unless the server is started with `--allow-seal --key`, with the passphrase in `DOCSEAL_PASSPHRASE`, checked at startup. Each call is confirmed by the person in a form their client shows (files, sizes, role, title, signer, output); the answer counts only for exactly what was shown. Clients without form elicitation cannot seal.
+- Package text reaches the model only as values of named fields, with hidden and reordering characters made visible and each value and list capped. The summary is DocSeal's own words: an invalid package starts with "do not rely on this package", an indeterminate one with what is not confirmed.
+- A skill (`skills/docseal/SKILL.md`), a `check-package` prompt, and the server's instructions teach an agent to report a verdict without making it sound stronger.
+- Tested in-process in both protocol eras, and as the built binary over stdio (`pnpm test:mcp`) in CI; [the threat model](THREAT_MODEL.md#the-mcp-server) lists each threat with its test, or as residual with the reason.
+
+### Distribution
+
+- The CLI and the MCP server install on their own from the GitHub release, `npm install -g <tarball URL>`, while npm publishing is off: each bundles the DocSeal packages and lists only third-party dependencies, pinned by an `npm-shrinkwrap.json` in the tarball.
+- `@docseal/node`, a private package with the Node.js code the CLI and the server share (file collection with pinned identity, key files, trusted keys, plugin wiring); bundled, not published.
 
 ### Fixed
 

@@ -5,10 +5,10 @@ This guide is for people who use DocSeal: how to sign documents into a `.dseal` 
 ## 0. Install
 
 ```bash
-npm install -g @docseal/cli      # Node.js ≥ 22
+npm install -g https://github.com/vlfors/docseal/releases/download/v0.3.0/docseal-cli-0.3.0.tgz      # Node.js ≥ 22
 ```
 
-Until 0.2.0 is published on npm, build it from a checkout:
+The CLI comes from the [GitHub release](https://github.com/vlfors/docseal/releases), not npm; [verifying a release](RELEASING.md#verifying-a-release) shows how to check the tarball. Or build it from a checkout:
 
 ```bash
 pnpm install && pnpm build

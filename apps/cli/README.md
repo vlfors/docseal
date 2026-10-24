@@ -3,7 +3,7 @@
 The `docseal` command: seal files into a `.dseal` package that proves their integrity, who signed them (by key), and that they existed no later than a Bitcoin-confirmed time — and verify such packages.
 
 ```bash
-npm install -g @docseal/cli
+npm install -g https://github.com/vlfors/docseal/releases/download/v0.3.0/docseal-cli-0.3.0.tgz
 
 docseal keygen -o me.key                        # encrypted Ed25519 key (development use)
 docseal pubkey me.key                           # did:key for recipients' trusted-keys.json

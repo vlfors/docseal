@@ -37,7 +37,7 @@ import { Command, CommanderError, InvalidArgumentError, Option } from "commander
 import { CliError, ExitCode, type Io } from "./io.js";
 import { formatReport } from "./report.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 
 /** Runs the CLI and returns the exit code. Never calls process.exit. */
 export async function main(argv: readonly string[], io: Io): Promise<number> {

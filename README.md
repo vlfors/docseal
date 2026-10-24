@@ -44,7 +44,7 @@ The project is intended as a complete, portfolio-grade open-source project: firs
 ## Command line
 
 ```bash
-npm install -g @docseal/cli                    # Node.js ≥ 22, once 0.2.0 is published
+npm install -g https://github.com/vlfors/docseal/releases/download/v0.3.0/docseal-cli-0.3.0.tgz   # Node.js ≥ 22
 ```
 
 ```bash
@@ -133,9 +133,11 @@ DocSeal does not implement cryptographic primitives itself. The core defines the
 
 ## Status
 
-v0.1 is complete: the core library, the Ed25519 and OpenTimestamps plugins, and the CLI. The [format specification v0.1](docs/FORMAT-v0.1.md) is final and frozen. The packages are not on npm yet; the first publication waits for the public repository (see [releasing](docs/RELEASING.md)). Until then, build from source (see [Development](#development)).
+v0.1 is complete: the core library, the Ed25519 and OpenTimestamps plugins, and the CLI. The [format specification v0.1](docs/FORMAT-v0.1.md) is final and frozen. Releases are published on [GitHub](https://github.com/vlfors/docseal/releases), with attested tarballs; npm publishing is off for now, so the CLI and the MCP server install from the release URL (see [releasing](docs/RELEASING.md)).
 
 The browser app (v0.2) is complete: it verifies and seals packages on the device, opens and creates key files the CLI shares, and submits, completes, and checks time proofs, tested in Chromium, Firefox, and WebKit, Safari's engine (see [the browser section of the guide](docs/USAGE.md#in-the-browser), with its size limits). From the first release it is served at [vlfors.github.io/docseal](https://vlfors.github.io/docseal/), built by CI from the release tag, and attached to the release so it can be served locally instead.
+
+The MCP server (v0.3) is complete: an agent verifies, inspects, and upgrades packages through it, and seals only when the person turns sealing on and confirms each package in their client (see [the MCP guide](docs/MCP.md)).
 
 `pnpm demo` shows the main promise without any network: it seals a folder, verifies it, changes one word in a sealed document, and verifies again, which gives `INVALID`.
 
