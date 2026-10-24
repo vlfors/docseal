@@ -100,7 +100,7 @@ export function openTimestamps(options: OpenTimestampsOptions = {}): AnchorProvi
           `Only ${String(accepted)} of ${String(calendars.length)} calendars accepted the digest (need ${String(minCalendars)}): ${failures.join("; ")}`,
         );
       }
-      return toReceipt({ hashOp: "sha256", timestamp: root });
+      return toReceipt({ hashOp: "sha256", timestamp: root }, timestamp(new Date()));
     },
 
     async upgrade(receipt) {
@@ -220,7 +220,8 @@ function decodeProof(receipt: AnchorReceipt): DetachedTimestamp {
   return parseDetached(fromBase64url(receipt.proof));
 }
 
-function toReceipt(detached: DetachedTimestamp, submittedAt = timestamp(new Date())): AnchorReceipt {
+/** `submittedAt` is when the seal went to the calendars; an upgrade keeps it as it was, and never invents one. */
+function toReceipt(detached: DetachedTimestamp, submittedAt: string | undefined): AnchorReceipt {
   const found = attestations(detached.timestamp);
   const heights = found.flatMap(({ attestation }) => (attestation.kind === "bitcoin" ? [attestation.height] : []));
   return {
@@ -229,10 +230,11 @@ function toReceipt(detached: DetachedTimestamp, submittedAt = timestamp(new Date
     digestAlgorithm: "sha-256",
     digest: toHex(detached.timestamp.msg),
     proof: toBase64url(serializeDetached(detached)),
-    cached:
-      heights.length > 0
-        ? { status: "confirmed", submittedAt, blockHeight: Math.min(...heights) }
-        : { status: "pending", submittedAt },
+    cached: {
+      status: heights.length > 0 ? "confirmed" : "pending",
+      ...(submittedAt !== undefined && { submittedAt }),
+      ...(heights.length > 0 && { blockHeight: Math.min(...heights) }),
+    },
   };
 }
 

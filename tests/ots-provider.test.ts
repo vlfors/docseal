@@ -199,6 +199,11 @@ describe("upgrade", () => {
     const fetch = fakeFetch(({ url }) => (url === `${uri}/timestamp/${toHex(commitment)}` ? completed : undefined));
     const upgraded = await openTimestamps({ fetch }).upgrade?.(receipt);
     expect(upgraded?.cached).toMatchObject({ status: "confirmed", blockHeight: 900_000, submittedAt: receipt.cached?.submittedAt });
+    expect(Object.keys(upgraded?.cached ?? {})).toEqual(["status", "submittedAt", "blockHeight"]);
+
+    // A receipt that never recorded when it was submitted does not get the time of the upgrade.
+    const later = await openTimestamps({ fetch }).upgrade?.({ ...receipt, cached: { status: "pending" } });
+    expect(later?.cached).toEqual({ status: "confirmed", blockHeight: 900_000 });
 
     const chain = fakeChain([{ height: 900_000, merkleRoot: commitment, time: 1_750_000_000 }], 900_010);
     const result = await openTimestamps().verify(upgraded ?? receipt, digest, chain);

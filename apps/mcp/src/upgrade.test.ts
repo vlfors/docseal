@@ -2,7 +2,7 @@ import { copyFile, mkdtemp, readFile, readdir, realpath, rm } from "node:fs/prom
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main as cli } from "../../cli/src/main.js";
 import { HEIGHT, fakeNetwork } from "../../../tests/fake-network.js";
 import { main, type Running } from "./main.js";
@@ -29,7 +29,6 @@ afterEach(async () => {
   await running?.close();
   client = running = undefined;
   await rm(dir, { recursive: true, force: true });
-  vi.useRealTimers();
 });
 
 async function connect(extra: string[] = ["--chain", "https://esplora.test"]): Promise<void> {
@@ -66,8 +65,6 @@ describe("upgrade", () => {
   });
 
   it("writes the completed proof next to the original, the same bytes as docseal upgrade", async () => {
-    // A receipt without a submission time gets the time of the upgrade: the same for both here.
-    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-24T12:00:00Z") });
     await connect();
     const original = await readFile(path(PENDING));
     network.confirm();
