@@ -98,7 +98,7 @@ The MCP server (`apps/mcp`, v0.3) runs the same packages for an AI agent, as a l
 | A client that answers the confirmation form by itself (hooks, auto-approval) | The form is the client's to show | *Residual*: the confirmation is only as strong as the client's handling of it; a person who sets up automatic answers has chosen to sign without looking |
 | A root wider than needed (a home directory) | Everything under a root can be read and offered for sealing | *Residual*: a configuration choice; the guide asks for the narrowest directories that hold the packages |
 | A directory in a root swapped for a link between the confirmation and the write | The output's directory is resolved when the seal is planned; a writer racing inside the root could redirect the temporary file | *Residual*: needs someone else writing into the root at the same moment; whoever can write there decides what is in it |
-| A dependency release that is compromised after ours | The release tarball names its third-party dependencies by range (the MCP SDK exactly), and a global install has no lockfile | *Residual*: the same as any npm package; an `npm-shrinkwrap.json` in the tarball would pin the whole tree |
+| A dependency release that is compromised after ours | A global install has no lockfile of the user's, so the release tarball carries an `npm-shrinkwrap.json`: every install gets the exact tree resolved when the release was packed, and the smoke test installs and runs that tree before release | `scripts/pack.sh`, `scripts/smoke-test.sh` |
 | Anything but protocol messages on stdout, which a client would misread | Logs go to stderr; nothing writes to stdout while serving | `apps/mcp/src/main.test.ts` |
 
 ## Critical format rules

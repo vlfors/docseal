@@ -41,7 +41,7 @@ To let people try the web app from `main`: Actions → Preview → Run workflow,
 
 ## The MCP server without npm
 
-`docseal-mcp-<version>.tgz` is built to install on its own from the release, while the other packages are not on npm: it carries the DocSeal packages it uses inside its bundle (`apps/mcp/tsup.config.ts`) and lists only their third-party dependencies, which npm fetches from the registry as usual. `tests/release.test.ts` keeps that list in step with the packages', and `scripts/smoke-test.sh` installs the tarball alone into an empty project and has it verify a package over stdio.
+`docseal-mcp-<version>.tgz` is built to install on its own from the release, while the other packages are not on npm: it carries the DocSeal packages it uses inside its bundle (`apps/mcp/tsup.config.ts`) and lists only their third-party dependencies, which npm fetches from the registry as usual. `tests/release.test.ts` keeps that list in step with the packages'. `scripts/pack.sh` then adds an `npm-shrinkwrap.json`, resolved from the registry when the release is packed, and drops the manifest's `devDependencies` (bundled already): a global install has no lockfile of its own, and with the shrinkwrap every install gets the same tree. `scripts/smoke-test.sh` installs the tarball alone into an empty project and has it verify a package over stdio.
 
 ```bash
 npm install -g https://github.com/vlfors/docseal/releases/download/v0.3.0/docseal-mcp-0.3.0.tgz
