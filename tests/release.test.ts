@@ -4,13 +4,29 @@ import { describe, expect, it } from "vitest";
 import { VERSION } from "../apps/cli/src/main.js";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const PACKAGES = ["packages/core", "packages/sig-ed25519", "packages/anchor-ots", "apps/cli"];
+const PACKAGES = ["packages/core", "packages/sig-ed25519", "packages/anchor-ots", "apps/cli", "apps/mcp"];
 
 describe("release metadata", () => {
   const manifests = PACKAGES.map((dir) => JSON.parse(read(`${dir}/package.json`)) as { name: string; version: string; publishConfig?: { exports?: unknown } });
 
   it("gives every published package, and the CLI, the same version", () => {
     expect(new Set(manifests.map((m) => m.version))).toEqual(new Set([VERSION]));
+  });
+
+  it("ships the MCP server with the DocSeal packages inside and their dependencies listed", () => {
+    // Installed from a release URL, the tarball must not need @docseal/* from npm.
+    type Manifest = { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+    const manifest = (dir: string) => JSON.parse(read(`${dir}/package.json`)) as Manifest;
+    const mcp = manifest("apps/mcp");
+    expect(Object.keys(mcp.dependencies ?? {}).filter((name) => name.startsWith("@docseal/"))).toEqual([]);
+    const bundled = Object.keys(mcp.devDependencies ?? {}).filter((name) => name.startsWith("@docseal/"));
+    expect(bundled.sort()).toEqual(["@docseal/anchor-ots", "@docseal/core", "@docseal/node", "@docseal/sig-ed25519"]);
+    for (const name of bundled) {
+      const dir = `packages/${name.slice("@docseal/".length)}`;
+      for (const [dependency, range] of Object.entries(manifest(dir).dependencies ?? {})) {
+        if (!dependency.startsWith("@docseal/")) expect(mcp.dependencies?.[dependency], `${dependency} of ${name}`).toBe(range);
+      }
+    }
   });
 
   it("has a changelog section for that version", () => {

@@ -7,7 +7,7 @@
 // section for it.
 import { readFileSync } from "node:fs";
 
-const PACKAGES = ["packages/core", "packages/sig-ed25519", "packages/anchor-ots", "apps/cli"];
+const PACKAGES = ["packages/core", "packages/sig-ed25519", "packages/anchor-ots", "apps/cli", "apps/mcp"];
 const [tag, ...flags] = process.argv.slice(2);
 const notes = flags.includes("--notes");
 const dryRun = flags.includes("--dry-run");

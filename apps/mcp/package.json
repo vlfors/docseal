@@ -35,19 +35,25 @@
     "NOTICE"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --clean --sourcemap",
+    "build": "tsup",
     "typecheck": "tsc --noEmit",
     "prepack": "cp ../../LICENSE ../../NOTICE ."
   },
   "dependencies": {
-    "@docseal/anchor-ots": "workspace:*",
-    "@docseal/core": "workspace:*",
-    "@docseal/sig-ed25519": "workspace:*",
     "@modelcontextprotocol/server": "2.3.1",
+    "@noble/ciphers": "^2.4.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@scure/base": "^2.4.0",
+    "canonicalize": "^5.1.0",
+    "fflate": "^0.8.3",
     "zod": "^4.2.0"
   },
   "devDependencies": {
+    "@docseal/anchor-ots": "workspace:*",
+    "@docseal/core": "workspace:*",
     "@docseal/node": "workspace:*",
+    "@docseal/sig-ed25519": "workspace:*",
     "@modelcontextprotocol/client": "2.3.1"
   },
   "publishConfig": {

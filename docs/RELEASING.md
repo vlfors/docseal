@@ -23,7 +23,7 @@ All packages are released together, with one version, by pushing a tag. The work
 
 ## Each release
 
-1. Update `version` in the four published `package.json` files and `VERSION` in `apps/cli/src/main.ts`.
+1. Update `version` in the five published `package.json` files (`packages/core`, `packages/sig-ed25519`, `packages/anchor-ots`, `apps/cli`, `apps/mcp`) and `VERSION` in `apps/cli/src/main.ts`.
 2. In `CHANGELOG.md`, turn "Unreleased" into the version and date: `## [0.2.0] — 2026-10-20`.
 3. Check locally, then commit:
 
@@ -39,11 +39,20 @@ All packages are released together, with one version, by pushing a tag. The work
 
 To let people try the web app from `main`: Actions → Preview → Run workflow, on `main`. [`preview.yml`](../.github/workflows/preview.yml) builds the site from `main` and deploys it to GitHub Pages at `/docseal/preview/`; nothing goes to npm and no release is made. Every page carries a banner saying it is a preview, linking to the release, and its footer names the commit. GitHub Pages serves one site per repository, so the workflow deploys the latest release's site with it, unchanged at `/docseal/`: taken from the GitHub release and checked against its `SHA256SUMS` and build attestation first. Before the first release, `/docseal/` only points to the preview. The address is public to anyone who has it. The next preview replaces it; the next release removes it.
 
+## The MCP server without npm
+
+`docseal-mcp-<version>.tgz` is built to install on its own from the release, while the other packages are not on npm: it carries the DocSeal packages it uses inside its bundle (`apps/mcp/tsup.config.ts`) and lists only their third-party dependencies, which npm fetches from the registry as usual. `tests/release.test.ts` keeps that list in step with the packages', and `scripts/smoke-test.sh` installs the tarball alone into an empty project and has it verify a package over stdio.
+
+```bash
+npm install -g https://github.com/vlfors/docseal/releases/download/v0.3.0/docseal-mcp-0.3.0.tgz
+```
+
 ## Verifying a release
 
 ```bash
 npm audit signatures                     # in a project that installed @docseal/*: npm provenance
 gh attestation verify docseal-core-0.2.0.tgz --repo vlfors/docseal
+gh attestation verify docseal-mcp-0.3.0.tgz --repo vlfors/docseal
 gh attestation verify docseal-web-0.2.0.tar.gz --repo vlfors/docseal
 sha256sum -c SHA256SUMS                  # next to the tarballs from the GitHub release
 ```

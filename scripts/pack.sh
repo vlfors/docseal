@@ -5,7 +5,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 OUT=$(mkdir -p "${1:-$ROOT/dist-packages}" && cd "${1:-$ROOT/dist-packages}" && pwd)
-PACKAGES=(packages/core packages/sig-ed25519 packages/anchor-ots apps/cli)
+PACKAGES=(packages/core packages/sig-ed25519 packages/anchor-ots apps/cli apps/mcp)
 
 pnpm --dir "$ROOT" -r build > /dev/null
 for package in "${PACKAGES[@]}"; do

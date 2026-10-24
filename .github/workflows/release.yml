@@ -103,7 +103,7 @@ jobs:
       - name: Publish to npm
         if: vars.NPM_PUBLISH == 'true'
         run: |
-          for name in core sig-ed25519 anchor-ots cli; do
+          for name in core sig-ed25519 anchor-ots cli mcp; do
             npm publish "./release/docseal-$name-${GITHUB_REF_NAME#v}.tgz" --provenance --access public --ignore-scripts
           done
         env:
@@ -134,7 +134,7 @@ jobs:
       - name: Publish to npm (dry run)
         run: |
           tag=$(cat release/tag)
-          for name in core sig-ed25519 anchor-ots cli; do
+          for name in core sig-ed25519 anchor-ots cli mcp; do
             npm publish "./release/docseal-$name-${tag#v}.tgz" --access public --ignore-scripts --dry-run
           done
       - name: The GitHub release that would be created

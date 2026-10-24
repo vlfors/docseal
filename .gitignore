@@ -18,6 +18,8 @@ packages/*/LICENSE
 packages/*/NOTICE
 apps/cli/LICENSE
 apps/cli/NOTICE
+apps/mcp/LICENSE
+apps/mcp/NOTICE
 *.tgz
 dist-packages/
 release/

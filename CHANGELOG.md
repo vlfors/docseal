@@ -2,13 +2,13 @@
 
 All notable changes to DocSeal are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may change the library API; the `.dseal` format has its own version, and a package valid under format v0.1 stays valid for every DocSeal release that supports v0.1.
 
-All packages (`@docseal/core`, `@docseal/sig-ed25519`, `@docseal/anchor-ots`, `@docseal/cli`) are released together with the same version.
+All packages (`@docseal/core`, `@docseal/sig-ed25519`, `@docseal/anchor-ots`, `@docseal/cli`, and from 0.3 `@docseal/mcp`) are released together with the same version.
 
 ## Unreleased
 
 ### MCP server
 
-- `@docseal/mcp`: the `docseal-mcp` server for AI agents, over stdio, for clients on the 2026-07-28 protocol and on the 2025 handshake. Work in progress. Tools: `verify`, with the verdict, what it does not confirm, next steps, and the same report as `docseal verify --json`; `inspect`, what a package holds, without checking it; `upgrade`, which completes the time proof into `<name>.upgraded.dseal` (or over the original with `overwrite`) and says how far it has come; `list_trusted_keys`, the keys from `--trust`, which no tool can change; `seal`, off unless started with `--allow-seal --key`, each call confirmed by the person in a form their client shows. A skill (`skills/docseal/SKILL.md`), a `check-package` prompt, and the server's instructions teach an agent to report a verdict with what it does not confirm. Files only under `--root`. Text from a package reaches the model only as values of named fields, with hidden and reordering characters made visible and each value and list capped; the summary is DocSeal's own words.
+- `@docseal/mcp`: the `docseal-mcp` server for AI agents, over stdio, for clients on the 2026-07-28 protocol and on the 2025 handshake. Work in progress. Tools: `verify`, with the verdict, what it does not confirm, next steps, and the same report as `docseal verify --json`; `inspect`, what a package holds, without checking it; `upgrade`, which completes the time proof into `<name>.upgraded.dseal` (or over the original with `overwrite`) and says how far it has come; `list_trusted_keys`, the keys from `--trust`, which no tool can change; `seal`, off unless started with `--allow-seal --key`, each call confirmed by the person in a form their client shows. A skill (`skills/docseal/SKILL.md`), a `check-package` prompt, and the server's instructions teach an agent to report a verdict with what it does not confirm. The release tarball installs on its own (`npm install -g <release URL>`): the DocSeal packages are bundled inside. Files only under `--root`. Text from a package reaches the model only as values of named fields, with hidden and reordering characters made visible and each value and list capped; the summary is DocSeal's own words.
 
 ### Fixed
 
