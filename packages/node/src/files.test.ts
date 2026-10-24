@@ -1,9 +1,10 @@
-import { appendFile, mkdir, mkdtemp, rename, rm, symlink, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readAll, type SealFile } from "@docseal/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { collectFiles } from "./files.js";
+import { collectFiles, createOutput } from "./files.js";
+import { OutputExistsError } from "./errors.js";
 
 let dir: string;
 const path = (...parts: string[]) => join(dir, ...parts);
@@ -82,5 +83,25 @@ describe("collectFiles", () => {
     await symlink(path("secret.txt"), path("docs", "sub", "link.txt"));
     await expect(collectFiles([path("docs")])).rejects.toThrow("does not follow links");
     await expect(collectFiles([path("missing")])).rejects.toThrow("Cannot read");
+  });
+});
+
+describe("createOutput", () => {
+  it("never replaces a file that appears while a new one is written", async () => {
+    const output = await createOutput(path("new.dseal"), { overwrite: false });
+    await output.write(new TextEncoder().encode("ours"));
+    await writeFile(path("new.dseal"), "someone else's");
+    await expect(output.commit()).rejects.toBeInstanceOf(OutputExistsError);
+    await output.abort();
+    expect(text(await readFile(path("new.dseal")))).toBe("someone else's");
+    expect((await readdir(dir)).filter((name) => name.includes(".tmp-"))).toEqual([]);
+  });
+
+  it("refuses an existing file at once unless asked to replace it", async () => {
+    await expect(createOutput(path("secret.txt"), { overwrite: false })).rejects.toThrow("secret.txt already exists");
+    const output = await createOutput(path("secret.txt"), { overwrite: true });
+    await output.write(new TextEncoder().encode("replaced"));
+    await output.commit();
+    expect(text(await readFile(path("secret.txt")))).toBe("replaced");
   });
 });

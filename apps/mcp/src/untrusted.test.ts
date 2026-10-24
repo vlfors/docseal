@@ -91,7 +91,7 @@ describe("a crafted package", () => {
     });
     await writeFile(join(dir, "crafted.dseal"), container);
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-    const started = main(["--root", dir, "--offline"], { stdout: () => undefined, stderr: () => undefined, transport: serverSide });
+    const started = await main(["--root", dir, "--offline"], { stdout: () => undefined, stderr: () => undefined, env: {}, transport: serverSide });
     if (typeof started === "number") throw new Error("not serving");
     running = started;
     client = new Client({ name: "test", version: "0" });
@@ -148,7 +148,7 @@ describe("a crafted package", () => {
   it("fences what every golden package says, issue messages included", async () => {
     const goldens = (await readdir(GOLDEN)).filter((name) => name.endsWith(".dseal"));
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-    const golden = main(["--root", GOLDEN, "--offline"], { stdout: () => undefined, stderr: () => undefined, transport: serverSide });
+    const golden = await main(["--root", GOLDEN, "--offline"], { stdout: () => undefined, stderr: () => undefined, env: {}, transport: serverSide });
     if (typeof golden === "number") throw new Error("not serving");
     const goldenClient = new Client({ name: "test", version: "0" });
     await goldenClient.connect(clientSide);

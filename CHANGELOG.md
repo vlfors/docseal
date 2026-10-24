@@ -8,10 +8,11 @@ All packages (`@docseal/core`, `@docseal/sig-ed25519`, `@docseal/anchor-ots`, `@
 
 ### MCP server
 
-- `@docseal/mcp`: the `docseal-mcp` server for AI agents, over stdio, for clients on the 2026-07-28 protocol and on the 2025 handshake. Work in progress. Tools: `verify`, with the verdict, what it does not confirm, next steps, and the same report as `docseal verify --json`; `inspect`, what a package holds, without checking it; `upgrade`, which completes the time proof into `<name>.upgraded.dseal` (or over the original with `overwrite`) and says how far it has come; `list_trusted_keys`, the keys from `--trust`, which no tool can change. Files only under `--root`. Text from a package reaches the model only as values of named fields, with hidden and reordering characters made visible and each value and list capped; the summary is DocSeal's own words.
+- `@docseal/mcp`: the `docseal-mcp` server for AI agents, over stdio, for clients on the 2026-07-28 protocol and on the 2025 handshake. Work in progress. Tools: `verify`, with the verdict, what it does not confirm, next steps, and the same report as `docseal verify --json`; `inspect`, what a package holds, without checking it; `upgrade`, which completes the time proof into `<name>.upgraded.dseal` (or over the original with `overwrite`) and says how far it has come; `list_trusted_keys`, the keys from `--trust`, which no tool can change; `seal`, off unless started with `--allow-seal --key`, each call confirmed by the person in a form their client shows. Files only under `--root`. Text from a package reaches the model only as values of named fields, with hidden and reordering characters made visible and each value and list capped; the summary is DocSeal's own words.
 
 ### Fixed
 
+- `docseal seal` without `--force` no longer replaces a file that appears at the output path while the package is written: it is put in place with a hard link, which fails if the path is taken.
 - `upgrade` (CLI, browser, library) no longer records the time of the upgrade as the submission time of a receipt that had none: `cached.submittedAt` stays what the sealer recorded, or absent. Upgrading the same package twice now gives the same bytes.
 
 ## [0.2.0] — 2026-10-22

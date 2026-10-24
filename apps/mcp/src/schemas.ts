@@ -138,6 +138,30 @@ export const trustedKeysOutput = z.object({
   omitted: omitted.optional(),
 });
 
+export const sealInput = z.object({
+  paths: z
+    .array(z.string())
+    .min(1)
+    .max(100)
+    .describe("Files and folders to seal, under the directories the server may read; a folder adds everything in it"),
+  output: z.string().describe("The new .dseal package to write; it must not exist yet"),
+  role: z.string().min(1).max(64).default("author").describe("The signer's role, recorded in the signature"),
+  title: z.string().max(256).optional().describe("A title stored in the package"),
+  anchor: z.boolean().default(true).describe("Send the seal's digest to OpenTimestamps for a proof of time (default true)"),
+});
+
+export const sealOutput = z.object({
+  summary: z.string(),
+  sealed: z.boolean().describe("False when the person did not confirm: then nothing was written"),
+  output: z.string().optional(),
+  signer: z.string().optional(),
+  files: z.number().optional(),
+  seal: z.string().optional().describe("The package's seal digest"),
+  time: z.enum(["pending", "none"]).optional(),
+});
+
+export type SealInput = z.output<typeof sealInput>;
+export type SealOutput = z.infer<typeof sealOutput>;
 export type TrustedKeysOutput = z.infer<typeof trustedKeysOutput>;
 export type UpgradeOutput = z.infer<typeof upgradeOutput>;
 export type VerifyOutput = z.infer<typeof verifyOutput>;

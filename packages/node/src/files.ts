@@ -1,8 +1,8 @@
 import { constants, type BigIntStats } from "node:fs";
-import { lstat, open, readdir, readFile, rename, rm, type FileHandle } from "node:fs/promises";
+import { link, lstat, open, readdir, readFile, rename, rm, type FileHandle } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
 import type { ByteSink, ByteSource, SealFile } from "@docseal/core";
-import { UserError } from "./errors.js";
+import { OutputExistsError, UserError } from "./errors.js";
 
 /**
  * Collects the files to seal. A file argument is stored under its base name; a directory
@@ -168,7 +168,7 @@ export interface OutputFile extends ByteSink {
  */
 export async function createOutput(path: string, options: { overwrite: boolean; mode?: number }): Promise<OutputFile> {
   if (!options.overwrite && (await exists(path))) {
-    throw new UserError(`${path} already exists; use --force to overwrite`);
+    throw new OutputExistsError(path);
   }
   const temporary = `${path}.tmp-${String(process.pid)}`;
   const fail = (error: unknown) => new UserError(`Cannot write ${path}: ${error instanceof Error ? error.message : String(error)}`);
@@ -190,11 +190,15 @@ export async function createOutput(path: string, options: { overwrite: boolean; 
     async commit() {
       try {
         await handle.close();
-        await rename(temporary, path);
+        if (options.overwrite) {
+          await rename(temporary, path);
+        } else {
+          await placeNew(temporary, path);
+        }
         done = true;
       } catch (error) {
         await rm(temporary, { force: true });
-        throw fail(error);
+        throw error instanceof UserError ? error : fail(error);
       }
     },
     async abort() {
@@ -205,6 +209,31 @@ export async function createOutput(path: string, options: { overwrite: boolean; 
       }
     },
   };
+}
+
+/**
+ * Moves a finished file to a path that must still be free: a hard link fails if anything
+ * appeared there meanwhile, where a rename would replace it. File systems without hard links
+ * fall back to a rename after one more check.
+ */
+async function placeNew(temporary: string, path: string): Promise<void> {
+  try {
+    await link(temporary, path);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EEXIST") {
+      throw new OutputExistsError(path);
+    }
+    if (code !== "EPERM" && code !== "ENOTSUP" && code !== "ENOSYS") {
+      throw error;
+    }
+    if (await exists(path)) {
+      throw new OutputExistsError(path);
+    }
+    await rename(temporary, path);
+    return;
+  }
+  await rm(temporary, { force: true });
 }
 
 /** Runs `write` against a new output file, committing it on success and removing it on failure. */

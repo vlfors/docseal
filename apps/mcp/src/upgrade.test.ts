@@ -35,7 +35,7 @@ async function connect(extra: string[] = ["--chain", "https://esplora.test"]): P
   await client?.close();
   await running?.close();
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-  const started = main(["--root", dir, ...extra], { stdout: () => undefined, stderr: () => undefined, transport: serverSide, fetch: network.fetch });
+  const started = await main(["--root", dir, ...extra], { stdout: () => undefined, stderr: () => undefined, env: {}, transport: serverSide, fetch: network.fetch });
   if (typeof started === "number") throw new Error("not serving");
   running = started;
   client = new Client({ name: "test", version: "0" });

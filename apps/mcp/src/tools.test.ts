@@ -37,7 +37,7 @@ afterEach(async () => {
 
 async function connect(argv: string[]): Promise<Client> {
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
-  const started = main(argv, { stdout: () => undefined, stderr: () => undefined, transport: serverSide, fetch: network.fetch });
+  const started = await main(argv, { stdout: () => undefined, stderr: () => undefined, env: {}, transport: serverSide, fetch: network.fetch });
   if (typeof started === "number") throw new Error(`exited with ${String(started)}`);
   running = started;
   client = new Client({ name: "test", version: "0" });

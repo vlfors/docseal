@@ -10,6 +10,7 @@ import {
   type VerificationReport,
 } from "@docseal/core";
 import {
+  OutputExistsError,
   PASSPHRASE_ENV,
   UserError,
   collectFiles,
@@ -204,6 +205,10 @@ export async function main(argv: readonly string[], io: Io): Promise<number> {
   } catch (error) {
     if (error instanceof CommanderError) {
       return error.exitCode === 0 ? ExitCode.Valid : ExitCode.Error;
+    }
+    if (error instanceof OutputExistsError) {
+      io.stderr(`docseal: ${sanitize(error.message)}; use --force to overwrite\n`);
+      return ExitCode.Error;
     }
     if (error instanceof UserError || error instanceof KeyFileError || error instanceof FormatError) {
       io.stderr(`docseal: ${sanitize(error.message)}\n`);
