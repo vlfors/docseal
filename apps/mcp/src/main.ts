@@ -1,3 +1,4 @@
+import type { Fetch } from "@docseal/anchor-ots";
 import type { Transport } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { ConfigError, USAGE, parseCommand } from "./config.js";
@@ -11,6 +12,8 @@ export interface Io {
   stderr(text: string): void;
   /** Defaults to stdin and stdout. */
   transport?: Transport;
+  /** Network access for calendars and the chain source. Defaults to global fetch. */
+  fetch?: Fetch;
 }
 
 export interface Running {
@@ -41,7 +44,7 @@ export function main(argv: readonly string[], io: Io): Running | number {
           `${config.roots.length > 0 ? `files under ${config.roots.join(", ")}` : "no file access (no --root)"}; ` +
           `sealing ${config.key === undefined ? "off" : "on"}\n`,
       );
-      return serveStdio(() => createServer(), {
+      return serveStdio(() => createServer(config, { fetch: io.fetch }), {
         ...(io.transport ? { transport: io.transport } : {}),
         onerror: (error) => {
           io.stderr(`${NAME}: ${error.message}\n`);

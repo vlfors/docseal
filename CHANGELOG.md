@@ -8,7 +8,7 @@ All packages (`@docseal/core`, `@docseal/sig-ed25519`, `@docseal/anchor-ots`, `@
 
 ### MCP server
 
-- `@docseal/mcp`: the `docseal-mcp` server for AI agents, over stdio, for clients on the 2026-07-28 protocol and on the 2025 handshake. Work in progress: no tools yet.
+- `@docseal/mcp`: the `docseal-mcp` server for AI agents, over stdio, for clients on the 2026-07-28 protocol and on the 2025 handshake. Work in progress. Tools: `verify`, with the verdict, what it does not confirm, next steps, and the same report as `docseal verify --json`; `inspect`, what a package holds, without checking it. Files only under `--root`.
 
 ## [0.2.0] — 2026-10-22
 

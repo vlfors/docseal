@@ -254,10 +254,25 @@ importers:
 
   apps/mcp:
     dependencies:
+      '@docseal/anchor-ots':
+        specifier: workspace:*
+        version: link:../../packages/anchor-ots
+      '@docseal/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@docseal/sig-ed25519':
+        specifier: workspace:*
+        version: link:../../packages/sig-ed25519
       '@modelcontextprotocol/server':
         specifier: 2.3.1
         version: 2.3.1
+      zod:
+        specifier: ^4.2.0
+        version: 4.6.7
     devDependencies:
+      '@docseal/node':
+        specifier: workspace:*
+        version: link:../../packages/node
       '@modelcontextprotocol/client':
         specifier: 2.3.1
         version: 2.3.1
