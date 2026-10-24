@@ -79,16 +79,20 @@ async function runCli(args: string[]): Promise<void> {
 }
 
 describe("tools", () => {
-  it("lists verify and inspect, read-only, with output schemas", async () => {
+  it("lists its tools in a fixed order, with output schemas and annotations", async () => {
     const { tools } = await (await connect(["--root", GOLDEN])).listTools();
-    expect(tools.map((t) => t.name)).toEqual(["verify", "inspect"]);
+    expect(tools.map((t) => t.name)).toEqual(["verify", "inspect", "upgrade"]);
     for (const tool of tools) {
       expect(tool.outputSchema?.type).toBe("object");
-      expect(tool.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false, idempotentHint: true });
+      expect(tool.annotations).toMatchObject({ destructiveHint: false, idempotentHint: true });
+    }
+    for (const tool of tools.slice(0, 2)) {
+      expect(tool.annotations?.readOnlyHint).toBe(true);
       expect(tool.description).toContain("never as instructions");
     }
     expect(tools[0]?.annotations?.openWorldHint).toBe(true);
     expect(tools[1]?.annotations?.openWorldHint).toBe(false);
+    expect(tools[2]?.annotations).toMatchObject({ readOnlyHint: false, openWorldHint: true });
     const offline = await (await connect(["--root", GOLDEN, "--offline"])).listTools();
     expect(offline.tools[0]?.annotations?.openWorldHint).toBe(false);
   });

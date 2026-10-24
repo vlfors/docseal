@@ -5,9 +5,10 @@ import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import manifest from "../package.json" with { type: "json" };
 import type { Config } from "./config.js";
 import { inspectPackage } from "./inspect.js";
-import { openInRoots } from "./paths.js";
-import { inspectInput, inspectOutput, verifyInput, verifyOutput } from "./schemas.js";
+import { openInRoots, resolveInRoots } from "./paths.js";
+import { inspectInput, inspectOutput, upgradeInput, upgradeOutput, verifyInput, verifyOutput } from "./schemas.js";
 import { fence } from "./untrusted.js";
+import { upgradePackage, upgradedPath } from "./upgrade.js";
 import { describeReport } from "./verdict.js";
 
 export const NAME = "docseal-mcp";
@@ -71,6 +72,38 @@ export function createServer(config: Config, options: { fetch?: Fetch | undefine
       tool(async () => {
         const source = await openInRoots(path, config.roots, "package");
         return inspectPackage(source).finally(() => source.close());
+      }),
+  );
+
+  server.registerTool(
+    "upgrade",
+    {
+      title: "Complete a DocSeal package's time proof",
+      description:
+        "Asks the OpenTimestamps calendars whether a package's time proof is complete (a few hours after sealing) and, " +
+        "if it is, writes the upgraded package: to <name>.upgraded.dseal next to the original, replacing an earlier one, " +
+        "or over the original with overwrite. The documents and signatures are copied unchanged; only the proof grows. " +
+        "Reports how far the proof has come: with the calendars, in a Bitcoin block, or confirmed. Only the seal's " +
+        "digest is sent to the calendars, never a document.",
+      inputSchema: upgradeInput,
+      outputSchema: upgradeOutput,
+      // The original is replaced only by itself with a longer proof, so nothing is lost.
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    ({ path, overwrite }) =>
+      tool(async () => {
+        const docseal = createDocSeal({
+          fetch: options.fetch,
+          chain: online ? (config.chain.length > 0 ? config.chain : DEFAULT_ESPLORA_URLS) : undefined,
+        });
+        const source = await openInRoots(path, config.roots, "package");
+        try {
+          const real = await resolveInRoots(path, config.roots);
+          const target = overwrite ? real : upgradedPath(real);
+          return await upgradePackage(docseal, source, target, (written) => openInRoots(written, config.roots, "package"), online);
+        } finally {
+          await source.close();
+        }
       }),
   );
 

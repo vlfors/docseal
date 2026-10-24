@@ -2,7 +2,7 @@
 
 `docseal-mcp`, a local [Model Context Protocol](https://modelcontextprotocol.io) server that will let AI agents verify DocSeal packages, show what they hold, and complete their time proofs; sealing only when the person running the server turns it on.
 
-**Work in progress for v0.3.** Tools so far: `verify` (the verdict, what it does not confirm, next steps, and the full report of `docseal verify --json`) and `inspect` (what a package holds, checked against nothing, offline). See [the roadmap](https://github.com/vlfors/docseal/blob/main/ROADMAP.md) and [the decisions](https://github.com/vlfors/docseal/blob/main/docs/DECISIONS.md#decided-on-2026-10-23-for-v03-mcp-server).
+**Work in progress for v0.3.** Tools so far: `verify` (the verdict, what it does not confirm, next steps, and the full report of `docseal verify --json`) `inspect` (what a package holds, checked against nothing, offline), and `upgrade` (completes the time proof, writing `<name>.upgraded.dseal` next to the package, or over it with `overwrite`). See [the roadmap](https://github.com/vlfors/docseal/blob/main/ROADMAP.md) and [the decisions](https://github.com/vlfors/docseal/blob/main/docs/DECISIONS.md#decided-on-2026-10-23-for-v03-mcp-server).
 
 ```bash
 docseal-mcp --help

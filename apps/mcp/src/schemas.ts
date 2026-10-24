@@ -106,5 +106,26 @@ export const inspectOutput = z.object({
   omitted: omitted.optional(),
 });
 
+export const upgradeInput = verifyInput.extend({
+  overwrite: z
+    .boolean()
+    .default(false)
+    .describe("Replace the original package with the upgraded one. Default: write <name>.upgraded.dseal next to it"),
+});
+
+export const upgradeOutput = z.object({
+  summary: z.string(),
+  changed: z.boolean().describe("Whether a completed proof was found and written"),
+  written: z.string().optional().describe("The file the upgraded package was written to"),
+  stage: z
+    .enum(["none", "submitted", "in-block", "confirmed", "unreadable"])
+    .describe("submitted: with the calendars; in-block: in a Bitcoin block, too few confirmations; confirmed: enough"),
+  blockHeight: z.number().optional(),
+  confirmations: z.number().optional(),
+  requiredConfirmations: z.number(),
+  nextSteps: z.array(z.string()),
+});
+
+export type UpgradeOutput = z.infer<typeof upgradeOutput>;
 export type VerifyOutput = z.infer<typeof verifyOutput>;
 export type InspectOutput = z.infer<typeof inspectOutput>;
