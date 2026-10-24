@@ -61,6 +61,10 @@ export const reportSchema = z.object({
   ),
 });
 
+const omitted = z
+  .record(z.string(), z.number())
+  .describe("How many entries of each list were left out: lists are capped, and a long value ends with '… [N more characters]'");
+
 export const verifyInput = z.object({
   path: z.string().describe("The .dseal package: absolute, or relative to the first directory the server may read"),
 });
@@ -71,6 +75,7 @@ export const verifyOutput = z.object({
   notConfirmed: z.array(z.string()).describe("What the verdict does not establish; repeat these when reporting the verdict"),
   nextSteps: z.array(z.string()),
   report: reportSchema,
+  omitted: omitted.optional(),
   disclaimer: z.string(),
 });
 
@@ -98,6 +103,7 @@ export const inspectOutput = z.object({
       blockHeight: z.number().optional(),
     }),
   ),
+  omitted: omitted.optional(),
 });
 
 export type VerifyOutput = z.infer<typeof verifyOutput>;

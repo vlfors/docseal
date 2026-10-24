@@ -1,5 +1,6 @@
 import type { VerificationReport } from "@docseal/core";
 import type { VerifyOutput } from "./schemas.js";
+import { capList, fenceAll } from "./untrusted.js";
 
 /**
  * What the verify tool says about a report. Every sentence here is DocSeal's own: text from the
@@ -23,14 +24,27 @@ export interface VerifyContext {
 
 export function describeReport(report: VerificationReport, context: VerifyContext): VerifyOutput {
   const notConfirmed = unconfirmed(report);
+  const { report: shown, omitted } = shorten(report);
   return {
     verdict: report.overall,
-    summary: summary(report, notConfirmed),
+    summary: summary(report, notConfirmed) + (omitted ? " Some lists in the report are shortened: see omitted." : ""),
     notConfirmed,
     nextSteps: nextSteps(report, context),
-    report,
+    report: fenceAll(shown),
+    ...(omitted && { omitted }),
     disclaimer: DISCLAIMER,
   };
+}
+
+/** The report with each list capped; files and issues that matter most are kept first. */
+function shorten(report: VerificationReport): { report: VerificationReport; omitted?: NonNullable<VerifyOutput["omitted"]> } {
+  const files = capList(report.files, (file) => file.status !== "valid");
+  const signatures = capList(report.signatures, (signature) => signature.check !== "valid");
+  const anchors = capList(report.anchors);
+  const issues = capList(report.issues);
+  const counts = { files: files.omitted, signatures: signatures.omitted, anchors: anchors.omitted, issues: issues.omitted };
+  const shown = { ...report, files: files.kept, signatures: signatures.kept, anchors: anchors.kept, issues: issues.kept };
+  return Object.values(counts).some((n) => n > 0) ? { report: shown, omitted: counts } : { report: shown };
 }
 
 function unconfirmed(report: VerificationReport): string[] {

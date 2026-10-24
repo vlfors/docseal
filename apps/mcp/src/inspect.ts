@@ -10,6 +10,7 @@ import {
   type ByteSource,
 } from "@docseal/core";
 import type { InspectOutput } from "./schemas.js";
+import { capList, fenceAll } from "./untrusted.js";
 
 type Stage = InspectOutput["anchors"][number]["stage"];
 
@@ -34,19 +35,26 @@ export async function inspectPackage(source: ByteSource): Promise<InspectOutput>
   const title = manifest.metadata?.title;
   const files = manifest.files.map((file) => ({ path: file.path, size: file.size, ...(file.mediaType !== undefined && { mediaType: file.mediaType }) }));
   const timeProof = anchors.length === 0 ? "none" : furthest(anchors.map((anchor) => anchor.stage));
+  const lists = { files: capList(files), signatures: capList(signatures), anchors: capList(anchors) };
+  const omitted = { files: lists.files.omitted, signatures: lists.signatures.omitted, anchors: lists.anchors.omitted };
+  const shortened = Object.values(omitted).some((n) => n > 0);
   return {
     summary:
       `The package holds ${count(files.length, "file")} and ${count(signatures.length, "signature")}; ` +
-      `${TIME_PROOF[timeProof]} Nothing was checked: call verify for a verdict.`,
+      `${TIME_PROOF[timeProof]} Nothing was checked: call verify for a verdict.` +
+      (shortened ? " Some lists are shortened: see omitted." : ""),
     verified: false,
-    packageId: manifest.packageId,
-    ...(typeof title === "string" && { title }),
-    createdAt: statement.createdAt,
-    files,
+    ...fenceAll({
+      packageId: manifest.packageId,
+      ...(typeof title === "string" && { title }),
+      createdAt: statement.createdAt,
+      files: lists.files.kept,
+      signatures: lists.signatures.kept,
+      anchors: lists.anchors.kept,
+    }),
     totalSize: files.reduce((sum, file) => sum + file.size, 0),
-    signatures,
     timeProof,
-    anchors,
+    ...(shortened && { omitted }),
   };
 }
 

@@ -1,17 +1,21 @@
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile, copyFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { Client, InMemoryTransport, type CallToolResult } from "@modelcontextprotocol/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main as cli } from "../../cli/src/main.js";
 import { HEIGHT, fakeNetwork } from "../../../tests/fake-network.js";
 import { main, type Running } from "./main.js";
+import { fenceAll } from "./untrusted.js";
 import type { InspectOutput, VerifyOutput } from "./schemas.js";
 
 const GOLDEN = join(import.meta.dirname, "../../../spec/vectors/packages");
 const expected = JSON.parse(await readFile(join(GOLDEN, "expected.json"), "utf8")) as {
   packages: { file: string; expected: { axes: object; overall: string } }[];
 };
+
+const FENCED = ["long-signer.dseal"];
 
 let dir: string;
 let network: ReturnType<typeof fakeNetwork>;
@@ -91,17 +95,22 @@ describe("tools", () => {
 
   it("gives every golden package its required verdict, and the same report as docseal verify --json", async () => {
     await connect(["--root", GOLDEN, "--offline"]);
+    const fenced: string[] = [];
     for (const { file, expected: want } of expected.packages) {
       const result = await call("verify", { path: file });
       expect(result.isError, file).toBeFalsy();
       const out = result.structuredContent as VerifyOutput;
       expect({ axes: out.report.axes, overall: out.verdict }, file).toEqual(want);
-      expect(out.report, file).toEqual(await cliReport(["--offline", join(GOLDEN, file)]));
+      const cliOut = await cliReport(["--offline", join(GOLDEN, file)]);
+      expect(out.report, file).toEqual(fenceAll(cliOut));
+      if (!isDeepStrictEqual(out.report, cliOut)) fenced.push(file);
       expect(text(result).startsWith(`${out.summary}\n\n`), file).toBe(true);
       expect(JSON.parse(text(result).slice(out.summary.length + 2)), file).toEqual(out);
       if (out.verdict === "invalid") expect(out.summary, file).toMatch(/^INVALID: do not rely on this package\. /);
       if (out.verdict === "indeterminate") expect(out.summary, file).toMatch(/^INDETERMINATE\. Not confirmed: /);
     }
+    // Only where the package holds text too long or unsafe to pass on as it is.
+    expect(fenced).toEqual(FENCED);
   });
 
   it("says what is not confirmed first, and what to do, for an authentic package without trust or time", async () => {

@@ -7,6 +7,7 @@ import type { Config } from "./config.js";
 import { inspectPackage } from "./inspect.js";
 import { resolveInRoots } from "./paths.js";
 import { inspectInput, inspectOutput, verifyInput, verifyOutput } from "./schemas.js";
+import { fence } from "./untrusted.js";
 import { describeReport } from "./verdict.js";
 
 export const NAME = "docseal-mcp";
@@ -79,15 +80,16 @@ export function createServer(config: Config, options: { fetch?: Fetch | undefine
 /**
  * Runs a tool body. The result goes out twice: as structured content, and as text for clients
  * that show only text, the summary first. Expected failures become a tool error the agent can
- * read; their messages may hold a path the agent sent, so they are sanitized.
+ * read, sanitized: their messages may hold a path the agent sent, or text from the package.
  */
 async function tool<T extends { summary: string }>(body: () => Promise<T>): Promise<CallToolResult> {
   try {
     const result = await body();
     return { content: [{ type: "text", text: `${result.summary}\n\n${JSON.stringify(result)}` }], structuredContent: result };
   } catch (error) {
-    const expected = error instanceof UserError || error instanceof FormatError;
     const message = error instanceof Error ? error.message : String(error);
-    return { isError: true, content: [{ type: "text", text: sanitize(expected ? message : `Unexpected error: ${message}`) }] };
+    // A malformed package's message may quote it; ours quote only what the agent sent.
+    const text = error instanceof FormatError ? fence(message) : sanitize(error instanceof UserError ? message : `Unexpected error: ${message}`);
+    return { isError: true, content: [{ type: "text", text }] };
   }
 }
