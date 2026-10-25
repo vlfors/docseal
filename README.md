@@ -6,6 +6,12 @@ DocSeal is a library, a command-line tool, and a browser app for creating and ve
 
 The project is intended as a complete, portfolio-grade open-source project: first a small, well-tested core and CLI (v0.1), then a browser interface (v0.2); both are complete. A server, legally binding signatures, and enterprise integrations are out of scope for the first releases.
 
+Step-by-step guides, one for each way to use DocSeal:
+
+- [Command line](docs/USAGE.md): create a key, sign documents, verify a package, complete its time proof.
+- [Browser app](docs/WEB.md): the same in the browser at [vlfors.github.io/docseal](https://vlfors.github.io/docseal/), with nothing to install.
+- [AI agents](docs/MCP.md): let Claude Code, Claude Desktop, Cursor, Hermes Agent, or another agent check packages for you.
+
 ## What DocSeal proves
 
 - the integrity of every document and of the package composition;
@@ -58,6 +64,8 @@ docseal upgrade contract.dseal                 # a few hours later: complete the
 `verify` exits with `0` when every check passed, `1` when the package was modified or a proof is false, `2` when nothing is wrong but not everything could be confirmed (pending time proof, unknown signer), and `3` on usage or I/O errors. `--json` prints the machine-readable report. The passphrase is asked on the terminal or read from `DOCSEAL_PASSPHRASE`.
 
 By default `verify` reads Bitcoin block headers from the mempool.space Esplora API, and from blockstream.info if mempool.space does not answer; the report names the source used. Use `--chain <url>` (repeatable, tried in order) for your own Esplora instance, or `--offline` to skip the time check.
+
+Every command, the trusted-keys file, and what to do when a check fails: [the command-line guide](docs/USAGE.md).
 
 ## For AI agents
 
